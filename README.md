@@ -45,7 +45,7 @@ Desarrollar una app que permita a los usuarios (o sus cuidadores) acceder a mód
 
 1. Clona el repositorio:
    ```bash
-   git clone https://github.com/tuusuario/nombre-del-repo.git
+   git clone https://github.com/tuusuario/App-Autismo.git
    cd nombre-del-repo
    ```
 
@@ -74,7 +74,7 @@ Desarrollar una app que permita a los usuarios (o sus cuidadores) acceder a mód
 ## 📅 Estado del desarrollo
 
 Consulta el tablero del proyecto y los milestones activos:  
-👉 [Proyectos en GitHub](https://github.com/tuusuario/nombre-del-repo/projects)
+👉 [Proyectos en GitHub](https://github.com/tuusuario/App-Autismo/projects)
 
 ---
 
