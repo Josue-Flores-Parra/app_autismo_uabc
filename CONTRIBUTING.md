@@ -10,14 +10,14 @@ Antes de empezar, asegúrate de tener:
 
 - Cuenta en GitHub.
 - Flutter instalado en tu equipo: https://docs.flutter.dev/get-started/install
-- Editor de código recomendado: Visual Studio Code.
+- Editor de código recomendado: Android Studio ó Visual Studio Code.
 - Conocimientos básicos de Git y GitHub.
 
 ---
 
 ## ¿Cómo colaborar?
 
-1. Revisa los [issues](https://github.com/TU_USUARIO/TU_REPO/issues) disponibles.
+1. Revisa los [issues](https://github.com/Josue-Flores-Parra/App-Autismo/issues) disponibles.
 2. Comenta en el issue que quieres trabajar y espera asignación.
 3. Crea una nueva rama desde `dev` con un nombre descriptivo. Ejemplo:
 
