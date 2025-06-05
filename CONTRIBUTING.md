@@ -19,7 +19,8 @@ Antes de empezar, asegúrate de tener:
 
 1. Revisa los [issues](https://github.com/Josue-Flores-Parra/App-Autismo/issues) disponibles.
 2. Comenta en el issue que quieres trabajar y espera asignación.
-3. Crea una nueva rama desde `dev` con un nombre descriptivo. Ejemplo:
+3. Crea git branch
+   Ejemplo:
 
    ```
    git checkout dev
