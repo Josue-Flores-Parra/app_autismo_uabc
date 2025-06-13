@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text.isNotEmpty) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const Modulos()), // ← Aquí usas su clase
+        MaterialPageRoute(builder: (context) => const Modulos()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
