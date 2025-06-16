@@ -9,4 +9,11 @@ class AppColors {
   static const Color grisPastel = Color(0xFFDDE6ED);
   static const Color sombra = Colors.black12;
   static const Color textoSecundario = Color(0xFF7D9EB5);
+  static const Color fondoAppBar = Colors.blueAccent;
+  static const Color colorCuidadoPersonal = Colors.orange;
+  static const Color colorAlimentacion = Colors.green;
+  static const Color colorInteraccion = Colors.purple;
+  static const Color colorHigiene = Colors.blue;
+  static const Color colorBloqueado =Colors.grey;
+
 }
