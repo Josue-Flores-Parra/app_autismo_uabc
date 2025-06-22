@@ -9,4 +9,6 @@ class AppColors {
   static const Color grisPastel = Color(0xFFDDE6ED);
   static const Color sombra = Colors.black12;
   static const Color textoSecundario = Color(0xFF7D9EB5);
+  static const seleccionado = Colors.blue;
+  static const noSeleccionado = Colors.grey;
 }

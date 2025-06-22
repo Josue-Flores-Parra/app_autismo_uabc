@@ -8,5 +8,8 @@ class AppStrings {
   static const olvidoContrasena = '¿Olvidaste tu contraseña?';
   static const mensajeCamposVacios = 'Por favor completa todos los campos';
   static const bienvenida = '¡Bienvenido!';
+  static const modulos = 'Módulos';
+  static const progreso = 'Progreso';
+  static const configuracion = 'Configuración';
 
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class ModulosScreen extends StatelessWidget {
-  const ModulosScreen({super.key});
+class ConfiguracionScreen extends StatelessWidget {
+  const ConfiguracionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Center(
       child: Text(
-        'Pantalla Módulos',
+        'Pantalla Configuración',
         style: TextStyle(fontSize: 24),
       ),
     );

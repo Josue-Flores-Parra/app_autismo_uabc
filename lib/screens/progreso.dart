@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class ModulosScreen extends StatelessWidget {
-  const ModulosScreen({super.key});
+class ProgresoScreen extends StatelessWidget {
+  const ProgresoScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Center(
       child: Text(
-        'Pantalla Módulos',
+        'Pantalla Progreso',
         style: TextStyle(fontSize: 24),
       ),
     );
