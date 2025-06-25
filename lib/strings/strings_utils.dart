@@ -9,4 +9,12 @@ class AppStrings {
   static const mensajeCamposVacios = 'Por favor completa todos los campos';
   static const bienvenida = '¡Bienvenido!';
 
+  //pantalla de modulos
+  static const tituloAppBar = 'Progreso de módulos';
+  static const String alimentacion = 'Alimentación';
+  static const String higiene = 'Higiene';
+  static const String interaccionSocial = 'Interacción Social';
+  static const String cuidadoPersonal = 'Cuidado Personal';
+  static const String appTitle = 'Aprendizaje Infantil';
+
 }
