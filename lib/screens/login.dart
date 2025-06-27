@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../colors/colors_app.dart';
 import '../strings/strings_utils.dart';
-import '../screens/Modulos.dart';
+import 'main_screen.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text.isNotEmpty) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => Modulos()),
+        MaterialPageRoute(builder: (context) => const MainScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +135,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () {
-                    // lógica futura para recuperar contraseña
                   },
                   child: const Text(
                     AppStrings.olvidoContrasena,
