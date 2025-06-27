@@ -3,6 +3,10 @@ import '../colors/colors_app.dart';
 import '../strings/strings_utils.dart';
 import '../conector/linea.dart';
 
+import '../screens/alimentacion.dart';
+import '../screens/higiene.dart';
+import '../screens/interaccion.dart';
+import '../screens/cuidado_personal.dart';
 
 class Modulos extends StatefulWidget {
   @override
@@ -14,6 +18,14 @@ class _ScreenState extends State<Modulos> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _stackKey = GlobalKey();
   final List<GlobalKey> _iconKeys = [];
+
+  final List<Map<String, dynamic>> modulos = [
+    {'titulo': AppStrings.moduloAlimentacion, 'icono': Icons.restaurant, 'color': AppColors.colorAlimentacion, 'bloqueado' : false, 'key': 'alimentacion'},
+    {'titulo': AppStrings.moduloHigiene, 'icono': Icons.clean_hands, 'color': AppColors.colorHigiene, 'bloqueado' : true, 'key': 'higiene'},
+    {'titulo': AppStrings.moduloInteraccion, 'icono': Icons.people, 'color': AppColors.colorInteraccion, 'bloqueado' : true, 'key': 'interaccion'},
+    {'titulo': AppStrings.moduloCuidadoPersonal, 'icono': Icons.face, 'color': AppColors.colorCuidadoPersonal, 'bloqueado' : true, 'key': 'cuidado_personal'},
+    {'titulo': AppStrings.bloqueado, 'icono': Icons.build, 'color': AppColors.colorBloqueado, 'bloqueado' : true},
+  ];
 
   @override
   void initState() {
@@ -30,14 +42,6 @@ class _ScreenState extends State<Modulos> {
     super.dispose();
   }
 
-  final List<Map<String, dynamic>> modulos = [
-    {'titulo': AppStrings.moduloAlimentacion, 'icono': Icons.restaurant, 'color': AppColors.colorAlimentacion, 'bloqueado' : false},
-    {'titulo': AppStrings.moduloHigiene, 'icono': Icons.clean_hands, 'color': AppColors.colorHigiene, 'bloqueado' : true},
-    {'titulo': AppStrings.moduloInteraccion, 'icono': Icons.people, 'color': AppColors.colorInteraccion, 'bloqueado' : true},
-    {'titulo': AppStrings.moduloCuidadoPersonal, 'icono': Icons.face, 'color': AppColors.colorCuidadoPersonal, 'bloqueado' : true},
-    {'titulo': AppStrings.bloqueado, 'icono': Icons.build, 'color': AppColors.colorBloqueado, 'bloqueado' : true},
-  ];
-
   List<Offset> _getIconPositions() {
     final RenderBox? stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (stackBox == null) return [];
@@ -50,11 +54,28 @@ class _ScreenState extends State<Modulos> {
     }).toList();
   }
 
+
+  Widget _getModuleScreen(String moduleKey) {
+    switch (moduleKey) {
+      case 'alimentacion':
+        return AlimentacionScreen();
+      case 'higiene':
+        return HigieneScreen();
+      case 'interaccion':
+        return InteraccionScreen();
+      case 'cuidado_personal':
+        return CuidadoPersonalScreen();
+      default:
+        return Modulos();
+    }
+  }
+
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppStrings.tituloBienvenida),
+        title: Text(AppStrings.bienvenida),
         backgroundColor: AppColors.fondoAppBar,
         centerTitle: true,
       ),
@@ -90,14 +111,13 @@ class _ScreenState extends State<Modulos> {
                             final completado = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ModuloScreen(titulo: modulo['titulo']),
+                                builder: (_) => _getModuleScreen(modulo['key']),
                               ),
                             );
                             if (completado == true && index + 1 < modulos.length) {
                               setState(() {
                                 modulos[index + 1]['bloqueado'] = false;
-                              }
-                              );
+                              });
                             }
                           },
                           child: Column(
@@ -129,7 +149,6 @@ class _ScreenState extends State<Modulos> {
                       ),
                     ],
                   );
-
                 },
               )
             ],
