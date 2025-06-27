@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../colors/colors_app.dart';
 import '../strings/strings_utils.dart';
 import '../conector/linea.dart';
+
 import '../screens/alimentacion.dart';
 import '../screens/higiene.dart';
 import '../screens/interaccion.dart';
@@ -53,6 +54,7 @@ class _ScreenState extends State<Modulos> {
     }).toList();
   }
 
+
   Widget _getModuleScreen(String moduleKey) {
     switch (moduleKey) {
       case 'alimentacion':
@@ -68,6 +70,7 @@ class _ScreenState extends State<Modulos> {
     }
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +84,7 @@ class _ScreenState extends State<Modulos> {
           return Stack(
             key: _stackKey,
             children: [
+              // Line painter
               Positioned.fill(
                 child: CustomPaint(
                   painter: Connector(_getIconPositions()),
@@ -150,6 +154,42 @@ class _ScreenState extends State<Modulos> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+
+class ModuloScreen extends StatelessWidget {
+  final String titulo;
+
+  const ModuloScreen({required this.titulo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(titulo)),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Contenido del módulo: $titulo',
+              style: TextStyle(fontSize: 20),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
+              icon: Icon(Icons.check),
+              label: Text(AppStrings.botonFinal),
+            )
+
+          ],
+        ),
       ),
     );
   }
