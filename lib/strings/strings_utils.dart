@@ -8,6 +8,7 @@ class AppStrings {
   static const olvidoContrasena = '¿Olvidaste tu contraseña?';
   static const mensajeCamposVacios = 'Por favor completa todos los campos';
   static const bienvenida = '¡Bienvenido!';
+
   static const String moduloCuidadoPersonal = 'Cuidado Personal';
   static const String moduloAlimentacion = 'Alimentación';
   static const String moduloInteraccion = 'Interacción Social';
@@ -18,4 +19,14 @@ class AppStrings {
   static const String nivel2 = 'Nivel 2';
   static const String nivel3 = 'Nivel 3';
   static const String tituloNivel = 'Contenido del Nivel.';
+
+
+  //pantalla de modulos
+  static const tituloAppBar = 'Progreso de módulos';
+  static const String alimentacion = 'Alimentación';
+  static const String higiene = 'Higiene';
+  static const String interaccionSocial = 'Interacción Social';
+  static const String cuidadoPersonal = 'Cuidado Personal';
+  static const String appTitle = 'Aprendizaje Infantil';
+
 }

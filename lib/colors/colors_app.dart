@@ -9,6 +9,7 @@ class AppColors {
   static const Color grisPastel = Color(0xFFDDE6ED);
   static const Color sombra = Colors.black12;
   static const Color textoSecundario = Color(0xFF7D9EB5);
+  
   static const Color fondoAppBar = Colors.blueAccent;
   static const Color colorCuidadoPersonal = Colors.orange;
   static const Color colorAlimentacion = Colors.green;
@@ -16,4 +17,13 @@ class AppColors {
   static const Color colorHigiene = Colors.blue;
   static const Color colorBloqueado =Colors.grey;
 
+  //pantalla de modulos
+  static const Color appBarBackground = Color(0xFFBFD7EA);
+  static const Color appBarText = Color(0xFF3A506B);
+  static const MaterialColor progressBackground = Colors.grey;
+  static const Color alimentacion = Colors.green;
+  static const Color higiene = Colors.blue;
+  static const Color interaccionSocial = Colors.purple;
+  static const Color cuidadoPersonal = Colors.orange;
+ 
 }
