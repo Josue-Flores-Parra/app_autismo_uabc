@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../colors/colors_app.dart';
-import '../strings/strings_utils.dart';
+import '../resources/colors_app.dart';
+import '../resources/strings_utils.dart';
 
 class HigieneScreen extends StatefulWidget {
   const HigieneScreen({super.key});

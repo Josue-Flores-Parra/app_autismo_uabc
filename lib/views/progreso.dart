@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../colors/colors_app.dart';
-import '../strings/strings_utils.dart';
+import '../resources/colors_app.dart';
+import '../resources/strings_utils.dart';
 
 class ProgresoModulosScreen extends StatelessWidget {
   final List<Map<String, dynamic>> modulos = [

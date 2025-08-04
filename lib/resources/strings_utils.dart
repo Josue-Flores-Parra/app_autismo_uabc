@@ -1,4 +1,3 @@
-
 class AppStrings {
   static const tituloApp = 'Login Infantil';
   static const iniciarSesion = 'Inicia sesión';
@@ -21,17 +20,10 @@ class AppStrings {
   static const String bloqueado = 'Proximamente';
   static const String botonFinal ='Finalizar';
 
-  static const String moduloCuidadoPersonal = 'Cuidado Personal';
-  static const String moduloAlimentacion = 'Alimentación';
-  static const String moduloInteraccion = 'Interacción Social';
-  static const String moduloHigiene = 'Higiene';
-  static const String bloqueado = 'Proximamente';
-  static const String botonFinal = 'Finalizar';
   static const String nivel1 = 'Nivel 1';
   static const String nivel2 = 'Nivel 2';
   static const String nivel3 = 'Nivel 3';
   static const String tituloNivel = 'Contenido del Nivel.';
-
 
   //pantalla de modulos
   static const tituloAppBar = 'Progreso de módulos';
@@ -39,6 +31,6 @@ class AppStrings {
   static const String higiene = 'Higiene';
   static const String interaccionSocial = 'Interacción Social';
   static const String cuidadoPersonal = 'Cuidado Personal';
-  static const String appTitle = 'Aprendizaje Infantil';
+  static const String appTitle = 'Aprendizaje Infantil';
 
 }

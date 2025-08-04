@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../colors/colors_app.dart';
-import '../strings/strings_utils.dart';
-import '../conector/linea.dart';
+import '../resources/colors_app.dart';
+import '../resources/strings_utils.dart';
+import '../utils/linea.dart';
 
-import '../screens/alimentacion.dart';
-import '../screens/higiene.dart';
-import '../screens/interaccion.dart';
-import '../screens/cuidado_personal.dart';
+import 'alimentacion.dart';
+import 'higiene.dart';
+import 'interaccion.dart';
+import 'cuidado_personal.dart';
 
 class Modulos extends StatefulWidget {
   @override

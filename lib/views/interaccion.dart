@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../colors/colors_app.dart';
-import '../strings/strings_utils.dart';
+import '../resources/colors_app.dart';
+import '../resources/strings_utils.dart';
 
-class CuidadoPersonalScreen extends StatefulWidget {
-  const CuidadoPersonalScreen({super.key});
+class InteraccionScreen extends StatefulWidget {
+  const InteraccionScreen({super.key});
 
   @override
-  State<CuidadoPersonalScreen> createState() => _CuidadoPersonalScreenState();
+  State<InteraccionScreen> createState() => _InteraccionScreenState();
 }
 
-class _CuidadoPersonalScreenState extends State<CuidadoPersonalScreen> {
+class _InteraccionScreenState extends State<InteraccionScreen> {
   final List<Map<String, dynamic>> _levels = [
     {'id': 1, 'title': AppStrings.nivel1, 'completed': false},
     {'id': 2, 'title': AppStrings.nivel2, 'completed': false},
@@ -31,18 +31,17 @@ class _CuidadoPersonalScreenState extends State<CuidadoPersonalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppStrings.moduloCuidadoPersonal),
-        backgroundColor: AppColors.colorCuidadoPersonal,
+        title: Text(AppStrings.moduloInteraccion),
+        backgroundColor: AppColors.colorInteraccion,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
           Text(
-          '¡Bienvenido al módulo de Cuidado Personal! Completa los niveles para avanzar.',
+          '¡Bienvenido al módulo de Interaccion! Completa los niveles para avanzar.',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
+          textAlign: TextAlign.center,),
       const SizedBox(height: 20),
       Expanded(
         child: GridView.builder(
@@ -191,7 +190,7 @@ class LevelScreen extends StatelessWidget {
               icon: Icon(Icons.check),
               label: Text('Finalizar Nivel'),
               style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white, backgroundColor: AppColors.colorCuidadoPersonal,
+                foregroundColor: Colors.white, backgroundColor: AppColors.colorInteraccion,
                 padding: EdgeInsets.symmetric(horizontal: 40, vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/my_bottom_navigation_bar.dart';
-import 'modulos.dart';
+import '../views/modulos.dart';
 import 'progreso.dart';
 import 'configuracion.dart';
 
@@ -15,8 +15,8 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const ModulosScreen(),
-    const ProgresoScreen(),
+    Modulos(),
+    ProgresoModulosScreen(),
     const ConfiguracionScreen(),
   ];
 
@@ -40,3 +40,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
+
+
+
+
