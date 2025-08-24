@@ -50,7 +50,7 @@ class ProgresoModulosScreen extends StatelessWidget {
             crossAxisCount: 2,
             mainAxisSpacing: 60,
             crossAxisSpacing: 24,
-            childAspectRatio: 0.8,
+            childAspectRatio: 0.7,
           ),
           itemBuilder: (context, index) {
             final modulo = modulos[index];

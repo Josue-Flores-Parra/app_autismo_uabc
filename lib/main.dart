@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/usuario.dart';
 import 'views/login.dart';
 import '../resources/strings_utils.dart';
+import 'views/registro_rapido.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: AppStrings.tituloAppBar,
-      home: const LoginScreen(),
+      home: const InicioRapidoScreen(),
     );
   }
 }
