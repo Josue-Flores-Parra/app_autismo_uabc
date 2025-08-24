@@ -5,6 +5,7 @@ import '../resources/colors_app.dart';
 import '../resources/strings_utils.dart';
 import 'main_screen.dart';
 import 'package:hive/hive.dart';
+import '../views/recuperar_cuenta.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -172,17 +173,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: const Text(
                       AppStrings.crearCuenta,
-                      style:
-                      TextStyle(fontSize: 18, color: AppColors.texto),
+                      style: TextStyle(fontSize: 18, color: AppColors.texto),
                     ),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RecuperarCuentaScreen()),
+                    );
+                  },
                   child: const Text(
-                    AppStrings.olvidoContrasena,
-                    style: TextStyle(color: AppColors.textoSecundario),
+                    "Recuperar cuenta",
+                    style: TextStyle(fontSize: 18, color: AppColors.texto),
                   ),
                 ),
               ],
@@ -193,3 +198,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+
