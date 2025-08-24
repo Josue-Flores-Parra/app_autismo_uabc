@@ -1,8 +1,10 @@
+import 'package:app_autismo/models/usuario.dart';
+import 'package:app_autismo/views/registro.dart';
 import 'package:flutter/material.dart';
 import '../resources/colors_app.dart';
 import '../resources/strings_utils.dart';
 import 'main_screen.dart';
-
+import 'package:hive/hive.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,18 +19,35 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   void _login() {
-    if (_emailController.text.isNotEmpty &&
-        _passwordController.text.isNotEmpty) {
+    final box = Hive.box<Usuario>(AppStrings.usuario);
+    final usuario = box.values.firstWhere(
+          (u) =>
+      u.correo == _emailController.text.trim() &&
+          u.contrasena == _passwordController.text.trim(),
+      orElse: () => Usuario(
+        nombre: '',
+        edad: 0,
+        ciudad: '',
+        escuela: '',
+        grado: '',
+        correo: '',
+        contrasena: '',
+      ),
+    );
+
+    if (usuario.correo.isNotEmpty) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.mensajeCamposVacios)),
+        const SnackBar(
+          content: Text(AppStrings.errorSesion),
+        ),
       );
     }
-  }
+  } // <- cierre correcto de _login()
 
   @override
   Widget build(BuildContext context) {
@@ -133,9 +152,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegistroScreen(),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.texto),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    child: const Text(
+                      AppStrings.crearCuenta,
+                      style:
+                      TextStyle(fontSize: 18, color: AppColors.texto),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 TextButton(
-                  onPressed: () {
-                  },
+                  onPressed: () {},
                   child: const Text(
                     AppStrings.olvidoContrasena,
                     style: TextStyle(color: AppColors.textoSecundario),
@@ -149,4 +193,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

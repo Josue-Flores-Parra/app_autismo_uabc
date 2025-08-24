@@ -6,7 +6,10 @@ class AppStrings {
   static const iniciarSesionBoton = 'Iniciar sesión';
   static const olvidoContrasena = '¿Olvidaste tu contraseña?';
   static const mensajeCamposVacios = 'Por favor completa todos los campos';
+  static const errorSesion = "Correo o contraseña incorrectos";
   static const bienvenida = '¡Bienvenido!';
+  //boton crear cuenta
+  static const cuenta= "Crear cuenta";
 
   static const modulos = 'Módulos';
   static const progreso = 'Progreso';
@@ -33,4 +36,33 @@ class AppStrings {
   static const String cuidadoPersonal = 'Cuidado Personal';
   static const String appTitle = 'Aprendizaje Infantil';
 
+  //pantalla de registro
+  static const String usuario = 'usuarios';
+  static const String registroExito = "Usuario registrado con éxito";
+  static const String crearCuenta = "Crear cuenta";
+
+  // Campos del formulario
+  static const String nombreLabel = "Nombre";
+  static const String nombreValidator = "Ingrese su nombre";
+
+  static const String edadLabel = "Edad";
+  static const String edadValidator = "Ingrese su edad";
+
+  static const String ciudadLabel = "Ciudad";
+
+  static const String escuelaLabel = "Escuela";
+
+  static const String gradoLabel = "Grado";
+
+  static const String correoLabel = "Correo";
+  static const String correoValidator = "Ingrese su correo";
+
+  static const String contrasenaLabel = "Contraseña";
+  static const String contrasenaValidator = "Ingrese su contraseña";
+
+  // Botones
+  static const String registrarseBoton = "Registrarse";
 }
+
+
+
