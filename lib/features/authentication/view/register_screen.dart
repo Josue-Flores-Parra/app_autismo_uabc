@@ -10,10 +10,12 @@ class RegisterScreen extends StatelessWidget {
     const Color primaryColor = Color(0xFF5B8DB3);
     const Color buttonColor = Color(0xFF5A97B8);
     const Color backgroundColor = Colors.white;
+    const avatarScale = 0.65; // escala para la imagen del avatar
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      resizeToAvoidBottomInset: true, // Asegura que la UI se ajuste cuando aparece el teclado
+      resizeToAvoidBottomInset:
+          true, // Asegura que la UI se ajuste cuando aparece el teclado
       appBar: AppBar(
         title: const Text('Crear cuenta'),
         backgroundColor: primaryColor,
@@ -22,10 +24,15 @@ class RegisterScreen extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             return GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(), // Oculta el teclado al tocar fuera
+              onTap: () => FocusScope.of(
+                context,
+              ).unfocus(), // Oculta el teclado al tocar fuera
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 16.0,
+                  ),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
@@ -47,10 +54,11 @@ class RegisterScreen extends StatelessWidget {
                         // Imagen de pregunta (centrada)
                         Center(
                           child: Image.asset(
-                            'assets/images/question_mark/icon-questionmark@2x.png',
-                            width: 148,
-                            height: 234,
+                            'assets/images/icon-questionmark2x.png',
+                            width: 296 * avatarScale,
+                            height: 468 * avatarScale,
                             fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
                           ),
                         ),
                         const SizedBox(height: 32),

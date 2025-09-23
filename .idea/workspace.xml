@@ -5,10 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="da5f06ce-0080-4f71-9768-cb623c3c527b" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Dart_SDK.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Dart_SDK.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_autismo_uabc.iml" beforeDir="false" afterPath="$PROJECT_DIR$/app_autismo_uabc.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/images/question_mark/icon-questionmark.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/images/question_mark/icon-questionmark@2x.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/images/question_mark/icon-questionmark@3x.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/images/salute_hidden/icon_salute_hidden@1x.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/images/salute_hidden/icon_salute_hidden@2x.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/images/salute_hidden/icon_salute_hidden@3x.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/authentication/view/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/authentication/view/login_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/authentication/view/register_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/authentication/view/register_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
     </list>
@@ -76,9 +81,9 @@
 }</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Intel\OneDrive\Escritorio\app_autismo_uabc\assets\images" />
       <recent name="C:\Users\Intel\OneDrive\Escritorio\app_autismo_uabc\assets\images\question_mark" />
       <recent name="C:\Users\Intel\OneDrive\Escritorio\app_autismo_uabc\assets\images\salute-hidden" />
-      <recent name="C:\Users\Intel\OneDrive\Escritorio\app_autismo_uabc\assets\images" />
     </key>
   </component>
   <component name="SharedIndexes">
@@ -102,7 +107,8 @@
       <workItem from="1758500571341" duration="557000" />
       <workItem from="1758501142128" duration="430000" />
       <workItem from="1758501677744" duration="155000" />
-      <workItem from="1758504962318" duration="6836000" />
+      <workItem from="1758504962318" duration="7306000" />
+      <workItem from="1758591314295" duration="3052000" />
     </task>
     <servers />
   </component>
