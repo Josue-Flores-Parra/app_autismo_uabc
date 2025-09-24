@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-class CustomBottomNavBar
-    extends StatelessWidget {
+class CustomBottomNavBar extends StatelessWidget {
   const CustomBottomNavBar({
     super.key,
     required this.currentIndex,
@@ -20,24 +19,15 @@ class CustomBottomNavBar
       unselectedItemColor: Colors.grey,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(
-            Icons.dashboard,
-            color: Color(0xFF5B8DB3),
-          ),
+          icon: Icon(Icons.dashboard, color: Color(0xFF5B8DB3)),
           label: "Módulos",
         ),
         BottomNavigationBarItem(
-          icon: Icon(
-            Icons.person,
-            color: Color(0xFF92C5BC),
-          ),
+          icon: Icon(Icons.person, color: Color(0xFF92C5BC)),
           label: "Avatar",
         ),
         BottomNavigationBarItem(
-          icon: Icon(
-            Icons.settings,
-            color: Color(0xFF5B8DB3),
-          ),
+          icon: Icon(Icons.settings, color: Color(0xFF5B8DB3)),
           label: "Ajustes",
         ),
       ],
