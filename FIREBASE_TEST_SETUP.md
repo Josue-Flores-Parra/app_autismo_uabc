@@ -105,24 +105,12 @@ La implementación de autenticación funciona correctamente. Los siguientes comp
 - `RegisterScreen` - UI y validaciones
 - Integración con Firebase Auth y Firestore
 
-## Lecciones Aprendidas
-
-### Configuración de Firebase Console
-
-Es importante recordar que al configurar un proyecto Firebase:
-
-1. **No basta con crear el proyecto** - Debes habilitar explícitamente cada método de autenticación que vayas a usar (Email/Password, Google, etc.)
-2. **Firestore necesita reglas de seguridad** - Sin reglas apropiadas, las operaciones de lectura/escritura fallarán
-3. **Cada plataforma se registra por separado** - Web, Android e iOS requieren configuración individual
-
 ## Próximos Pasos
 
-- Subir esta rama temporal como `TEST-T51-auth-logic` para referencia
-- Volver a la rama `T51-auth-logic` y continuar con el trabajo
-- Antes del merge final, coordinar con el equipo para obtener las credenciales del proyecto Firebase de producción
-- Reemplazar las credenciales de prueba con las de producción
+- Subire la rama temporal como `TEST-T51-auth-logic` para referencia
+- Subir`T51-auth-logic` para iniciar el pull request
 
 ---
 
-**Nota**: Este proyecto Firebase (`papu123-69750`) es temporal y **solo para pruebas**. No debe usarse en producción. Las credenciales aquí mostradas deben ser reemplazadas por las del proyecto Firebase oficial antes de hacer merge a `develop` o `main`.
+**Nota**: Este proyecto Firebase (`papu123-69750`) es temporal (mio) y **solo fue para pruebas**.  Las credenciales aquí mostradas solo fueron utilizadas para la rama de pruebas, la rama principal `T51-auth-logic` tiene las credenciales orginales.
 
