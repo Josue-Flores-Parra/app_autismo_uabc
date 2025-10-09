@@ -10,34 +10,28 @@ class MainShell extends StatefulWidget {
   }
 }
 
-class _MainShellState
-    extends State<MainShell> {
-  Widget? activeScreen;
+class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
   final List<Widget> screen = [
-    Placeholder(),
-    Placeholder(),
-    Placeholder(),
+    const Placeholder(),
+    const Placeholder(),
+    const Placeholder(),
   ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
-      activeScreen =
-          screen[_selectedIndex];
     });
   }
 
-  Widget build(ctx) {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        child: activeScreen,
+      body: Container(child: screen[_selectedIndex]),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
       ),
-      bottomNavigationBar:
-          CustomBottomNavBar(
-            currentIndex:
-                _selectedIndex,
-            onTap: _onItemTapped,
-          ),
     );
   }
 }
