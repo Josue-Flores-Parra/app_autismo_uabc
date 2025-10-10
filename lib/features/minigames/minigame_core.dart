@@ -29,10 +29,11 @@ abstract class MinigameBase extends StatefulWidget {
 }
 
 /// Tipo de definición para una función constructora de minijuegos
-typedef MinigameBuilder = Widget Function({
-  required MinigameCompleteCallback onComplete,
-  required Map<String, dynamic> minigameData,
-});
+typedef MinigameBuilder =
+    Widget Function({
+      required MinigameCompleteCallback onComplete,
+      required Map<String, dynamic> minigameData,
+    });
 
 /// Clase Factory para crear instancias de minijuegos
 /// Esto elimina la necesidad de un switch statement y permite mejor extensibilidad
@@ -54,11 +55,8 @@ class MinigameFactory {
   }) {
     final builder = _builders[type];
     if (builder == null) return null;
-    
-    return builder(
-      onComplete: onComplete,
-      minigameData: minigameData,
-    );
+
+    return builder(onComplete: onComplete, minigameData: minigameData);
   }
 
   /// Verificar si un tipo de minijuego está registrado
