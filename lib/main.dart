@@ -15,6 +15,10 @@ import 'features/avatar/data/avatar_repository.dart';
 import 'features/avatar/viewmodel/avatar_viewmodel.dart';
 import 'features/avatar/view/avatar_screen.dart';
 
+// Learning Module
+import 'features/learning_module/view/module_list_screen.dart';
+import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -35,7 +39,8 @@ class MyApp extends StatelessWidget {
       felicidad: 66,
       energia: 92,
       skinActual: skinsDisponibles.first,
-      backgroundActual: 'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
+      backgroundActual:
+          'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
       monedas: 150, // Monedas iniciales
       accesoriosDesbloqueados: {
         'Antenitas', // Desbloqueado por defecto
@@ -47,6 +52,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
         ChangeNotifierProvider(create: (_) => AvatarViewModel(estadoInicial)),
+        ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
       ],
       child: MaterialApp(
         title: 'App Autismo UABC',
@@ -55,7 +61,9 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8DB3)),
           useMaterial3: true,
         ),
-        home: const LoginScreen(), // o AvatarScreen() según el flujo que desees
+        home: const LoginScreen(),
+        // home: const ModuleListScreen(),
+        // home: const AvatarScreen(),
       ),
     );
   }
