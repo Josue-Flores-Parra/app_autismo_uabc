@@ -12,22 +12,31 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  late Widget activeScreen;
+
   final List<Widget> screen = [
     const Placeholder(),
     const Placeholder(),
     const Placeholder(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    activeScreen = screen[_selectedIndex];
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      activeScreen = screen[_selectedIndex];
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(child: screen[_selectedIndex]),
+      body: activeScreen,
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
