@@ -6,6 +6,8 @@ class UserModel {
   final String email;
   final String? displayName;
   final int monedas;
+  final String role;
+  final Map<String, dynamic>? avatarConfig;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -14,6 +16,8 @@ class UserModel {
     required this.email,
     this.displayName,
     this.monedas = 0,
+    this.role = 'patient',
+    this.avatarConfig,
     this.createdAt,
     this.updatedAt,
   });
@@ -23,6 +27,8 @@ class UserModel {
     String? email,
     String? displayName,
     int? monedas,
+    String? role,
+    Map<String, dynamic>? avatarConfig,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -31,6 +37,8 @@ class UserModel {
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       monedas: monedas ?? this.monedas,
+      role: role ?? this.role,
+      avatarConfig: avatarConfig ?? this.avatarConfig,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -42,6 +50,8 @@ class UserModel {
       email: (json['email'] ?? '').toString(),
       displayName: json['displayName'] as String?,
       monedas: _toInt(json['monedas']),
+      role: (json['role'] ?? 'patient').toString(),
+      avatarConfig: json['avatarConfig'] as Map<String, dynamic>?,
       createdAt: _toDateTime(json['createdAt']),
       updatedAt: _toDateTime(json['updatedAt']),
     );
@@ -53,6 +63,8 @@ class UserModel {
       'email': email,
       'displayName': displayName,
       'monedas': monedas,
+      'role': role,
+      'avatarConfig': avatarConfig,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
