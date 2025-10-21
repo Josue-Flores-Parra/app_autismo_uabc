@@ -19,6 +19,10 @@ import 'features/avatar/view/avatar_screen.dart';
 import 'features/learning_module/view/module_list_screen.dart';
 import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
 
+// Level Timeline
+import 'features/learning_module/view/level_timeline_screen.dart';
+import 'features/learning_module/viewmodel/level_timeline_viewmodel.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -48,22 +52,32 @@ class MyApp extends StatelessWidget {
       },
     );
 
+    const String moduleId = 'Higiene_01';
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
         ChangeNotifierProvider(create: (_) => AvatarViewModel(estadoInicial)),
         ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
+        ChangeNotifierProvider(create: (_) => LevelTimelineViewModel(moduleId)),
       ],
       child: MaterialApp(
         title: 'App Autismo UABC',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8DB3)),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF5B8DB3),
+          ),
           useMaterial3: true,
         ),
         home: const LoginScreen(),
         // home: const ModuleListScreen(),
         // home: const AvatarScreen(),
+        // home: LevelTimelineScreen(
+        //   moduleId: moduleId,
+        //   backgroundImagePath:
+        //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
+        // ),
       ),
     );
   }
