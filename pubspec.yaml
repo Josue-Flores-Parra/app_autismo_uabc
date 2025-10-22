@@ -1,5 +1,5 @@
-name: app_autismo_uabc
-description: "A new Flutter project."
+name: appy
+description: "Appy - Aplicación educativa para autismo"
 publish_to: "none" # Para paquetes privados
 
 version: 1.0.0+1

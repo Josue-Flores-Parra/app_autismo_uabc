@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../../home/view/main_shell.dart';
 import 'register_screen.dart';
+import '../../../shared/widgets/loading_wrapper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,30 +17,79 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  
+  // Estado local para errores de validación
+  bool _hasValidationError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Agregar listeners para limpiar errores cuando el usuario empiece a escribir
+    _emailController.addListener(_clearErrorOnInput);
+    _passwordController.addListener(_clearErrorOnInput);
+  }
 
   @override
   void dispose() {
+    _emailController.removeListener(_clearErrorOnInput);
+    _passwordController.removeListener(_clearErrorOnInput);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Limpia el error cuando el usuario empieza a escribir
+  void _clearErrorOnInput() {
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    if (authViewModel.errorMessage != null) {
+      authViewModel.clearError();
+    }
+    // También limpiar errores de validación local
+    if (_hasValidationError) {
+      setState(() {
+        _hasValidationError = false;
+      });
+    }
   }
 
   /// Maneja el proceso de inicio de sesión
   Future<void> _handleLogin() async {
     // Validar el formulario
     if (!_formKey.currentState!.validate()) {
+      // Marcar que hay un error de validación
+      setState(() {
+        _hasValidationError = true;
+      });
       return;
     }
+
+    // Limpiar errores de validación si el formulario es válido
+    setState(() {
+      _hasValidationError = false;
+    });
 
     // Ocultar el teclado
     FocusScope.of(context).unfocus();
 
+    // Mostrar pantalla de carga
+    LoadingHook.show(context, 'Iniciando sesión...');
+
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
 
-    final success = await authViewModel.login(
+    // Ejecutar login y asegurar que la carga dure mínimo 2 segundos
+    final loginFuture = authViewModel.login(
       _emailController.text.trim(),
       _passwordController.text,
     );
+    
+    final minDelayFuture = Future.delayed(const Duration(seconds: 2));
+    
+    // Esperar a que ambos se completen (login Y mínimo 2 segundos)
+    final results = await Future.wait([loginFuture, minDelayFuture]);
+    final success = results[0] as bool;
+
+    // Ocultar pantalla de carga
+    LoadingHook.hide(context);
 
     if (success && mounted) {
       // Navegar a MainShell si el login fue exitoso
@@ -61,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: backgroundColor,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Iniciar sesión'),
+        title: const Text('Appy'),
         backgroundColor: primaryColor,
       ),
       body: SafeArea(
@@ -95,15 +145,62 @@ class _LoginScreenState extends State<LoginScreen> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 32),
-                          // Imagen de saludo del avatar (centrada)
-                          Center(
-                            child: Image.asset(
-                              'assets/images/icon-salute-hidden2x.png',
-                              width: 200 * avatarScale,
-                              height: 486 * avatarScale,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
-                            ),
+                          // Imagen de saludo del avatar (centrada) - cambia según el estado de error
+                          Consumer<AuthViewModel>(
+                            builder: (context, authViewModel, child) {
+                              // Determinar qué imagen mostrar según si hay error o no
+                              // Considerar tanto errores de AuthViewModel como errores de validación local
+                              final bool hasAnyError = authViewModel.errorMessage != null || _hasValidationError;
+                              final String imagePath = hasAnyError
+                                  ? 'assets/images/icon-questionmark2x.png'
+                                  : 'assets/images/salute.png';
+                              
+                              return Center(
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 800),
+                                  switchInCurve: Curves.easeInOutCubic,
+                                  switchOutCurve: Curves.easeInOutCubic,
+                                  transitionBuilder: (Widget child, Animation<double> animation) {
+                                    return FadeTransition(
+                                      opacity: Tween<double>(
+                                        begin: 0.0,
+                                        end: 1.0,
+                                      ).animate(CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeInOutCubic,
+                                      )),
+                                      child: ScaleTransition(
+                                        scale: Tween<double>(
+                                          begin: 0.8,
+                                          end: 1.0,
+                                        ).animate(CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.elasticOut,
+                                        )),
+                                        child: SlideTransition(
+                                          position: Tween<Offset>(
+                                            begin: const Offset(0.0, 0.1),
+                                            end: Offset.zero,
+                                          ).animate(CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeOutCubic,
+                                          )),
+                                          child: child,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Image.asset(
+                                    imagePath,
+                                    key: ValueKey(imagePath), // Importante para que AnimatedSwitcher detecte el cambio
+                                    width: 400 * avatarScale,
+                                    height: 486 * avatarScale,
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.high,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 32),
 

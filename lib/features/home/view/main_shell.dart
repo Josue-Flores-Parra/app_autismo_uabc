@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:app_autismo_uabc/shared/widgets/custom_bottom_nav_bar.dart';
+import 'package:appy/shared/widgets/custom_bottom_nav_bar.dart';
+import 'package:appy/features/learning_module/view/module_list_screen.dart';
+import 'package:appy/features/avatar/view/avatar_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -15,9 +17,9 @@ class _MainShellState extends State<MainShell> {
   late Widget activeScreen;
 
   final List<Widget> screen = [
-    const Placeholder(),
-    const Placeholder(),
-    const Placeholder(),
+    const ModuleListScreen(),
+    const AvatarScreen(),
+    const Placeholder(), // Mantener placeholder para Ajustes por ahora
   ];
 
   @override
@@ -36,7 +38,43 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: activeScreen,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 600),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: Tween<double>(
+              begin: 0.0,
+              end: 1.0,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOutCubic,
+            )),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.1, 0.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              )),
+              child: ScaleTransition(
+                scale: Tween<double>(
+                  begin: 0.95,
+                  end: 1.0,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                )),
+                child: child,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          key: ValueKey(_selectedIndex),
+          child: activeScreen,
+        ),
+      ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

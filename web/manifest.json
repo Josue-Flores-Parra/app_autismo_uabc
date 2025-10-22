@@ -1,11 +1,11 @@
 {
-    "name": "app_autismo_uabc",
-    "short_name": "app_autismo_uabc",
+    "name": "Appy",
+    "short_name": "Appy",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Appy - Aplicación educativa para autismo",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

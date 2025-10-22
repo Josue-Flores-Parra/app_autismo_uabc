@@ -4,8 +4,8 @@
 */
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_autismo_uabc/features/learning_module/model/levels_models.dart';
-import 'package:app_autismo_uabc/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
+import 'package:appy/features/learning_module/model/levels_models.dart';
+import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 
 class PathPainter
     extends CustomPainter {
