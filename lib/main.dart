@@ -13,15 +13,16 @@ import 'features/authentication/view/login_screen.dart';
 import 'features/avatar/model/avatar_models.dart';
 import 'features/avatar/data/avatar_repository.dart';
 import 'features/avatar/viewmodel/avatar_viewmodel.dart';
-import 'features/avatar/view/avatar_screen.dart';
 
 // Learning Module
-import 'features/learning_module/view/module_list_screen.dart';
 import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
 
 // Level Timeline
-import 'features/learning_module/view/level_timeline_screen.dart';
 import 'features/learning_module/viewmodel/level_timeline_viewmodel.dart';
+
+// Shared Services
+import 'shared/services/loading_service.dart';
+import 'shared/widgets/loading_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,9 +61,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AvatarViewModel(estadoInicial)),
         ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
         ChangeNotifierProvider(create: (_) => LevelTimelineViewModel(moduleId)),
+        ChangeNotifierProvider(create: (_) => LoadingService()),
       ],
-      child: MaterialApp(
-        title: 'App Autismo UABC',
+      child: LoadingWrapper(
+        child: MaterialApp(
+        title: 'Appy',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
@@ -77,7 +80,8 @@ class MyApp extends StatelessWidget {
         //   moduleId: moduleId,
         //   backgroundImagePath:
         //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-        // ),
+        //         ),
+        ),
       ),
     );
   }

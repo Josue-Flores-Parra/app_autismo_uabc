@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:app_autismo_uabc/features/learning_module/data/level_repository.dart';
-import 'package:app_autismo_uabc/features/learning_module/model/levels_models.dart';
+import 'package:appy/features/learning_module/data/level_repository.dart';
+import 'package:appy/features/learning_module/model/levels_models.dart';
 
 class LevelTimelineViewModel
     extends ChangeNotifier {

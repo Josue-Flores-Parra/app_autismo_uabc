@@ -1,4 +1,4 @@
-import 'package:app_autismo_uabc/features/learning_module/model/levels_models.dart';
+import 'package:appy/features/learning_module/model/levels_models.dart';
 
 class LevelRepository {
   /*
