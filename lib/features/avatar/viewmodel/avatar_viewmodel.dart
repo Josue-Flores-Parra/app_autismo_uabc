@@ -2,10 +2,31 @@ import 'package:flutter/foundation.dart';
 import '../model/avatar_models.dart';
 import '../data/avatar_repository.dart';
 
+// nuevos imports para poder basarme en el user model y firestore
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../data/services/firestore_services.dart';
+
 /*
 VIEWMODEL DEL AVATAR
 Maneja el estado y la lógica de presentación del avatar
 Usa ChangeNotifier para notificar cambios a la UI
+*/
+
+/* Nuevas notas respecot a la issue #63: *
+ - En el user model .dart archivo, ya venía un parametro que alguno de nuestros 
+ compañeros agregó llamado avatarConfig, el cual ya genera cumplimiento con una 
+ de las peticiones de la issue, que es guardar la configuración del avatar en el
+ perfil del usuario en Firestore. Así que opté por dejar esa. 
+
+ -- Creamos una nueva función asíncrona llamada saveAvatarConfigToFirestore()
+    dentro del AvatarViewModel, la cual obtiene el usuario actual de FirebaseAuth,
+    construye un mapa con la configuración actual del avatar y lo guarda en 
+    Firestore usando el FirestoreService ya existente.
+
+    -- Creamos una función que, cuando el usuario se logea, lee la configuración del
+    avatar desde Firestore y la aplica al estado del AvatarViewModel. 
+
+
 */
 
 class AvatarViewModel
@@ -22,6 +43,14 @@ class AvatarViewModel
   late final List<String>
   _availableBackgrounds;
 
+  /* Nuevo AÑADIDO issue #63
+  Método para guardar la configuración del avatar en Firestore
+  */
+
+  final FirestoreService
+  _firestoreService =
+      FirestoreService();
+
   // Constructor
   AvatarViewModel(
     AvatarEstado initialEstado,
@@ -34,6 +63,207 @@ class AvatarViewModel
         AvatarRepository.obtenerAccesoriosGenerales();
     _availableBackgrounds =
         AvatarRepository.obtenerBackgroundsDisponibles();
+  }
+
+  Future<void> initialize() async {
+    await loadAvatarConfigFromFirestore();
+  }
+
+  Future<void>
+  saveAvatarConfigToFirestore() async {
+    try {
+      final User? user = FirebaseAuth
+          .instance
+          .currentUser;
+      if (user == null) {
+        throw Exception(
+          'No user is currently signed in.',
+        );
+      }
+      final userId = user.uid;
+
+      final giveCurrentDataToAvatarConfigMap = {
+        'nombre': _currentEstado.nombre,
+        'felicidad':
+            _currentEstado.felicidad,
+        'energia':
+            _currentEstado.energia,
+        'skinActual': _currentEstado
+            .skinActual
+            .nombre,
+        'expresionActual':
+            _currentEstado
+                .expresionActual,
+        'accesorioActualPath':
+            _currentEstado
+                .accesorioActual
+                ?.imagenPath,
+        'backgroundActual':
+            _currentEstado
+                .backgroundActual,
+        'monedas':
+            _currentEstado.monedas,
+        'accesoriosDesbloqueados':
+            _currentEstado
+                .accesoriosDesbloqueados
+                .toList(),
+      };
+
+      // Guardar en Firestore
+      try {
+        await _firestoreService
+            .setUserData(userId, {
+              'avatarConfig':
+                  giveCurrentDataToAvatarConfigMap,
+            });
+        print(
+          'Avatar config saved YES.',
+        );
+      } catch (e) {
+        throw Exception(
+          'Error saving avatar config to Firestore: $e',
+        );
+      }
+    } catch (e) {
+      throw Exception(
+        'Error in saveAvatarConfigToFirestore: $e',
+      );
+    }
+  }
+
+  /* Funcion para cargar el estado actual del avatar desde Firestore
+  */
+
+  Future<void>
+  loadAvatarConfigFromFirestore() async {
+    final user = FirebaseAuth
+        .instance
+        .currentUser;
+
+    if (user == null) {
+      print(
+        'Info: No hay usuario logueado para cargar avatar.',
+      );
+      return;
+    }
+
+    final userId = user.uid;
+
+    try {
+      final userData =
+          await _firestoreService
+              .getUserData(userId);
+
+      if (userData != null &&
+          userData.containsKey(
+            'avatarConfig',
+          )) {
+        final configMap =
+            userData['avatarConfig']
+                as Map<String, dynamic>;
+
+        final skinNombre =
+            configMap['skinActual']
+                as String?;
+        final expresionPath =
+            configMap['expresionActual']
+                as String?;
+        final accesorioActualPath =
+            configMap['accesorioActualPath']
+                as String?;
+        final backgroundPath =
+            configMap['backgroundActual']
+                as String?;
+        final nombre =
+            configMap['nombre']
+                as String?;
+        final felicidad =
+            configMap['felicidad']
+                as int?;
+        final energia =
+            configMap['energia']
+                as int?;
+        final monedas =
+            configMap['monedas']
+                as int?;
+        final desbloqueadosGuardados =
+            (configMap['accesoriosDesbloqueados']
+                    as List?)
+                ?.cast<String>()
+                .toSet();
+
+        final skinActual =
+            _availableSkins.firstWhere(
+              (s) =>
+                  s.nombre ==
+                  skinNombre,
+              orElse: () =>
+                  _availableSkins.first,
+            );
+
+        AccesorioGeneral?
+        accesorioActual;
+        if (accesorioActualPath !=
+            null) {
+          try {
+            accesorioActual =
+                _availableAccesorios
+                    .firstWhere(
+                      (a) =>
+                          a.imagenPath ==
+                          accesorioActualPath,
+                    );
+          } catch (e) {
+            accesorioActual = null;
+          }
+        }
+
+        _currentEstado = _currentEstado
+            .copyWith(
+              skinActual: skinActual,
+              expresionActual:
+                  expresionPath,
+              accesorioActual:
+                  accesorioActual,
+              backgroundActual:
+                  backgroundPath ??
+                  _currentEstado
+                      .backgroundActual,
+              nombre:
+                  nombre ??
+                  _currentEstado.nombre,
+              felicidad:
+                  felicidad ??
+                  _currentEstado
+                      .felicidad,
+              energia:
+                  energia ??
+                  _currentEstado
+                      .energia,
+              monedas:
+                  monedas ??
+                  _currentEstado
+                      .monedas,
+              accesoriosDesbloqueados:
+                  desbloqueadosGuardados ??
+                  _currentEstado
+                      .accesoriosDesbloqueados,
+            );
+
+        print(
+          'Configuración del avatar cargada desde Firestore.',
+        );
+        notifyListeners();
+      } else {
+        print(
+          'Info: No se encontró configuración de avatar guardada para el usuario.',
+        );
+      }
+    } catch (e) {
+      print(
+        'Error al cargar la configuración del avatar: $e',
+      );
+    }
   }
 
   // Getters públicos
@@ -72,6 +302,7 @@ class AvatarViewModel
               true, // Limpiar expresión al cambiar skin
         );
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -93,6 +324,7 @@ class AvatarViewModel
           );
     }
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -114,6 +346,7 @@ class AvatarViewModel
           );
     }
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -127,6 +360,7 @@ class AvatarViewModel
           backgroundActual: background,
         );
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -138,6 +372,7 @@ class AvatarViewModel
     _currentEstado = _currentEstado
         .copyWith(nombre: nuevoNombre);
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -157,6 +392,7 @@ class AvatarViewModel
           felicidad: nuevaFelicidad,
         );
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -174,6 +410,7 @@ class AvatarViewModel
           energia: nuevaEnergia,
         );
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -224,6 +461,7 @@ class AvatarViewModel
               nuevosDesbloqueados,
         );
     notifyListeners();
+    saveAvatarConfigToFirestore();
     return true;
   }
 
@@ -238,6 +476,7 @@ class AvatarViewModel
               cantidad,
         );
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -250,5 +489,6 @@ class AvatarViewModel
     _currentEstado = nuevoEstado;
     _showEditPanel = false;
     notifyListeners();
+    saveAvatarConfigToFirestore();
   }
 }

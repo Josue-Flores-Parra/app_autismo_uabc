@@ -62,6 +62,7 @@ Estas reglas aseguran que cada usuario solo pueda leer y escribir sus propios da
 Actualicé los archivos de configuración para apuntar a mi proyecto de prueba:
 
 **`lib/firebase_options.dart`**:
+
 ```dart
 static const FirebaseOptions web = FirebaseOptions(
   apiKey: 'AIzaSyC5JM0M1bxDncXABxEzAhN53JOqvH_cSvM',
@@ -85,12 +86,14 @@ flutter run -d chrome
 ```
 
 **Pruebas de Registro:**
+
 - ✅ Creé una cuenta nueva con nombre, email y contraseña
 - ✅ Verifiqué que el usuario se creó en Firebase Authentication
 - ✅ Confirmé que los datos del usuario se guardaron correctamente en Firestore
 - ✅ La navegación a `MainShell` funcionó correctamente
 
 **Pruebas de Login:**
+
 - ✅ Inicié sesión con las credenciales creadas
 - ✅ El flujo de autenticación funcionó correctamente
 - ✅ La navegación post-login funcionó como esperado
@@ -112,5 +115,4 @@ La implementación de autenticación funciona correctamente. Los siguientes comp
 
 ---
 
-**Nota**: Este proyecto Firebase (`papu123-69750`) es temporal (mio) y **solo fue para pruebas**.  Las credenciales aquí mostradas solo fueron utilizadas para la rama de pruebas, la rama principal `T51-auth-logic` tiene las credenciales orginales.
-
+**Nota**: Este proyecto Firebase (`papu123-69750`) es temporal (mio) y **solo fue para pruebas**. Las credenciales aquí mostradas solo fueron utilizadas para la rama de pruebas, la rama principal `T51-auth-logic` tiene las credenciales orginales.

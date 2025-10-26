@@ -7,7 +7,8 @@ class UserModel {
   final String? displayName;
   final int monedas;
   final String role;
-  final Map<String, dynamic>? avatarConfig;
+  final Map<String, dynamic>?
+  avatarConfig;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -35,25 +36,43 @@ class UserModel {
     return UserModel(
       id: id ?? this.id,
       email: email ?? this.email,
-      displayName: displayName ?? this.displayName,
+      displayName:
+          displayName ??
+          this.displayName,
       monedas: monedas ?? this.monedas,
       role: role ?? this.role,
-      avatarConfig: avatarConfig ?? this.avatarConfig,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      avatarConfig:
+          avatarConfig ??
+          this.avatarConfig,
+      createdAt:
+          createdAt ?? this.createdAt,
+      updatedAt:
+          updatedAt ?? this.updatedAt,
     );
   }
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromJson(
+    Map<String, dynamic> json,
+  ) {
     return UserModel(
       id: (json['id'] ?? '').toString(),
-      email: (json['email'] ?? '').toString(),
-      displayName: json['displayName'] as String?,
+      email: (json['email'] ?? '')
+          .toString(),
+      displayName:
+          json['displayName']
+              as String?,
       monedas: _toInt(json['monedas']),
-      role: (json['role'] ?? 'patient').toString(),
-      avatarConfig: json['avatarConfig'] as Map<String, dynamic>?,
-      createdAt: _toDateTime(json['createdAt']),
-      updatedAt: _toDateTime(json['updatedAt']),
+      role: (json['role'] ?? 'patient')
+          .toString(),
+      avatarConfig:
+          json['avatarConfig']
+              as Map<String, dynamic>?,
+      createdAt: _toDateTime(
+        json['createdAt'],
+      ),
+      updatedAt: _toDateTime(
+        json['updatedAt'],
+      ),
     );
   }
 
@@ -65,10 +84,14 @@ class UserModel {
       'monedas': monedas,
       'role': role,
       'avatarConfig': avatarConfig,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
+      'createdAt': createdAt
+          ?.toIso8601String(),
+      'updatedAt': updatedAt
+          ?.toIso8601String(),
     };
-    map.removeWhere((_, v) => v == null);
+    map.removeWhere(
+      (_, v) => v == null,
+    );
     return map;
   }
 
@@ -76,22 +99,38 @@ class UserModel {
     if (v == null) return 0;
     if (v is int) return v;
     if (v is double) return v.toInt();
-    if (v is String) return int.tryParse(v) ?? 0;
+    if (v is String)
+      return int.tryParse(v) ?? 0;
     return 0;
   }
 
-  static DateTime? _toDateTime(dynamic v) {
+  static DateTime? _toDateTime(
+    dynamic v,
+  ) {
     if (v == null) return null;
     if (v is DateTime) return v;
-    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
-    if (v is String) return DateTime.tryParse(v);
+    if (v is int)
+      return DateTime.fromMillisecondsSinceEpoch(
+        v,
+      );
+    if (v is String)
+      return DateTime.tryParse(v);
     // Compatibilidad básica con objetos serializados tipo Timestamp sin importar paquete:
     if (v is Map) {
-      final seconds = v['seconds'] ?? v['_seconds'];
-      final nanos = v['nanoseconds'] ?? v['_nanoseconds'];
+      final seconds =
+          v['seconds'] ?? v['_seconds'];
+      final nanos =
+          v['nanoseconds'] ??
+          v['_nanoseconds'];
       if (seconds is int) {
-        final ms = seconds * 1000 + (nanos is int ? nanos ~/ 1000000 : 0);
-        return DateTime.fromMillisecondsSinceEpoch(ms);
+        final ms =
+            seconds * 1000 +
+            (nanos is int
+                ? nanos ~/ 1000000
+                : 0);
+        return DateTime.fromMillisecondsSinceEpoch(
+          ms,
+        );
       }
     }
     return null;
