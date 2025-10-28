@@ -26,7 +26,10 @@ import 'shared/widgets/loading_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions
+        .currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -36,14 +39,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Obtener skins disponibles del repositorio
-    final skinsDisponibles = AvatarRepository.obtenerSkinsDisponibles();
+    final skinsDisponibles =
+        AvatarRepository.obtenerSkinsDisponibles();
 
     // Crear el estado inicial del avatar
     final estadoInicial = AvatarEstado(
       nombre: 'MRBEAST',
-      felicidad: 66,
+      felicidad: 64,
       energia: 92,
-      skinActual: skinsDisponibles.first,
+      skinActual:
+          skinsDisponibles.first,
       backgroundActual:
           'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
       monedas: 150, // Monedas iniciales
@@ -53,34 +58,79 @@ class MyApp extends StatelessWidget {
       },
     );
 
-    const String moduleId = 'Higiene_01';
+    const String moduleId =
+        'Higiene_01';
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        ChangeNotifierProvider(create: (_) => AvatarViewModel(estadoInicial)),
-        ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
-        ChangeNotifierProvider(create: (_) => LevelTimelineViewModel(moduleId)),
-        ChangeNotifierProvider(create: (_) => LoadingService()),
+        ChangeNotifierProvider(
+          create: (_) =>
+              AuthViewModel(),
+        ),
+        ChangeNotifierProxyProvider<
+          AuthViewModel,
+          AvatarViewModel
+        >(
+          create: (_) =>
+              AvatarViewModel(
+                estadoInicial,
+              ),
+          update:
+              (
+                context,
+                auth,
+                previous,
+              ) {
+                final avatarVM =
+                    previous ??
+                    AvatarViewModel(
+                      estadoInicial,
+                    );
+                if (auth.currentUser !=
+                    null) {
+                  avatarVM.initialize();
+                }
+                return avatarVM;
+              },
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              ModuleListViewModel(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              LevelTimelineViewModel(
+                moduleId,
+              ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              LoadingService(),
+        ),
       ],
       child: LoadingWrapper(
         child: MaterialApp(
-        title: 'Appy',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF5B8DB3),
+          title: 'Appy',
+          debugShowCheckedModeBanner:
+              false,
+          theme: ThemeData(
+            colorScheme:
+                ColorScheme.fromSeed(
+                  seedColor:
+                      const Color(
+                        0xFF5B8DB3,
+                      ),
+                ),
+            useMaterial3: true,
           ),
-          useMaterial3: true,
-        ),
-        home: const LoginScreen(),
-        // home: const ModuleListScreen(),
-        // home: const AvatarScreen(),
-        // home: LevelTimelineScreen(
-        //   moduleId: moduleId,
-        //   backgroundImagePath:
-        //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-        //         ),
+          home: const LoginScreen(),
+          // home: const ModuleListScreen(),
+          // home: const AvatarScreen(),
+          // home: LevelTimelineScreen(
+          //   moduleId: moduleId,
+          //   backgroundImagePath:
+          //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
+          //         ),
         ),
       ),
     );
