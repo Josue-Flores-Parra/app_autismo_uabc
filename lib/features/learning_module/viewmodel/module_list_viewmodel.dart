@@ -31,6 +31,7 @@ class ModuleListViewModel
   void _cargarModulos() {
     _modulos = [
       ModuloInfo(
+        id: 'alimentacion_01',
         titulo: 'Alimentación',
         estrellas: 3,
         nivel: 1,
@@ -39,6 +40,7 @@ class ModuleListViewModel
         color: Colors.orange,
       ),
       ModuloInfo(
+        id: 'higiene_01',
         titulo: 'Higiene',
         estrellas: 2,
         nivel: 2,
@@ -47,6 +49,7 @@ class ModuleListViewModel
         color: Colors.blue,
       ),
       ModuloInfo(
+        id: 'dormir_01',
         titulo: 'Dormir',
         estrellas: 3,
         nivel: 1,
@@ -55,6 +58,7 @@ class ModuleListViewModel
         color: Colors.purple,
       ),
       ModuloInfo(
+        id: 'socializar_01',
         titulo: 'Socializar',
         estrellas: 0,
         nivel: 3,
@@ -84,6 +88,7 @@ class ModuleListViewModel
             _modulos[indiceModulo];
         _modulos[indiceModulo] =
             ModuloInfo(
+              id: moduloActual.id,
               titulo:
                   moduloActual.titulo,
               estrellas:
@@ -114,6 +119,7 @@ class ModuleListViewModel
           _modulos[indiceModulo];
       _modulos[indiceModulo] =
           ModuloInfo(
+            id: moduloActual.id,
             titulo: moduloActual.titulo,
             estrellas:
                 moduloActual.estrellas,

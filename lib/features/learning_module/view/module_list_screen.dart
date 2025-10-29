@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
 import '../viewmodel/module_list_viewmodel.dart';
+import 'level_timeline_screen.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
@@ -317,65 +318,80 @@ class ModuloPlantilla
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xE65B8DB3),
-            Color(0xCC4A7499),
-          ],
-        ),
-        borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(
-            0x997BA5C9,
-          ),
-          width: 1.5,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0xCC2A4A5C),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-            spreadRadius: 3,
-          ),
-          BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 35,
-            offset: Offset(0, 18),
-            spreadRadius: -5,
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(
-          MediaQuery.of(
-                context,
-              ).size.width *
-              0.02,
-        ),
-        child: Column(
-          children: [
-            /// Imagen del módulo con overlays
-            Expanded(
-              child: Stack(
-                children: [
-                  _buildModuleImage(),
-                  if (modulo.bloqueado)
-                    _buildLockedOverlay(),
-                  _buildLevelBadge(),
-                  _buildStarsIndicator(),
-                ],
+    return GestureDetector(
+      onTap: () {
+        if (!modulo.bloqueado) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LevelTimelineScreen(
+                moduleId: modulo.id,
+                backgroundImagePath: modulo.imagenPath,
               ),
             ),
-            const SizedBox(height: 8),
-
-            /// Botón del título
-            _buildTitleButton(),
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xE65B8DB3),
+              Color(0xCC4A7499),
+            ],
+          ),
+          borderRadius:
+              BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(
+              0x997BA5C9,
+            ),
+            width: 1.5,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0xCC2A4A5C),
+              blurRadius: 25,
+              offset: Offset(0, 12),
+              spreadRadius: 3,
+            ),
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 35,
+              offset: Offset(0, 18),
+              spreadRadius: -5,
+            ),
           ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(
+            MediaQuery.of(
+                  context,
+                ).size.width *
+                0.02,
+          ),
+          child: Column(
+            children: [
+              /// Imagen del módulo con overlays
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildModuleImage(),
+                    if (modulo.bloqueado)
+                      _buildLockedOverlay(),
+                    _buildLevelBadge(),
+                    _buildStarsIndicator(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              /// Botón del título
+              _buildTitleButton(),
+            ],
+          ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ Modelo que representa la información de un módulo de aprendizaje.
 Contiene los datos de título, progreso, nivel, imagen y estado de bloqueo.
 */
 class ModuloInfo {
+  final String id;
   final String titulo;
   final int estrellas;
   final int nivel;
@@ -13,6 +14,7 @@ class ModuloInfo {
   final bool bloqueado;
 
   ModuloInfo({
+    required this.id,
     required this.titulo,
     required this.estrellas,
     required this.nivel,

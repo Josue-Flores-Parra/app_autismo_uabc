@@ -90,7 +90,7 @@ class PathPainter
 }
 
 class LevelTimelineScreen
-    extends StatefulWidget {
+    extends StatelessWidget {
   const LevelTimelineScreen({
     super.key,
     required this.moduleId,
@@ -101,13 +101,36 @@ class LevelTimelineScreen
   final String? backgroundImagePath;
 
   @override
-  State<LevelTimelineScreen>
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => LevelTimelineViewModel(moduleId),
+      child: LevelTimelineContent(
+        moduleId: moduleId,
+        backgroundImagePath: backgroundImagePath,
+      ),
+    );
+  }
+}
+
+class LevelTimelineContent
+    extends StatefulWidget {
+  final String moduleId;
+  final String? backgroundImagePath;
+
+  const LevelTimelineContent({
+    super.key,
+    required this.moduleId,
+    this.backgroundImagePath,
+  });
+
+  @override
+  State<LevelTimelineContent>
   createState() =>
       _LevelTimelineScreenState();
 }
 
 class _LevelTimelineScreenState
-    extends State<LevelTimelineScreen>
+    extends State<LevelTimelineContent>
     with
         SingleTickerProviderStateMixin {
   OverlayEntry? _overlayEntry;
@@ -142,7 +165,11 @@ class _LevelTimelineScreenState
     _animationController!.repeat(
       reverse: true,
     );
+  }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final viewModel = context
         .read<LevelTimelineViewModel>();
     _generateKeys(
@@ -304,8 +331,7 @@ class _LevelTimelineScreenState
           ),
           body: Stack(
             children: [
-              if (widget
-                      .backgroundImagePath !=
+              if (widget.backgroundImagePath !=
                   null)
                 Positioned.fill(
                   child: Image.asset(
