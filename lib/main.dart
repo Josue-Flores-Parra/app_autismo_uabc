@@ -16,9 +16,7 @@ import 'features/avatar/viewmodel/avatar_viewmodel.dart';
 
 // Learning Module
 import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
-
-// Level Timeline
-import 'features/learning_module/viewmodel/level_timeline_viewmodel.dart';
+import 'features/learning_module/view/module_list_screen.dart';
 
 // Shared Services
 import 'shared/services/loading_service.dart';
@@ -43,7 +41,7 @@ class MyApp extends StatelessWidget {
         AvatarRepository.obtenerSkinsDisponibles();
 
     // Crear el estado inicial del avatar
-    final estadoInicial = AvatarEstado(
+      final estadoInicial = AvatarEstado(
       nombre: 'MRBEAST',
       felicidad: 64,
       energia: 92,
@@ -57,9 +55,6 @@ class MyApp extends StatelessWidget {
         'Gafas', // Desbloqueado por defecto
       },
     );
-
-    const String moduleId =
-        'Higiene_01';
 
     return MultiProvider(
       providers: [
@@ -99,12 +94,6 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) =>
-              LevelTimelineViewModel(
-                moduleId,
-              ),
-        ),
-        ChangeNotifierProvider(
-          create: (_) =>
               LoadingService(),
         ),
       ],
@@ -123,8 +112,8 @@ class MyApp extends StatelessWidget {
                 ),
             useMaterial3: true,
           ),
-          home: const LoginScreen(),
           // home: const ModuleListScreen(),
+          home: const LoginScreen(),
           // home: const AvatarScreen(),
           // home: LevelTimelineScreen(
           //   moduleId: moduleId,
