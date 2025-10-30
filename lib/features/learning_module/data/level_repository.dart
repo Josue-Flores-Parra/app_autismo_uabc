@@ -11,10 +11,71 @@ class LevelRepository {
       LevelStepInfo(
         previewTitle:
             'Paso 1: Lavado de manos',
-        whatState: StateOfStep.blocked,
+        whatState: StateOfStep.inProgress,
         stars: 5,
         posibleImagePreview:
             'assets/images/LevelBGs/Higiene/StepsBGs/LavadoDeManos.jpg',
+        minigameData: {
+          'questions': [
+            {
+              'question': '¿Qué necesitas para lavarte las manos?',
+              'correctIndex': 0,
+              'maxAttempts': 3,
+              'options': [
+                {
+                  'imagePath': 'assets/images/HIGIENE.jpg',
+                  'label': 'Jabón',
+                },
+                {
+                  'imagePath': 'assets/images/ALIMENTACION.jpg',
+                  'label': 'Comida',
+                },
+                {
+                  'imagePath': 'assets/images/DORMIR.jpg',
+                  'label': 'Cama',
+                },
+              ],
+            },
+            {
+              'question': '¿Cuándo debes lavarte las manos?',
+              'correctIndex': 1,
+              'maxAttempts': 3,
+              'options': [
+                {
+                  'imagePath': 'assets/images/DORMIR.jpg',
+                  'label': 'Al dormir',
+                },
+                {
+                  'imagePath': 'assets/images/ALIMENTACION.jpg',
+                  'label': 'Antes de comer',
+                },
+                {
+                  'imagePath': 'assets/images/SOCIALIZAR.jpg',
+                  'label': 'Al jugar videojuegos',
+                },
+              ],
+            },
+            {
+              'question': '¿Qué parte del cuerpo lavas con jabón?',
+              'correctIndex': 2,
+              'maxAttempts': 3,
+              'options': [
+                {
+                  'imagePath': 'assets/images/DORMIR.jpg',
+                  'label': 'Pies',
+                },
+                {
+                  'imagePath': 'assets/images/SOCIALIZAR.jpg',
+                  'label': 'Cabeza',
+                },
+                {
+                  'imagePath': 'assets/images/HIGIENE.jpg',
+                  'label': 'Manos',
+                },
+              ],
+            },
+          ],
+        },
       ),
       LevelStepInfo(
         previewTitle:
@@ -24,6 +85,21 @@ class LevelRepository {
         stars: 4,
         posibleImagePreview:
             'assets/images/LevelBGs/Higiene/StepsBGs/CepilladoDeDientes.jpg',
+        minigameData: {
+          'question': 'Selecciona la imagen del cepillo de dientes',
+          'correctIndex': 1,
+          'maxAttempts': 3,
+          'options': [
+            {
+              'imagePath': 'assets/images/icon-questionmark.png',
+              'label': 'Opción A',
+            },
+            {
+              'imagePath': 'assets/images/icon-salute-hidden.png',
+              'label': 'Opción B',
+            },
+          ],
+        },
       ),
       LevelStepInfo(
         previewTitle:
@@ -95,6 +171,52 @@ class LevelRepository {
         stars: 0,
         posibleImagePreview:
             'assets/images/LevelBGs/Higiene/StepsBGs/RUTINADIARIA.jpg',
+        minigameData: {
+          'questions': [
+            {
+              'question': '¿Qué haces por la mañana?',
+              'correctIndex': 2,
+              'maxAttempts': 4,
+              'options': [
+                {
+                  'imagePath': 'assets/images/DORMIR.jpg',
+                  'label': 'Dormir',
+                },
+                {
+                  'imagePath': 'assets/images/SOCIALIZAR.jpg',
+                  'label': 'Jugar',
+                },
+                {
+                  'imagePath': 'assets/images/HIGIENE.jpg',
+                  'label': 'Aseo personal',
+                },
+                {
+                  'imagePath': 'assets/images/ALIMENTACION.jpg',
+                  'label': 'Comer',
+                },
+              ],
+            },
+            {
+              'question': '¿Qué haces antes de dormir?',
+              'correctIndex': 1,
+              'maxAttempts': 3,
+              'options': [
+                {
+                  'imagePath': 'assets/images/SOCIALIZAR.jpg',
+                  'label': 'Jugar afuera',
+                },
+                {
+                  'imagePath': 'assets/images/HIGIENE.jpg',
+                  'label': 'Cepillar dientes',
+                },
+                {
+                  'imagePath': 'assets/images/ALIMENTACION.jpg',
+                  'label': 'Comer dulces',
+                },
+              ],
+            },
+          ],
+        },
       ),
     ];
   }
