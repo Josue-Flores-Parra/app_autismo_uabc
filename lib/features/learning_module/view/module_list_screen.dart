@@ -6,8 +6,7 @@ import 'level_timeline_screen.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
-class ModuleListScreen
-    extends StatelessWidget {
+class ModuleListScreen extends StatelessWidget {
   const ModuleListScreen({super.key});
 
   @override
@@ -17,48 +16,26 @@ class ModuleListScreen
         centerTitle: true,
         title: const Text(
           'Mis Módulos',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor:
-            const Color.fromARGB(
-              255,
-              0,
-              0,
-              0,
-            ),
+        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xF20D3B52),
-              Color(0xFF091F2C),
-            ],
+            colors: [Color(0xF20D3B52), Color(0xFF091F2C)],
           ),
         ),
         child: Consumer<ModuleListViewModel>(
-          builder:
-              (
-                context,
-                viewModel,
-                child,
-              ) {
-                return ModulosGridView(
-                  modulos:
-                      viewModel.modulos,
-                  nombreUsuario:
-                      viewModel
-                          .nombreUsuario,
-                  nivelUsuario:
-                      viewModel
-                          .nivelUsuario,
-                );
-              },
+          builder: (context, viewModel, child) {
+            return ModulosGridView(
+              modulos: viewModel.modulos,
+              nombreUsuario: viewModel.nombreUsuario,
+              nivelUsuario: viewModel.nivelUsuario,
+            );
+          },
         ),
       ),
     );
@@ -67,8 +44,7 @@ class ModuleListScreen
 
 /// Widget que muestra el grid de módulos.
 /// Separado para mantener el código organizado.
-class ModulosGridView
-    extends StatelessWidget {
+class ModulosGridView extends StatelessWidget {
   final List<ModuloInfo> modulos;
   final String nombreUsuario;
   final int nivelUsuario;
@@ -92,22 +68,16 @@ class ModulosGridView
           /// Grid de módulos
           Expanded(
             child: GridView.builder(
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio:
-                        5 / 8,
-                    crossAxisSpacing: 7,
-                    mainAxisSpacing: 7,
-                  ),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 5 / 8,
+                crossAxisSpacing: 7,
+                mainAxisSpacing: 7,
+              ),
               itemCount: modulos.length,
-              itemBuilder:
-                  (context, index) {
-                    return ModuloPlantilla(
-                      modulo:
-                          modulos[index],
-                    );
-                  },
+              itemBuilder: (context, index) {
+                return ModuloPlantilla(modulo: modulos[index]);
+              },
             ),
           ),
         ],
@@ -118,27 +88,16 @@ class ModulosGridView
   /// Construye el header con información del usuario
   Widget _buildUserHeader() {
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2C5F7A),
-            Color(0xFF1A3D52),
-          ],
+          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
         ),
-        borderRadius:
-            BorderRadius.circular(25),
-        border: Border.all(
-          color: const Color(
-            0x66FFFFFF,
-          ),
-          width: 1.5,
-        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0x80000000),
@@ -154,25 +113,12 @@ class ModulosGridView
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(
-                0x33FFFFFF,
-              ),
-              borderRadius:
-                  BorderRadius.circular(
-                    15,
-                  ),
-              border: Border.all(
-                color: const Color(
-                  0x4DFFFFFF,
-                ),
-                width: 1,
-              ),
+              color: const Color(0x33FFFFFF),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0x4DFFFFFF), width: 1),
             ),
             child: ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(
-                    13,
-                  ),
+              borderRadius: BorderRadius.circular(13),
               child: Image.asset(
                 'assets/images/CARITAROBOT.png',
                 fit: BoxFit.cover,
@@ -182,84 +128,49 @@ class ModulosGridView
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   '¡HOLA!',
                   style: TextStyle(
-                    color: Color(
-                      0xFFFFFFFF,
-                    ),
+                    color: Color(0xFFFFFFFF),
                     fontSize: 14,
-                    fontWeight:
-                        FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(
-                  height: 2,
-                ),
+                const SizedBox(height: 2),
                 Text(
                   nombreUsuario,
-                  style:
-                      const TextStyle(
-                        color: Color(
-                          0xFFFFFFFF,
-                        ),
-                        fontSize: 24,
-                        fontWeight:
-                            FontWeight
-                                .w900,
-                        letterSpacing:
-                            0.5,
-                      ),
+                  style: const TextStyle(
+                    color: Color(0xFFFFFFFF),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ],
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              gradient:
-                  const LinearGradient(
-                    begin: Alignment
-                        .topLeft,
-                    end: Alignment
-                        .bottomRight,
-                    colors: [
-                      Color(0xFFFFD700),
-                      Color(0xFFFFA500),
-                    ],
-                  ),
-              borderRadius:
-                  BorderRadius.circular(
-                    20,
-                  ),
-              border: Border.all(
-                color: const Color(
-                  0xFFFFE55C,
-                ),
-                width: 2,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
               ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFE55C), width: 2),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(
-                    0xCCFFD700,
-                  ),
+                  color: Color(0xCCFFD700),
                   blurRadius: 15,
                   offset: Offset(0, 0),
                   spreadRadius: 2,
                 ),
                 BoxShadow(
-                  color: Color(
-                    0x80000000,
-                  ),
+                  color: Color(0x80000000),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                   spreadRadius: 0,
@@ -267,34 +178,22 @@ class ModulosGridView
               ],
             ),
             child: Row(
-              mainAxisSize:
-                  MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
-                  Icons
-                      .workspace_premium_rounded,
-                  color: Color(
-                    0xFF000000,
-                  ),
+                  Icons.workspace_premium_rounded,
+                  color: Color(0xFF000000),
                   size: 20,
                 ),
-                const SizedBox(
-                  width: 6,
-                ),
+                const SizedBox(width: 6),
                 Text(
                   'NIVEL $nivelUsuario',
-                  style:
-                      const TextStyle(
-                        color: Color(
-                          0xFF000000,
-                        ),
-                        fontSize: 14,
-                        fontWeight:
-                            FontWeight
-                                .w900,
-                        letterSpacing:
-                            0.8,
-                      ),
+                  style: const TextStyle(
+                    color: Color(0xFF000000),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ],
             ),
@@ -307,14 +206,10 @@ class ModulosGridView
 
 /// Widget que representa una tarjeta individual de módulo.
 /// Muestra toda la información del módulo y cambia su apariencia según el estado.
-class ModuloPlantilla
-    extends StatelessWidget {
+class ModuloPlantilla extends StatelessWidget {
   final ModuloInfo modulo;
 
-  const ModuloPlantilla({
-    super.key,
-    required this.modulo,
-  });
+  const ModuloPlantilla({super.key, required this.modulo});
 
   @override
   Widget build(BuildContext context) {
@@ -337,19 +232,10 @@ class ModuloPlantilla
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xE65B8DB3),
-              Color(0xCC4A7499),
-            ],
+            colors: [Color(0xE65B8DB3), Color(0xCC4A7499)],
           ),
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(
-              0x997BA5C9,
-            ),
-            width: 1.5,
-          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0x997BA5C9), width: 1.5),
           boxShadow: const [
             BoxShadow(
               color: Color(0xCC2A4A5C),
@@ -366,12 +252,7 @@ class ModuloPlantilla
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(
-            MediaQuery.of(
-                  context,
-                ).size.width *
-                0.02,
-          ),
+          padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
           child: Column(
             children: [
               /// Imagen del módulo con overlays
@@ -379,8 +260,7 @@ class ModuloPlantilla
                 child: Stack(
                   children: [
                     _buildModuleImage(),
-                    if (modulo.bloqueado)
-                      _buildLockedOverlay(),
+                    if (modulo.bloqueado) _buildLockedOverlay(),
                     _buildLevelBadge(),
                     _buildStarsIndicator(),
                   ],
@@ -405,14 +285,8 @@ class ModuloPlantilla
         height: double.infinity,
         decoration: BoxDecoration(
           color: modulo.color,
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(
-              0x997BA5C9,
-            ),
-            width: 2,
-          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0x997BA5C9), width: 2),
           boxShadow: const [
             BoxShadow(
               color: Color(0x80000000),
@@ -423,12 +297,8 @@ class ModuloPlantilla
           ],
         ),
         child: ClipRRect(
-          borderRadius:
-              BorderRadius.circular(18),
-          child: Image.asset(
-            modulo.imagenPath,
-            fit: BoxFit.contain,
-          ),
+          borderRadius: BorderRadius.circular(18),
+          child: Image.asset(modulo.imagenPath, fit: BoxFit.contain),
         ),
       ),
     );
@@ -438,21 +308,12 @@ class ModuloPlantilla
   Widget _buildLockedOverlay() {
     return Container(
       decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         color: const Color(0xE0000000),
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xCC2A2A2A),
-            Color.fromARGB(
-              223,
-              46,
-              43,
-              43,
-            ),
-          ],
+          colors: [Color(0xCC2A2A2A), Color.fromARGB(223, 46, 43, 43)],
         ),
       ),
       child: Center(
@@ -461,27 +322,16 @@ class ModuloPlantilla
           height: 110,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(
-              0xFFFFD700,
-            ),
-            border: Border.all(
-              color: const Color(
-                0xFFFFE55C,
-              ),
-              width: 3,
-            ),
+            color: const Color(0xFFFFD700),
+            border: Border.all(color: const Color(0xFFFFE55C), width: 3),
             boxShadow: const [
               BoxShadow(
-                color: Color(
-                  0xBBFFD700,
-                ),
+                color: Color(0xBBFFD700),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
               BoxShadow(
-                color: Color(
-                  0x88FFD700,
-                ),
+                color: Color(0x88FFD700),
                 blurRadius: 35,
                 spreadRadius: 10,
               ),
@@ -490,12 +340,7 @@ class ModuloPlantilla
           child: const Icon(
             Icons.lock_rounded,
             size: 55,
-            color: Color.fromARGB(
-              255,
-              105,
-              92,
-              13,
-            ),
+            color: Color.fromARGB(255, 105, 92, 13),
           ),
         ),
       ),
@@ -508,29 +353,13 @@ class ModuloPlantilla
       top: 0,
       left: 0,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(
-            0xFFFAFAFA,
-          ),
-          borderRadius:
-              BorderRadius.circular(15),
-          border: Border.all(
-            color: const Color(
-              0xFFFFFFFF,
-            ),
-            width: 2,
-          ),
+          color: const Color(0xFFFAFAFA),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFFFFFFFF), width: 2),
           boxShadow: const [
-            BoxShadow(
-              color: Color(0xFFFFFFFF),
-              blurRadius: 8,
-              spreadRadius: 2,
-            ),
+            BoxShadow(color: Color(0xFFFFFFFF), blurRadius: 8, spreadRadius: 2),
           ],
         ),
         child: Text(
@@ -553,62 +382,38 @@ class ModuloPlantilla
       right: 0,
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (
-          index,
-        ) {
-          bool isRellena =
-              index < modulo.estrellas;
+        children: List.generate(3, (index) {
+          bool isRellena = index < modulo.estrellas;
 
           return Container(
-            margin:
-                const EdgeInsets.only(
-                  left: 2,
-                ),
+            margin: const EdgeInsets.only(left: 2),
             decoration: BoxDecoration(
               boxShadow: isRellena
                   ? const [
                       BoxShadow(
-                        color: Color(
-                          0xFFFFD700,
-                        ),
+                        color: Color(0xFFFFD700),
                         blurRadius: 15,
-                        spreadRadius:
-                            0.000003,
+                        spreadRadius: 0.000003,
                       ),
                     ]
                   : null,
             ),
             child: Stack(
-              alignment:
-                  Alignment.center,
+              alignment: Alignment.center,
               children: [
                 Icon(
                   Icons.star,
                   size: 18,
                   color: isRellena
-                      ? const Color.fromARGB(
-                          150,
-                          255,
-                          158,
-                          1,
-                        )
-                      : const Color(
-                          0xFF2A2A2A,
-                        ),
+                      ? const Color.fromARGB(150, 255, 158, 1)
+                      : const Color(0xFF2A2A2A),
                 ),
                 Icon(
                   Icons.star,
                   size: 17,
                   color: isRellena
-                      ? const Color(
-                          0xFFFFD700,
-                        )
-                      : const Color.fromARGB(
-                          255,
-                          136,
-                          133,
-                          133,
-                        ),
+                      ? const Color(0xFFFFD700)
+                      : const Color.fromARGB(255, 136, 133, 133),
                 ),
               ],
             ),
@@ -625,74 +430,38 @@ class ModuloPlantilla
         Expanded(
           child: Container(
             height: 45,
-            padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin:
-                    Alignment.topLeft,
-                end: Alignment
-                    .bottomRight,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: modulo.bloqueado
-                    ? const [
-                        Color(
-                          0xFF5A6B7A,
-                        ),
-                        Color(
-                          0xFF3E4B5A,
-                        ),
-                      ]
-                    : const [
-                        Color(
-                          0xFF92C5BC,
-                        ),
-                        Color(
-                          0xFF5A97B8,
-                        ),
-                      ],
+                    ? const [Color(0xFF5A6B7A), Color(0xFF3E4B5A)]
+                    : const [Color(0xFF92C5BC), Color(0xFF5A97B8)],
               ),
-              borderRadius:
-                  BorderRadius.circular(
-                    30,
-                  ),
+              borderRadius: BorderRadius.circular(30),
               border: Border.all(
                 color: modulo.bloqueado
-                    ? const Color(
-                        0xFF6B7B8C,
-                      )
-                    : const Color(
-                        0xFFB0D9D1,
-                      ),
+                    ? const Color(0xFF6B7B8C)
+                    : const Color(0xFFB0D9D1),
                 width: 2,
               ),
               boxShadow: [
                 const BoxShadow(
-                  color: Color(
-                    0x4DFFFFFF,
-                  ),
+                  color: Color(0x4DFFFFFF),
                   blurRadius: 8,
                   offset: Offset(0, -2),
                   spreadRadius: 0,
                 ),
                 if (!modulo.bloqueado)
                   const BoxShadow(
-                    color: Color(
-                      0x665A97B8,
-                    ),
+                    color: Color(0x665A97B8),
                     blurRadius: 15,
-                    offset: Offset(
-                      0,
-                      0,
-                    ),
+                    offset: Offset(0, 0),
                     spreadRadius: 1,
                   ),
                 const BoxShadow(
-                  color: Color(
-                    0x80000000,
-                  ),
+                  color: Color(0x80000000),
                   blurRadius: 12,
                   offset: Offset(0, 5),
                   spreadRadius: 1,
@@ -704,15 +473,11 @@ class ModuloPlantilla
               child: Text(
                 modulo.titulo,
                 style: const TextStyle(
-                  color: Color(
-                    0xFFFFFFFF,
-                  ),
+                  color: Color(0xFFFFFFFF),
                   fontSize: 16,
-                  fontWeight:
-                      FontWeight.w900,
+                  fontWeight: FontWeight.w900,
                 ),
-                textAlign:
-                    TextAlign.center,
+                textAlign: TextAlign.center,
                 maxLines: 1,
               ),
             ),

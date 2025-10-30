@@ -2,11 +2,7 @@
   Se renombra el enum a 'StateOfStep' para evitar conflictos con la librería
   interna de Flutter que también tiene un 'StepState'.
 */
-enum StateOfStep {
-  completed,
-  blocked,
-  inProgress,
-}
+enum StateOfStep { completed, blocked, inProgress }
 
 class LevelStepInfo {
   LevelStepInfo({

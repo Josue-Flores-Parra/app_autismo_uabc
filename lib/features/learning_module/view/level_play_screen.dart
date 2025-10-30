@@ -27,7 +27,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   @override
   void initState() {
     super.initState();
-    _retriesLeft = 2; // Número de veces que puede reintentar después del primer intento
+    _retriesLeft =
+        2; // Número de veces que puede reintentar después del primer intento
   }
 
   /// Reinicia el minigame con opciones mezcladas y intentos reducidos
@@ -68,16 +69,15 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         backgroundColor: const Color(0xFF1A3D52),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(
-            color: Color(0x66FFFFFF),
-            width: 1.5,
-          ),
+          side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
         ),
         title: Row(
           children: [
             Icon(
               success ? Icons.celebration : Icons.emoji_events_outlined,
-              color: success ? const Color(0xFF05E995) : const Color(0xFFFF9800),
+              color: success
+                  ? const Color(0xFF05E995)
+                  : const Color(0xFFFF9800),
               size: 32,
             ),
             const SizedBox(width: 12),
@@ -101,12 +101,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
               success
                   ? '¡Excelente trabajo! Has completado el nivel con éxito.'
                   : _retriesLeft > 0
-                      ? 'No te preocupes, puedes intentarlo de nuevo.'
-                      : 'Has agotado todos tus reintentos.',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-              ),
+                  ? 'No te preocupes, puedes intentarlo de nuevo.'
+                  : 'Has agotado todos tus reintentos.',
+              style: const TextStyle(fontSize: 16, color: Colors.white70),
             ),
             const SizedBox(height: 16),
             Container(
@@ -115,23 +112,14 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF2C5F7A),
-                    Color(0xFF1A3D52),
-                  ],
+                  colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
                 ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0x33FFFFFF),
-                  width: 1,
-                ),
+                border: Border.all(color: const Color(0x33FFFFFF), width: 1),
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.flag,
-                    color: Color(0xFFFFD700),
-                  ),
+                  const Icon(Icons.flag, color: Color(0xFFFFD700)),
                   const SizedBox(width: 8),
                   Text(
                     'Intentos: $attempts',
@@ -151,17 +139,11 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                 decoration: BoxDecoration(
                   color: const Color.fromARGB(100, 255, 152, 0),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFFF9800),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0xFFFF9800), width: 1),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.refresh,
-                      color: Colors.white,
-                    ),
+                    const Icon(Icons.refresh, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
                       'Reintentos disponibles: $_retriesLeft',
@@ -186,10 +168,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
               },
               child: const Text(
                 'Volver',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
             ),
           ElevatedButton(
@@ -224,10 +203,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
               success
                   ? 'Continuar'
                   : (_retriesLeft > 0 ? 'Reintentar' : 'Salir'),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -242,20 +218,10 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
       'correctIndex': 0,
       'maxAttempts': 3,
       'options': [
-        {
-          'imagePath': 'assets/images/FELIZ.png',
-          'label': 'Opción 1',
-        },
-        {
-          'imagePath': 'assets/images/TRISTE.png',
-          'label': 'Opción 2',
-        },
-        {
-          'imagePath': 'assets/images/MEH.png',
-          'label': 'Opción 3',
-        },
+        {'imagePath': 'assets/images/FELIZ.png', 'label': 'Opción 1'},
+        {'imagePath': 'assets/images/TRISTE.png', 'label': 'Opción 2'},
+        {'imagePath': 'assets/images/MEH.png', 'label': 'Opción 3'},
       ],
     };
   }
 }
-

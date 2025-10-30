@@ -13,7 +13,8 @@ class SimpleSelectionMinigame extends MinigameBase {
   });
 
   @override
-  State<SimpleSelectionMinigame> createState() => _SimpleSelectionMinigameState();
+  State<SimpleSelectionMinigame> createState() =>
+      _SimpleSelectionMinigameState();
 }
 
 class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
@@ -48,7 +49,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     if (data.containsKey('questions')) {
       // Formato nuevo: múltiples preguntas
       final questionsData = data['questions'] as List<dynamic>;
-      _questions = questionsData.map((q) => QuestionData.fromMap(q as Map<String, dynamic>)).toList();
+      _questions = questionsData
+          .map((q) => QuestionData.fromMap(q as Map<String, dynamic>))
+          .toList();
 
       // Limitar a máximo 3 preguntas
       if (_questions.length > 3) {
@@ -88,9 +91,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     _options = loadedOptions;
 
     // Encontrar el nuevo índice de la opción correcta después del shuffle
-    _correctIndex = _options.indexWhere((option) =>
-      option.imagePath == _correctOption.imagePath &&
-      option.label == _correctOption.label
+    _correctIndex = _options.indexWhere(
+      (option) =>
+          option.imagePath == _correctOption.imagePath &&
+          option.label == _correctOption.label,
     );
   }
 
@@ -169,9 +173,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   /// Muestra feedback visual al usuario
   void _showFeedback({required bool isCorrect}) {
-    final message = isCorrect
-        ? '¡Correcto!'
-        : '¡Intenta de nuevo!';
+    final message = isCorrect ? '¡Correcto!' : '¡Intenta de nuevo!';
 
     final color = isCorrect ? const Color(0xFF05E995) : const Color(0xFFFF9800);
     final icon = isCorrect ? Icons.check_circle : Icons.refresh;
@@ -182,11 +184,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: Colors.white,
-              size: 28,
-            ),
+            Icon(icon, color: Colors.white, size: 28),
             const SizedBox(width: 12),
             Text(
               message,
@@ -201,19 +199,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         backgroundColor: color,
         duration: const Duration(milliseconds: 1200),
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(
-          bottom: 300,
-          left: 20,
-          right: 20,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        margin: const EdgeInsets.only(bottom: 300, left: 20, right: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 16,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
     );
   }
@@ -243,10 +232,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1A3D52),
-              Color(0xFF091F2C),
-            ],
+            colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
           ),
         ),
         child: SafeArea(
@@ -262,7 +248,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                     if (_questions.length > 1) ...[
                       Flexible(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color.fromARGB(150, 9, 31, 44),
                             borderRadius: BorderRadius.circular(20),
@@ -299,19 +288,25 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(_questions.length, (index) {
-                                  final isCompleted = index < _currentQuestionIndex;
-                                  final isCurrent = index == _currentQuestionIndex;
+                                children: List.generate(_questions.length, (
+                                  index,
+                                ) {
+                                  final isCompleted =
+                                      index < _currentQuestionIndex;
+                                  final isCurrent =
+                                      index == _currentQuestionIndex;
                                   return Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
                                     width: 30,
                                     height: 8,
                                     decoration: BoxDecoration(
                                       color: isCompleted
                                           ? const Color(0xFF05E995)
                                           : isCurrent
-                                              ? const Color(0xFF00E5FF)
-                                              : Colors.white24,
+                                          ? const Color(0xFF00E5FF)
+                                          : Colors.white24,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                   );
@@ -325,9 +320,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                     ],
 
                     // Información de intentos (siempre visible)
-                    Flexible(
-                      child: _buildAttemptsInfo(),
-                    ),
+                    Flexible(child: _buildAttemptsInfo()),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -337,9 +330,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                 const SizedBox(height: 24),
 
                 // Grid de opciones
-                Expanded(
-                  child: _buildOptionsGrid(),
-                ),
+                Expanded(child: _buildOptionsGrid()),
               ],
             ),
           ),
@@ -356,16 +347,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2C5F7A),
-            Color(0xFF1A3D52),
-          ],
+          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0x66FFFFFF),
-          width: 1.5,
-        ),
+        border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0x80000000),
@@ -377,11 +362,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.help_outline,
-            color: Color(0xFF00E5FF),
-            size: 32,
-          ),
+          const Icon(Icons.help_outline, color: Color(0xFF00E5FF), size: 32),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -405,20 +386,13 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       decoration: BoxDecoration(
         color: const Color.fromARGB(216, 9, 31, 44),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0x33FFFFFF),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0x33FFFFFF), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.flag,
-            color: Color(0xFFFFD700),
-            size: 24,
-          ),
+          const Icon(Icons.flag, color: Color(0xFFFFD700), size: 24),
           const SizedBox(width: 8),
           Text(
             'Intentos: $_attempts / $_maxAttempts',
@@ -455,7 +429,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           final availableWidth = constraints.maxWidth;
 
           // Calcular el ancho de cada item
-          final itemWidth = (availableWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+          final itemWidth =
+              (availableWidth - (spacing * (crossAxisCount - 1))) /
+              crossAxisCount;
 
           // Calcular cuántas filas necesitamos
           final rowCount = (_options.length / crossAxisCount).ceil();
@@ -464,13 +440,12 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           final itemHeight = itemWidth;
 
           // Altura total del grid
-          final totalHeight = (itemHeight * rowCount) + (spacing * (rowCount - 1));
+          final totalHeight =
+              (itemHeight * rowCount) + (spacing * (rowCount - 1));
 
           return SingleChildScrollView(
             child: Container(
-              constraints: BoxConstraints(
-                maxHeight: totalHeight,
-              ),
+              constraints: BoxConstraints(maxHeight: totalHeight),
               child: GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -515,7 +490,11 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           boxShadow: [
             if (isSelected)
               BoxShadow(
-                color: _getBorderColor(isSelected, showResult, isCorrect).withValues(alpha: 0.5),
+                color: _getBorderColor(
+                  isSelected,
+                  showResult,
+                  isCorrect,
+                ).withValues(alpha: 0.5),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
                 spreadRadius: 2,
@@ -552,7 +531,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
             // Label (si existe)
             if (option.label.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
                 decoration: const BoxDecoration(
                   color: Color.fromARGB(100, 0, 0, 0),
                   borderRadius: BorderRadius.only(
@@ -579,27 +561,25 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   }
 
   /// Determina el gradiente de la tarjeta
-  LinearGradient _getCardGradient(bool isSelected, bool showResult, bool isCorrect) {
+  LinearGradient _getCardGradient(
+    bool isSelected,
+    bool showResult,
+    bool isCorrect,
+  ) {
     if (showResult) {
       if (isCorrect) {
         // Verde neón para correcto
         return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF05E995),
-            Color(0xFF03B872),
-          ],
+          colors: [Color(0xFF05E995), Color(0xFF03B872)],
         );
       } else {
         // Rojo para incorrecto
         return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFE74C3C),
-            Color(0xFFC0392B),
-          ],
+          colors: [Color(0xFFE74C3C), Color(0xFFC0392B)],
         );
       }
     }
@@ -608,20 +588,14 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       return const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF00E5FF),
-          Color(0xFF0096B3),
-        ],
+        colors: [Color(0xFF00E5FF), Color(0xFF0096B3)],
       );
     }
     // Gradiente oscuro por defecto
     return const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [
-        Color(0xFF2C5F7A),
-        Color(0xFF1A3D52),
-      ],
+      colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
     );
   }
 
@@ -657,10 +631,7 @@ class QuestionData {
       if (opt is Map<String, dynamic>) {
         return SelectionOption.fromMap(opt);
       }
-      return SelectionOption(
-        imagePath: opt.toString(),
-        label: '',
-      );
+      return SelectionOption(imagePath: opt.toString(), label: '');
     }).toList();
 
     return QuestionData(
@@ -677,10 +648,7 @@ class SelectionOption {
   final String imagePath;
   final String label;
 
-  SelectionOption({
-    required this.imagePath,
-    required this.label,
-  });
+  SelectionOption({required this.imagePath, required this.label});
 
   factory SelectionOption.fromMap(Map<String, dynamic> map) {
     return SelectionOption(
@@ -690,10 +658,7 @@ class SelectionOption {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'imagePath': imagePath,
-      'label': label,
-    };
+    return {'imagePath': imagePath, 'label': label};
   }
 }
 
@@ -708,4 +673,3 @@ void registerSimpleSelectionMinigame() {
     ),
   );
 }
-
