@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
-import 'level_play_screen.dart';
+import 'level_play_screen.dart.example';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -441,21 +441,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
             const SizedBox(height: 16),
             Center(
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // Cerrar el overlay y limpiar la selección antes de navegar
-                  context.read<LevelTimelineViewModel>().clearSelection();
-
-                  // Navegar a la pantalla de juego del nivel
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => LevelPlayScreen(
-                        levelTitle: step.previewTitle,
-                        minigameData: step.minigameData,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: () {},
                 icon: const Icon(Icons.play_arrow, color: Colors.white),
                 label: const Text(
                   'JUGAR',
