@@ -22,6 +22,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   int? _selectedIndex;
   bool _isCompleted = false;
 
+  /// Evita toques adicionales mientras se muestra feedback o cambia la pregunta
+  bool _isInteractionLocked = false;
+
   // Sistema de múltiples preguntas
   late final List<QuestionData> _questions;
   int _currentQuestionIndex = 0;
@@ -70,11 +73,12 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     final questionData = _questions[_currentQuestionIndex];
 
     _question = questionData.question;
-    _maxAttempts = questionData.maxAttempts;
+    _maxAttempts = max(1, questionData.maxAttempts);
 
     // Resetear intentos para la nueva pregunta
     _attempts = 0;
     _selectedIndex = null;
+    _isInteractionLocked = false;
 
     // Cargar y mezclar opciones
     List<SelectionOption> loadedOptions = List.from(questionData.options);
@@ -83,8 +87,28 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       loadedOptions = _getDefaultOptions();
     }
 
+    if (loadedOptions.isEmpty) {
+      loadedOptions = [
+        SelectionOption(
+          imagePath: 'assets/images/icon-questionmark.png',
+          label: '',
+        ),
+      ];
+    }
+
     // Guardar la opción correcta antes de mezclar
-    _correctOption = loadedOptions[questionData.correctIndex];
+    final safeCorrectIndex = questionData.correctIndex.clamp(
+      0,
+      loadedOptions.length - 1,
+    );
+
+    if (safeCorrectIndex != questionData.correctIndex) {
+      debugPrint(
+        'SimpleSelectionMinigame: correctIndex fuera de rango, se ajustó a $safeCorrectIndex (pregunta $_currentQuestionIndex)',
+      );
+    }
+
+    _correctOption = loadedOptions[safeCorrectIndex];
 
     // Mezclar las opciones
     loadedOptions.shuffle(Random());
@@ -119,12 +143,13 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   /// Maneja la selección de una opción
   void _handleSelection(int index) {
-    if (_isCompleted) return;
+    if (_isCompleted || _isInteractionLocked) return;
 
     setState(() {
       _selectedIndex = index;
       _attempts++;
       _totalAttempts++;
+      _isInteractionLocked = true;
     });
 
     // Verificar si la selección es correcta
@@ -164,6 +189,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           if (mounted) {
             setState(() {
               _selectedIndex = null;
+              _isInteractionLocked = false;
             });
           }
         });
@@ -211,6 +237,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   void _completeGame({required bool success}) {
     setState(() {
       _isCompleted = true;
+      _isInteractionLocked = true;
     });
 
     // Solo mostrar feedback si falló (porque si tuvo éxito ya se mostró en _handleSelection)
