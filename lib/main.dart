@@ -16,11 +16,13 @@ import 'features/avatar/viewmodel/avatar_viewmodel.dart';
 
 // Learning Module
 import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
-import 'features/learning_module/view/module_list_screen.dart';
 
 // Shared Services
 import 'shared/services/loading_service.dart';
 import 'shared/widgets/loading_wrapper.dart';
+
+// Minigames
+import 'features/minigames/view/types/simple_selection_minigame.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +30,10 @@ void main() async {
     options: DefaultFirebaseOptions
         .currentPlatform,
   );
+
+  // Registrar minijuegos
+  registerSimpleSelectionMinigame();
+
   runApp(const MyApp());
 }
 
