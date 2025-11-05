@@ -135,7 +135,7 @@ Cuando termines tu tarea:
 
 ## Estilo de Código y Calidad
 
--   **Formato:** Antes de hacer commit, formatea tu código con `dart format .`.
+-   **Formato:** Antes de hacer commit, formatea tu código con `flutter format .`.
 -   **Linting:** Asegúrate de que no haya advertencias ni errores del linter (`analysis_options.yaml`).
 
 ---
