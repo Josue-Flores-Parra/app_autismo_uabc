@@ -16,6 +16,7 @@ import 'features/avatar/viewmodel/avatar_viewmodel.dart';
 
 // Learning Module
 import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
+import 'features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 
 // Shared Services
 import 'shared/services/loading_service.dart';
@@ -27,8 +28,7 @@ import 'features/minigames/view/types/simple_selection_minigame.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions
-        .currentPlatform,
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
   // Registrar minijuegos
@@ -43,16 +43,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Obtener skins disponibles del repositorio
-    final skinsDisponibles =
-        AvatarRepository.obtenerSkinsDisponibles();
+    final skinsDisponibles = AvatarRepository.obtenerSkinsDisponibles();
 
     // Crear el estado inicial del avatar
-      final estadoInicial = AvatarEstado(
+    final estadoInicial = AvatarEstado(
       nombre: 'MRBEAST',
       felicidad: 64,
       energia: 92,
-      skinActual:
-          skinsDisponibles.first,
+      skinActual: skinsDisponibles.first,
       backgroundActual:
           'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
       monedas: 150, // Monedas iniciales
@@ -62,70 +60,44 @@ class MyApp extends StatelessWidget {
       },
     );
 
+    const String moduleId = 'Higiene_01';
+
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>(
+          create: (_) => AvatarViewModel(estadoInicial),
+          update: (context, auth, previous) {
+            final avatarVM = previous ?? AvatarViewModel(estadoInicial);
+            if (auth.currentUser != null) {
+              avatarVM.initialize();
+            }
+            return avatarVM;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
         ChangeNotifierProvider(
-          create: (_) =>
-              AuthViewModel(),
+          create: (_) => LevelTimelineViewModel(moduleId),
         ),
-        ChangeNotifierProxyProvider<
-          AuthViewModel,
-          AvatarViewModel
-        >(
-          create: (_) =>
-              AvatarViewModel(
-                estadoInicial,
-              ),
-          update:
-              (
-                context,
-                auth,
-                previous,
-              ) {
-                final avatarVM =
-                    previous ??
-                    AvatarViewModel(
-                      estadoInicial,
-                    );
-                if (auth.currentUser !=
-                    null) {
-                  avatarVM.initialize();
-                }
-                return avatarVM;
-              },
-        ),
-        ChangeNotifierProvider(
-          create: (_) =>
-              ModuleListViewModel(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) =>
-              LoadingService(),
-        ),
+        ChangeNotifierProvider(create: (_) => LoadingService()),
       ],
       child: LoadingWrapper(
         child: MaterialApp(
           title: 'Appy',
-          debugShowCheckedModeBanner:
-              false,
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
-            colorScheme:
-                ColorScheme.fromSeed(
-                  seedColor:
-                      const Color(
-                        0xFF5B8DB3,
-                      ),
-                ),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF5B8DB3),
+            ),
             useMaterial3: true,
           ),
-          // home: const ModuleListScreen(),
           home: const LoginScreen(),
-          // home: const AvatarScreen(),
+          // home: const ModuleListScreen(),
           // home: LevelTimelineScreen(
           //   moduleId: moduleId,
           //   backgroundImagePath:
           //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-          //         ),
+          // ),
         ),
       ),
     );
