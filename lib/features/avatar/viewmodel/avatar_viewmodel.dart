@@ -34,6 +34,7 @@ class AvatarViewModel
   // Estado privado
   bool _showEditPanel = false;
   late AvatarEstado _currentEstado;
+  bool _isInitialized = false; // Prevenir múltiples inicializaciones
 
   // Datos del Repository (cached)
   late final List<SkinInfo>
@@ -66,7 +67,11 @@ class AvatarViewModel
   }
 
   Future<void> initialize() async {
+    if (_isInitialized) {
+      return; // Ya fue inicializado, evitar duplicados
+    }
     await loadAvatarConfigFromFirestore();
+    _isInitialized = true;
   }
 
   Future<void>
@@ -294,7 +299,7 @@ class AvatarViewModel
   Actualiza la skin actual del avatar
   Automáticamente limpia la expresión cuando cambias de skin
   */
-  void updateSkin(SkinInfo newSkin) {
+  Future<void> updateSkin(SkinInfo newSkin) async {
     _currentEstado = _currentEstado
         .copyWith(
           skinActual: newSkin,
@@ -302,16 +307,16 @@ class AvatarViewModel
               true, // Limpiar expresión al cambiar skin
         );
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Actualiza la expresión del avatar
   Si se pasa null, limpia la expresión actual
   */
-  void updateExpresion(
+  Future<void> updateExpresion(
     String? expresion,
-  ) {
+  ) async {
     if (expresion == null) {
       _currentEstado = _currentEstado
           .copyWith(
@@ -324,16 +329,16 @@ class AvatarViewModel
           );
     }
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Actualiza el accesorio del avatar
   Si se pasa null, quita el accesorio actual
   */
-  void updateAccesorio(
+  Future<void> updateAccesorio(
     AccesorioGeneral? accesorio,
-  ) {
+  ) async {
     if (accesorio == null) {
       _currentEstado = _currentEstado
           .copyWith(
@@ -346,41 +351,41 @@ class AvatarViewModel
           );
     }
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Actualiza el background del avatar
   */
-  void updateBackground(
+  Future<void> updateBackground(
     String background,
-  ) {
+  ) async {
     _currentEstado = _currentEstado
         .copyWith(
           backgroundActual: background,
         );
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Actualiza el nombre del avatar
   */
-  void updateNombre(
+  Future<void> updateNombre(
     String nuevoNombre,
-  ) {
+  ) async {
     _currentEstado = _currentEstado
         .copyWith(nombre: nuevoNombre);
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Actualiza la felicidad del avatar (0-100)
   */
-  void updateFelicidad(
+  Future<void> updateFelicidad(
     int nuevaFelicidad,
-  ) {
+  ) async {
     if (nuevaFelicidad < 0 ||
         nuevaFelicidad > 100) {
       throw ArgumentError(
@@ -392,13 +397,13 @@ class AvatarViewModel
           felicidad: nuevaFelicidad,
         );
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Actualiza la energía del avatar (0-100)
   */
-  void updateEnergia(int nuevaEnergia) {
+  Future<void> updateEnergia(int nuevaEnergia) async {
     if (nuevaEnergia < 0 ||
         nuevaEnergia > 100) {
       throw ArgumentError(
@@ -410,7 +415,7 @@ class AvatarViewModel
           energia: nuevaEnergia,
         );
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
@@ -428,9 +433,9 @@ class AvatarViewModel
   Intenta desbloquear un accesorio con monedas
   Retorna true si se desbloqueó exitosamente, false si no hay suficientes monedas
   */
-  bool desbloquearAccesorio(
+  Future<bool> desbloquearAccesorio(
     AccesorioGeneral accesorio,
-  ) {
+  ) async {
     // Verificar si ya está desbloqueado
     if (isAccesorioDesbloqueado(
       accesorio.nombre,
@@ -461,14 +466,14 @@ class AvatarViewModel
               nuevosDesbloqueados,
         );
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
     return true;
   }
 
   /* 
   Agrega monedas al usuario (por completar actividades, etc.)
   */
-  void agregarMonedas(int cantidad) {
+  Future<void> agregarMonedas(int cantidad) async {
     _currentEstado = _currentEstado
         .copyWith(
           monedas:
@@ -476,19 +481,19 @@ class AvatarViewModel
               cantidad,
         );
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 
   /* 
   Resetea el avatar a un estado específico
   Útil para reiniciar la personalización
   */
-  void resetEstado(
+  Future<void> resetEstado(
     AvatarEstado nuevoEstado,
-  ) {
+  ) async {
     _currentEstado = nuevoEstado;
     _showEditPanel = false;
     notifyListeners();
-    saveAvatarConfigToFirestore();
+    await saveAvatarConfigToFirestore();
   }
 }

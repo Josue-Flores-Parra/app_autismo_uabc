@@ -353,9 +353,11 @@ class _AvatarScreenState
             100,
             isSelected,
             const Color(0xFF00E5FF),
-            () => context
-                .read<AvatarViewModel>()
-                .updateSkin(skin),
+            () async {
+              await context
+                  .read<AvatarViewModel>()
+                  .updateSkin(skin);
+            },
             child: Column(
               mainAxisAlignment:
                   MainAxisAlignment
@@ -450,11 +452,13 @@ class _AvatarScreenState
             80,
             isSelected,
             const Color(0xFFFFD700),
-            () => context
-                .read<AvatarViewModel>()
-                .updateExpresion(
-                  expresion,
-                ),
+            () async {
+              await context
+                  .read<AvatarViewModel>()
+                  .updateExpresion(
+                    expresion,
+                  );
+            },
             child: Padding(
               padding:
                   const EdgeInsets.all(
@@ -500,13 +504,15 @@ class _AvatarScreenState
               80,
               isSelected,
               const Color(0xFF00E5FF),
-              () => context
-                  .read<
-                    AvatarViewModel
-                  >()
-                  .updateAccesorio(
-                    null,
-                  ),
+              () async {
+                await context
+                    .read<
+                      AvatarViewModel
+                    >()
+                    .updateAccesorio(
+                      null,
+                    );
+              },
               child: const Center(
                 child: Icon(
                   Icons.close,
@@ -572,11 +578,13 @@ class _AvatarScreenState
             120,
             isSelected,
             const Color(0xFF92C5BC),
-            () => context
-                .read<AvatarViewModel>()
-                .updateBackground(
-                  background,
-                ),
+            () async {
+              await context
+                  .read<AvatarViewModel>()
+                  .updateBackground(
+                    background,
+                  );
+            },
             child: ClipRRect(
               borderRadius:
                   BorderRadius.circular(
@@ -1145,9 +1153,9 @@ class _AvatarScreenState
                 BorderRadius.circular(
                   15,
                 ),
-            onTap: () {
+            onTap: () async {
               if (isDesbloqueado) {
-                context
+                await context
                     .read<
                       AvatarViewModel
                     >()
@@ -1639,14 +1647,16 @@ class _AvatarScreenState
                                 ),
                             onTap:
                                 tieneSuficientes
-                                ? () {
-                                    final exito = viewModel.desbloquearAccesorio(
+                                ? () async {
+                                    final exito = await viewModel.desbloquearAccesorio(
                                       accesorio,
                                     );
+                                    if (!dialogContext.mounted) return;
                                     Navigator.of(
                                       dialogContext,
                                     ).pop();
                                     if (exito) {
+                                      if (!context.mounted) return;
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
@@ -1657,10 +1667,11 @@ class _AvatarScreenState
                                           backgroundColor: Colors.green,
                                         ),
                                       );
-                                      viewModel.updateAccesorio(
+                                      await viewModel.updateAccesorio(
                                         accesorio,
                                       );
                                     } else {
+                                      if (!context.mounted) return;
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(

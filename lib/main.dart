@@ -16,17 +16,24 @@ import 'features/avatar/viewmodel/avatar_viewmodel.dart';
 
 // Learning Module
 import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
-
-// Level Timeline
 import 'features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 
 // Shared Services
 import 'shared/services/loading_service.dart';
 import 'shared/widgets/loading_wrapper.dart';
 
+// Minigames
+import 'features/minigames/view/types/simple_selection_minigame.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Registrar minijuegos
+  registerSimpleSelectionMinigame();
+
   runApp(const MyApp());
 }
 
@@ -69,7 +76,9 @@ class MyApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
-        ChangeNotifierProvider(create: (_) => LevelTimelineViewModel(moduleId)),
+        ChangeNotifierProvider(
+          create: (_) => LevelTimelineViewModel(moduleId),
+        ),
         ChangeNotifierProvider(create: (_) => LoadingService()),
       ],
       child: LoadingWrapper(
@@ -84,12 +93,11 @@ class MyApp extends StatelessWidget {
           ),
           home: const LoginScreen(),
           // home: const ModuleListScreen(),
-          // home: const AvatarScreen(),
           // home: LevelTimelineScreen(
           //   moduleId: moduleId,
           //   backgroundImagePath:
           //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-          //         ),
+          // ),
         ),
       ),
     );
