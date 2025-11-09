@@ -1,7 +1,8 @@
 import 'package:video_player/video_player.dart';
 
 class VideoControllerManager {
-  static final VideoControllerManager _instance = VideoControllerManager._internal();
+  static final VideoControllerManager _instance =
+      VideoControllerManager._internal();
 
   factory VideoControllerManager() => _instance;
 
