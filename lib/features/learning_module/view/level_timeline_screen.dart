@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
-import 'level_play_screen.dart.example';
+//import 'level_play_screen.dart.example';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -624,3 +624,4 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 }
+
