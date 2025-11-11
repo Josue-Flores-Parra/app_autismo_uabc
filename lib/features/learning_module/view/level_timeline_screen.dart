@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
-import 'level_play_screen.dart.example';
+import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
+//import 'level_play_screen.dart.example';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -68,12 +69,16 @@ class LevelTimelineScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LevelTimelineViewModel(moduleId),
-      child: LevelTimelineContent(
-        moduleId: moduleId,
-        backgroundImagePath: backgroundImagePath,
-      ),
+    return Consumer<LearningViewModel>(
+      builder: (context, learningViewModel, child) {
+        return ChangeNotifierProvider(
+          create: (_) => LevelTimelineViewModel(learningViewModel, moduleId),
+          child: LevelTimelineContent(
+            moduleId: moduleId,
+            backgroundImagePath: backgroundImagePath,
+          ),
+        );
+      },
     );
   }
 }
@@ -118,20 +123,27 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final viewModel = context.read<LevelTimelineViewModel>();
-    _generateKeys(viewModel.steps.length);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      viewModel.calculateNodePositions(
-        MediaQuery.of(context).size,
-        _itemHeight,
-      );
-    });
+    // Only generate keys and calculate positions if we have steps
+    if (viewModel.steps.isNotEmpty) {
+      _generateKeys(viewModel.steps.length);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        viewModel.calculateNodePositions(
+          MediaQuery.of(context).size,
+          _itemHeight,
+        );
+      });
+    }
   }
 
   void _generateKeys(int stepsCount) {
-    _keys.clear();
-    for (int i = 0; i < stepsCount; i++) {
-      _keys.add(GlobalKey());
+    // Only regenerate if the count has changed
+    if (_keys.length != stepsCount) {
+      _keys.clear();
+      for (int i = 0; i < stepsCount; i++) {
+        _keys.add(GlobalKey());
+      }
     }
   }
 
@@ -177,6 +189,70 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   Widget build(BuildContext context) {
     return Consumer<LevelTimelineViewModel>(
       builder: (context, viewModel, child) {
+        // Handle loading state
+        if (viewModel.isLoading) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                viewModel.moduleTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: const Color(0xFF1A3D52),
+              foregroundColor: Colors.white,
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Handle error state
+        if (viewModel.errorMessage != null) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                viewModel.moduleTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: const Color(0xFF1A3D52),
+              foregroundColor: Colors.white,
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      viewModel.errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Ensure keys are generated when steps are available
+        if (_keys.length != viewModel.steps.length) {
+          _generateKeys(viewModel.steps.length);
+          // Schedule position calculation after keys are generated
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              viewModel.calculateNodePositions(
+                MediaQuery.of(context).size,
+                _itemHeight,
+              );
+            }
+          });
+        }
+
         final activeStepIndex = viewModel.steps.indexWhere(
           (step) => step.whatState == StateOfStep.inProgress,
         );
@@ -332,6 +408,13 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     required LevelStepInfo step,
   }) {
     final viewModel = context.read<LevelTimelineViewModel>();
+
+    // Safety check: ensure we have a valid key for this index
+    if (index >= _keys.length) {
+      // Return a placeholder while keys are being generated
+      return const SizedBox.shrink();
+    }
+
     final nodeWidget = GestureDetector(
       key: _keys[index],
       onTap: () => viewModel.handleTap(index),
@@ -546,3 +629,4 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 }
+

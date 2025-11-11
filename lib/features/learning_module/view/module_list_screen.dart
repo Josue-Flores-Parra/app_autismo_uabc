@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
-import '../viewmodel/module_list_viewmodel.dart';
+import '../viewmodel/learning_viewmodel.dart';
 import 'level_timeline_screen.dart';
+import '../../../examples/firestore_debug_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
@@ -28,12 +30,43 @@ class ModuleListScreen extends StatelessWidget {
             colors: [Color(0xF20D3B52), Color(0xFF091F2C)],
           ),
         ),
-        child: Consumer<ModuleListViewModel>(
+        child: Consumer<LearningViewModel>(
           builder: (context, viewModel, child) {
+            // Mostrar loading
+            if (viewModel.isLoadingModules) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // Mostrar error
+            if (viewModel.errorMessageModules != null) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      viewModel.errorMessageModules!,
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => viewModel.reloadModules(),
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // Obtener nombre de usuario desde Firebase Auth
+            final user = FirebaseAuth.instance.currentUser;
+            final nombreUsuario = user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
+            final nivelUsuario = 2; // TODO: Obtener desde Firestore si está disponible
+
             return ModulosGridView(
               modulos: viewModel.modulos,
-              nombreUsuario: viewModel.nombreUsuario,
-              nivelUsuario: viewModel.nivelUsuario,
+              nombreUsuario: nombreUsuario,
+              nivelUsuario: nivelUsuario,
             );
           },
         ),
