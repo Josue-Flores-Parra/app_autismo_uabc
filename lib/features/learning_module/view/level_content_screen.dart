@@ -32,10 +32,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _pageController = PageController(
-      viewportFraction: 0.75,
-      initialPage: 0,
-    );
+    _pageController = PageController(viewportFraction: 0.75, initialPage: 0);
 
     _animController.forward();
   }
@@ -55,10 +52,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xF20D3B52),
-              Color(0xFF091F2C),
-            ],
+            colors: [Color(0xF20D3B52), Color(0xFF091F2C)],
           ),
         ),
         child: Stack(
@@ -67,10 +61,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               Positioned.fill(
                 child: Opacity(
                   opacity: 0.3,
-                  child: Image.asset(
-                    widget.bgLevelImg!,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.asset(widget.bgLevelImg!, fit: BoxFit.cover),
                 ),
               ),
 
@@ -106,16 +97,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2C5F7A),
-            Color(0xFF1A3D52),
-          ],
+          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
         ),
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: const Color(0x66FFFFFF),
-          width: 1.5,
-        ),
+        border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0x80000000),

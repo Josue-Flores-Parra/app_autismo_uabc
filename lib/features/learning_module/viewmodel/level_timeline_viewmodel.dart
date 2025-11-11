@@ -3,10 +3,17 @@ import 'package:appy/features/learning_module/data/level_repository.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 
 class LevelTimelineViewModel extends ChangeNotifier {
+  final LevelRepository _levelRepository = LevelRepository();
+
   List<LevelStepInfo> _steps = [];
   String _moduleTitle = '';
+  bool _isLoading = false;
+  String? _errorMessage;
+
   List<LevelStepInfo> get steps => _steps;
   String get moduleTitle => _moduleTitle;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
 
   /*
     Lógica de Presentación
@@ -24,12 +31,30 @@ class LevelTimelineViewModel extends ChangeNotifier {
     _loadModuleData(moduleId);
   }
 
-  void _loadModuleData(String moduleId) {
-    _steps = LevelRepository.getStepsForModule(moduleId);
-    if (moduleId.contains('Higiene')) {
-      _moduleTitle = 'Módulo de Higiene';
-    } else {
-      _moduleTitle = 'Módulo de Aprendizaje';
+  Future<void> _loadModuleData(String moduleId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _steps = await _levelRepository.getStepsForModule(moduleId);
+
+      if (moduleId.contains('Higiene') || moduleId.contains('higiene')) {
+        _moduleTitle = 'Módulo de Higiene';
+      } else if (moduleId.contains('alimentacion')) {
+        _moduleTitle = 'Módulo de Alimentación';
+      } else {
+        _moduleTitle = 'Módulo de Aprendizaje';
+      }
+
+      if (_steps.isEmpty) {
+        _errorMessage = 'No se encontraron niveles para este módulo';
+      }
+    } catch (e) {
+      _errorMessage = 'Error al cargar los niveles: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 

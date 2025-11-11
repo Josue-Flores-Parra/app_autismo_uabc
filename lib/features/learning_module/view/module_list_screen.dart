@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
 import '../viewmodel/module_list_viewmodel.dart';
 import 'level_timeline_screen.dart';
+import '../../../examples/firestore_debug_screen.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
