@@ -15,6 +15,59 @@ class FirestoreService {
   }
 
   // =======================================
+  // Métodos de Progreso del Usuario
+  // =======================================
+
+  /*
+  Guarda el progreso del usuario para un nivel específico
+  */
+  Future<void> saveUserProgress(
+    String userId,
+    String levelId,
+    Map<String, dynamic> result,
+  ) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(userId)
+          .collection('progress')
+          .doc(levelId)
+          .set(result, SetOptions(merge: true));
+    } catch (e) {
+      // Error handling can be added at higher level if needed
+      rethrow;
+    }
+  }
+
+  /*
+  Obtiene todos los progresos del usuario
+  Retorna un Map donde la clave es el levelId y el valor es el progreso
+  */
+  Future<Map<String, dynamic>?> getUserProgress(String userId) async {
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(userId)
+          .collection('progress')
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      // Procesar y retornar datos como un Map
+      final progressMap = <String, dynamic>{};
+      for (var doc in snapshot.docs) {
+        progressMap[doc.id] = doc.data();
+      }
+
+      return progressMap;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // =======================================
   // Métodos para Módulos de Aprendizaje
   // =======================================
 
@@ -56,6 +109,23 @@ class FirestoreService {
   }
 
   /*
+  Obtiene la lista completa de módulos
+  */
+  Future<List<Map<String, dynamic>>> getModules() async {
+    try {
+      final snapshot = await _db.collection('modules').get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        // Add the document ID to the data map
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /*
   Obtiene todos los niveles de un módulo específico ordenados por 'orden'
   */
   Future<List<Map<String, dynamic>>> getModuleLevels(String moduleId) async {
@@ -81,6 +151,33 @@ class FirestoreService {
 
       return levels;
     } catch (e, stackTrace) {
+      return [];
+    }
+  }
+
+  /*
+  Obtiene los niveles pertenecientes a un módulo específico
+  */
+  Future<List<Map<String, dynamic>>> getLevelsForModule(String moduleId) async {
+    // Validar que moduleId no esté vacío
+    if (moduleId.isEmpty) {
+      return [];
+    }
+
+    try {
+      final snapshot = await _db
+          .collection('modules')
+          .doc(moduleId)
+          .collection('levels')
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        // Add the document ID to the data map
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
       return [];
     }
   }

@@ -11,6 +11,9 @@ class LevelStepInfo {
     this.posibleImagePreview,
     this.stars,
     this.minigameData,
+    this.actividadType,
+    this.levelId,
+    this.moduleId,
   });
 
   final String previewTitle;
@@ -18,6 +21,9 @@ class LevelStepInfo {
   final String? posibleImagePreview;
   final int? stars;
   final Map<String, dynamic>? minigameData;
+  final String? actividadType;
+  final String? levelId;
+  final String? moduleId;
 }
 
 /*
