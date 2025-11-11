@@ -28,16 +28,10 @@ class _BasePreviewCardState extends State<BasePreviewCard>
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xE65B8DB3),
-            Color(0xCC4A7499),
-          ],
+          colors: [Color(0xE65B8DB3), Color(0xCC4A7499)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0x997BA5C9),
-          width: 1.5,
-        ),
+        border: Border.all(color: const Color(0x997BA5C9), width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0xCC2A4A5C),
@@ -99,10 +93,7 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFFFF),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0x997BA5C9),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0x997BA5C9), width: 2),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x80000000),
@@ -168,16 +159,10 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF92C5BC),
-                    Color(0xFF5A97B8),
-                  ],
+                  colors: [Color(0xFF92C5BC), Color(0xFF5A97B8)],
                 ),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: const Color(0xFFB0D9D1),
-                  width: 2,
-                ),
+                border: Border.all(color: const Color(0xFFB0D9D1), width: 2),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x4DFFFFFF),
@@ -284,7 +269,8 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                         final double videoAspectRatio =
                             _viewModel.videoController.value.aspectRatio;
                         final double availableWidth = constraints.maxWidth;
-                        final double videoHeight = availableWidth / videoAspectRatio;
+                        final double videoHeight =
+                            availableWidth / videoAspectRatio;
                         final double controlBarHeight = videoHeight * 0.15;
 
                         return ClipRRect(
@@ -300,10 +286,17 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                   child: GestureDetector(
                                     onTap: _viewModel.togglePlayPause,
                                     child: AnimatedOpacity(
-                                      opacity: _viewModel.showGiantIcon ? 1.0 : 0.0,
-                                      duration: const Duration(milliseconds: 300),
+                                      opacity: _viewModel.showGiantIcon
+                                          ? 1.0
+                                          : 0.0,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
                                       child: SvgPicture.asset(
-                                        _viewModel.videoController.value.isPlaying
+                                        _viewModel
+                                                .videoController
+                                                .value
+                                                .isPlaying
                                             ? 'assets/icons/pausebigbutton.svg'
                                             : 'assets/icons/playbigbutton.svg',
                                         width: 60.0,
@@ -318,7 +311,9 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                   left: 0,
                                   right: 0,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10.0,
+                                    ),
                                     child: VideoProgressIndicator(
                                       _viewModel.videoController,
                                       allowScrubbing: true,
@@ -340,18 +335,26 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                     decoration: const BoxDecoration(
                                       color: Color(0xFF5B8DB3),
                                       border: Border(
-                                        top: BorderSide(width: 3.0, color: Colors.white),
+                                        top: BorderSide(
+                                          width: 3.0,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
                                       children: [
                                         IconButton(
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
                                           icon: SvgPicture.asset(
-                                            _viewModel.videoController.value.isPlaying
+                                            _viewModel
+                                                    .videoController
+                                                    .value
+                                                    .isPlaying
                                                 ? 'assets/icons/pausebutton.svg'
                                                 : 'assets/icons/playbuttoncontroller.svg',
                                             width: 30,
@@ -362,7 +365,10 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
                                         Text(
                                           '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
-                                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
                                         ),
 
                                         IconButton(
@@ -387,10 +393,14 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                           onPressed: () {
                                             Navigator.of(context).push(
                                               MaterialPageRoute(
-                                                builder: (context) => _FullscreenVideoPlayer(
-                                                  viewModel: _viewModel,
-                                                  onClose: () => Navigator.of(context).pop(),
-                                                ),
+                                                builder: (context) =>
+                                                    _FullscreenVideoPlayer(
+                                                      viewModel: _viewModel,
+                                                      onClose: () =>
+                                                          Navigator.of(
+                                                            context,
+                                                          ).pop(),
+                                                    ),
                                               ),
                                             );
                                           },
@@ -538,9 +548,7 @@ class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
             right: 0,
             child: Container(
               height: 50,
-              decoration: const BoxDecoration(
-                color: Color(0xFF5B8DB3),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF5B8DB3)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -631,10 +639,7 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFFFF),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0x997BA5C9),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0x997BA5C9), width: 2),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x80000000),
@@ -702,16 +707,10 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF92C5BC),
-                    Color(0xFF5A97B8),
-                  ],
+                  colors: [Color(0xFF92C5BC), Color(0xFF5A97B8)],
                 ),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: const Color(0xFFB0D9D1),
-                  width: 2,
-                ),
+                border: Border.all(color: const Color(0xFFB0D9D1), width: 2),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x4DFFFFFF),

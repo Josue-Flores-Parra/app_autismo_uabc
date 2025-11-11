@@ -629,4 +629,3 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 }
-
