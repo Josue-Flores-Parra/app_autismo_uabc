@@ -15,8 +15,7 @@ import 'features/avatar/data/avatar_repository.dart';
 import 'features/avatar/viewmodel/avatar_viewmodel.dart';
 
 // Learning Module
-import 'features/learning_module/viewmodel/module_list_viewmodel.dart';
-import 'features/learning_module/viewmodel/level_timeline_viewmodel.dart';
+import 'features/learning_module/viewmodel/learning_viewmodel.dart';
 
 // Shared Services
 import 'shared/services/loading_service.dart';
@@ -75,10 +74,7 @@ class MyApp extends StatelessWidget {
             return avatarVM;
           },
         ),
-        ChangeNotifierProvider(create: (_) => ModuleListViewModel()),
-        ChangeNotifierProvider(
-          create: (_) => LevelTimelineViewModel(moduleId),
-        ),
+        ChangeNotifierProvider(create: (_) => LearningViewModel()),
         ChangeNotifierProvider(create: (_) => LoadingService()),
       ],
       child: LoadingWrapper(

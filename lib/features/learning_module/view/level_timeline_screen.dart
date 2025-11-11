@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
+import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
 //import 'level_play_screen.dart.example';
 
 class PathPainter extends CustomPainter {
@@ -68,12 +69,16 @@ class LevelTimelineScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LevelTimelineViewModel(moduleId),
-      child: LevelTimelineContent(
-        moduleId: moduleId,
-        backgroundImagePath: backgroundImagePath,
-      ),
+    return Consumer<LearningViewModel>(
+      builder: (context, learningViewModel, child) {
+        return ChangeNotifierProvider(
+          create: (_) => LevelTimelineViewModel(learningViewModel, moduleId),
+          child: LevelTimelineContent(
+            moduleId: moduleId,
+            backgroundImagePath: backgroundImagePath,
+          ),
+        );
+      },
     );
   }
 }
@@ -624,4 +629,3 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 }
-

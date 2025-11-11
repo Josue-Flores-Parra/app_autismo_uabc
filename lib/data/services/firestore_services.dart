@@ -155,4 +155,55 @@ class FirestoreService {
       return null;
     }
   }
+
+  /*
+  Obtiene el progreso de todos los niveles de un módulo para un usuario específico
+  Retorna un Map donde la clave es el levelId y el valor es el progreso
+  */
+  Future<Map<String, Map<String, dynamic>>> getUserLevelsProgress(
+    String uid,
+    String moduleId,
+  ) async {
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('progress')
+          .doc(moduleId)
+          .collection('levels')
+          .get();
+
+      final progressMap = <String, Map<String, dynamic>>{};
+      for (var doc in snapshot.docs) {
+        progressMap[doc.id] = doc.data();
+      }
+      return progressMap;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /*
+  Obtiene el progreso de un nivel específico para un usuario
+  */
+  Future<Map<String, dynamic>?> getUserLevelProgress(
+    String uid,
+    String moduleId,
+    String levelId,
+  ) async {
+    try {
+      final doc = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('progress')
+          .doc(moduleId)
+          .collection('levels')
+          .doc(levelId)
+          .get();
+
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      return null;
+    }
+  }
 }

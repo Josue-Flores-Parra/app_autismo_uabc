@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:appy/features/learning_module/data/level_repository.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
+import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
 
 class LevelTimelineViewModel extends ChangeNotifier {
-  final LevelRepository _levelRepository = LevelRepository();
+  final LearningViewModel _learningViewModel;
+  final String _moduleId;
 
   List<LevelStepInfo> _steps = [];
   String _moduleTitle = '';
@@ -27,8 +28,8 @@ class LevelTimelineViewModel extends ChangeNotifier {
   int? _selectedIndex;
   int? get selectedIndex => _selectedIndex;
 
-  LevelTimelineViewModel(String moduleId) {
-    _loadModuleData(moduleId);
+  LevelTimelineViewModel(this._learningViewModel, this._moduleId) {
+    _loadModuleData(_moduleId);
   }
 
   Future<void> _loadModuleData(String moduleId) async {
@@ -37,21 +38,36 @@ class LevelTimelineViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _steps = await _levelRepository.getStepsForModule(moduleId);
+      // Obtener título del módulo
+      _moduleTitle = await _learningViewModel.getModuleTitle(moduleId);
 
-      if (moduleId.contains('Higiene') || moduleId.contains('higiene')) {
-        _moduleTitle = 'Módulo de Higiene';
-      } else if (moduleId.contains('alimentacion')) {
-        _moduleTitle = 'Módulo de Alimentación';
-      } else {
-        _moduleTitle = 'Módulo de Aprendizaje';
-      }
+      // Obtener niveles desde LearningViewModel
+      final moduleLevels = await _learningViewModel.getModuleLevels(moduleId);
 
-      if (_steps.isEmpty) {
+      if (moduleLevels.isEmpty) {
         _errorMessage = 'No se encontraron niveles para este módulo';
+        _steps = [];
+      } else {
+        // Convertir ModuleLevelInfo a LevelStepInfo
+        _steps = moduleLevels.asMap().entries.map((entry) {
+          final level = entry.value;
+
+          // Agregar "Paso X:" antes del título usando el campo 'orden'
+          final stepNumber = level.orden;
+          final titleWithPrefix = 'Paso $stepNumber: ${level.titulo}';
+
+          return LevelStepInfo(
+            previewTitle: titleWithPrefix,
+            whatState: level.estado,
+            stars: level.estrellas,
+            posibleImagePreview: level.pictogramaUrl,
+            minigameData: level.actividadData,
+          );
+        }).toList();
       }
     } catch (e) {
       _errorMessage = 'Error al cargar los niveles: $e';
+      _steps = [];
     } finally {
       _isLoading = false;
       notifyListeners();
