@@ -123,9 +123,9 @@ class LearningViewModel extends ChangeNotifier {
   Obtiene los niveles de un módulo específico desde Firestore
   y determina su estado basado en el progreso del usuario
   */
-  Future<List<ModuleLevelInfo>> getModuleLevels(String moduleId) async {
-    // Si ya están cargados, retornarlos
-    if (_moduleLevels.containsKey(moduleId)) {
+  Future<List<ModuleLevelInfo>> getModuleLevels(String moduleId, {bool forceReload = false}) async {
+    // Si ya están cargados y no se fuerza recarga, retornarlos
+    if (!forceReload && _moduleLevels.containsKey(moduleId)) {
       return _moduleLevels[moduleId]!;
     }
 

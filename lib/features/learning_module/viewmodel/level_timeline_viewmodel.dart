@@ -32,6 +32,11 @@ class LevelTimelineViewModel extends ChangeNotifier {
     _loadModuleData(_moduleId);
   }
 
+  /// Recarga los datos del módulo (útil después de completar un nivel)
+  Future<void> reloadModuleData() async {
+    await _loadModuleData(_moduleId);
+  }
+
   Future<void> _loadModuleData(String moduleId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -62,6 +67,9 @@ class LevelTimelineViewModel extends ChangeNotifier {
             stars: level.estrellas,
             posibleImagePreview: level.pictogramaUrl,
             minigameData: level.actividadData,
+            actividadType: level.actividadType,
+            levelId: level.id,
+            moduleId: _moduleId,
           );
         }).toList();
       }

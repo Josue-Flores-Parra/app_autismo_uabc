@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
-//import 'level_play_screen.dart.example';
+import 'level_play_screen.dart';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -159,7 +159,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     _overlayEntry = null;
   }
 
-  void _showOverlay(BuildContext context, LevelStepInfo step, int index) {
+  void _showOverlay(BuildContext context, LevelStepInfo step, int index, LevelTimelineViewModel viewModel) {
     _removeOverlay();
     final RenderBox renderBox =
         _keys[index].currentContext!.findRenderObject() as RenderBox;
@@ -167,17 +167,16 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     final popupWidth = 250.0;
     final popupLeft = (MediaQuery.of(context).size.width - popupWidth) / 2;
     _overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
+      builder: (overlayContext) => Stack(
         children: [
           GestureDetector(
-            onTap: () =>
-                context.read<LevelTimelineViewModel>().clearSelection(),
+            onTap: () => viewModel.clearSelection(),
             child: Container(color: const Color.fromARGB(178, 0, 0, 0)),
           ),
           Positioned(
             left: popupLeft,
             top: offset.dy > 300 ? offset.dy - 220 : offset.dy + 80,
-            child: _buildPopupContent(step),
+            child: _buildPopupContent(overlayContext, step, viewModel),
           ),
         ],
       ),
@@ -265,7 +264,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (viewModel.selectedIndex != null && _overlayEntry == null) {
             final step = viewModel.steps[viewModel.selectedIndex!];
-            _showOverlay(context, step, viewModel.selectedIndex!);
+            _showOverlay(context, step, viewModel.selectedIndex!, viewModel);
           } else if (viewModel.selectedIndex == null && _overlayEntry != null) {
             _removeOverlay();
           }
@@ -368,7 +367,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 30),
-                    child: _buildPlayButton(),
+                    child: _buildPlayButton(context, viewModel, activeStepIndex),
                   ),
                 ),
             ],
@@ -378,10 +377,34 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
-  Widget _buildPlayButton() {
+  Widget _buildPlayButton(
+    BuildContext context,
+    LevelTimelineViewModel viewModel,
+    int stepIndex,
+  ) {
     const activeColor = Color(0xFF00E5FF);
+    final step = viewModel.steps[stepIndex];
+    
     return ElevatedButton.icon(
-      onPressed: () {},
+      onPressed: () async {
+        // Navegar a la pantalla de juego con los datos del minijuego
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LevelPlayScreen(
+              levelTitle: step.previewTitle,
+              minigameData: step.minigameData,
+              actividadType: step.actividadType,
+              levelId: step.levelId,
+              moduleId: step.moduleId,
+            ),
+          ),
+        );
+        // Recargar datos del módulo después de regresar
+        if (context.mounted) {
+          viewModel.reloadModuleData();
+        }
+      },
       icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
       label: const Text(
         'JUGAR',
@@ -475,7 +498,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
-  Widget _buildPopupContent(LevelStepInfo step) {
+  Widget _buildPopupContent(BuildContext context, LevelStepInfo step, LevelTimelineViewModel viewModel) {
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -497,14 +520,44 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              step.previewTitle,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
+            // Header con título y botón de cerrar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    step.previewTitle,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Botón X para cerrar
+                InkWell(
+                  onTap: () {
+                    viewModel.clearSelection();
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (step.posibleImagePreview != null) ...[
               const SizedBox(height: 10),
@@ -524,7 +577,27 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
             const SizedBox(height: 16),
             Center(
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () async {
+                  // Cerrar el popup primero
+                  viewModel.clearSelection();
+                  // Navegar a la pantalla de juego
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LevelPlayScreen(
+                        levelTitle: step.previewTitle,
+                        minigameData: step.minigameData,
+                        actividadType: step.actividadType,
+                        levelId: step.levelId,
+                        moduleId: step.moduleId,
+                      ),
+                    ),
+                  );
+                  // Recargar datos del módulo después de regresar
+                  if (context.mounted) {
+                    viewModel.reloadModuleData();
+                  }
+                },
                 icon: const Icon(Icons.play_arrow, color: Colors.white),
                 label: const Text(
                   'JUGAR',
@@ -610,14 +683,18 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   }
 
   Widget _buildStarsPopup(int starCount) {
+    // Mostrar máximo 3 estrellas (el máximo que se puede obtener)
+    final maxStars = 3;
+    final actualStars = starCount.clamp(0, maxStars);
+    
     return Center(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(
-          5,
+          maxStars,
           (index) => Icon(
-            index < starCount ? Icons.star : Icons.star_border,
+            index < actualStars ? Icons.star : Icons.star_border,
             color: const Color(0xFFFFD700),
             size: 20,
             shadows: const [

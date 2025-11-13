@@ -39,6 +39,9 @@ class LevelRepository {
           stars: level.estrellas,
           posibleImagePreview: level.pictogramaUrl,
           minigameData: level.actividadData,
+          actividadType: level.actividadType,
+          levelId: level.id,
+          moduleId: moduleId,
         );
       }).toList();
 
