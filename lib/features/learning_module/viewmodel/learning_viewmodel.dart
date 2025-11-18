@@ -24,12 +24,16 @@ class LearningViewModel extends ChangeNotifier {
   bool _isLoadingLevels = false;
   String? _errorMessageLevels;
 
+  // Nivel del usuario
+  int _userLevel = 1;
+
   // Getters
   List<ModuloInfo> get modulos => _modulos;
   bool get isLoadingModules => _isLoadingModules;
   String? get errorMessageModules => _errorMessageModules;
   bool get isLoadingLevels => _isLoadingLevels;
   String? get errorMessageLevels => _errorMessageLevels;
+  int get userLevel => _userLevel;
 
   /*
   Obtiene el UID del usuario actual
@@ -42,7 +46,18 @@ class LearningViewModel extends ChangeNotifier {
   Constructor que inicializa el ViewModel cargando los módulos
   */
   LearningViewModel() {
+    _loadUserLevel();
     loadModules();
+  }
+
+  /*
+  Carga el nivel del usuario desde Firestore
+  */
+  Future<void> _loadUserLevel() async {
+    if (_currentUserId != null) {
+      _userLevel = await _firestoreService.getUserLevel(_currentUserId!);
+      notifyListeners();
+    }
   }
 
   /*
@@ -60,10 +75,34 @@ class LearningViewModel extends ChangeNotifier {
         _errorMessageModules = 'No se encontraron módulos en Firestore';
         _modulos = [];
       } else {
+        // Cargar nivel del usuario si no está cargado
+        if (_userLevel == 1 && _currentUserId != null) {
+          await _loadUserLevel();
+        }
+
         // Convertir datos de Firestore a objetos ModuloInfo
-        _modulos = modulesData
-            .map((data) => ModuloInfo.fromFirestore(data, estrellas: 0))
-            .toList();
+        // Calcular bloqueo dinámicamente basado en nivel del usuario vs nivelMinimo
+        _modulos = modulesData.map((data) {
+          final modulo = ModuloInfo.fromFirestore(data, estrellas: 0);
+          final nivelMinimo = modulo.nivel;
+          
+          // Calcular si está bloqueado: el módulo está bloqueado si el nivel del usuario es menor al nivel mínimo requerido
+          // O si el campo bloqueado en Firestore está en true (para compatibilidad con módulos que se bloquean manualmente)
+          final bloqueadoDesdeFirestore = data['bloqueado'] as bool? ?? false;
+          final bloqueadoPorNivel = _userLevel < nivelMinimo;
+          final estaBloqueado = bloqueadoDesdeFirestore || bloqueadoPorNivel;
+          
+          return ModuloInfo(
+            id: modulo.id,
+            titulo: modulo.titulo,
+            estrellas: modulo.estrellas,
+            nivel: modulo.nivel,
+            imagenPath: modulo.imagenPath,
+            color: modulo.color,
+            bloqueado: estaBloqueado,
+            descripcion: modulo.descripcion,
+          );
+        }).toList();
 
         // Cargar progreso del usuario para calcular estrellas de cada módulo
         await _loadModulesProgress();
@@ -98,8 +137,14 @@ class LearningViewModel extends ChangeNotifier {
         });
 
         // Actualizar el módulo con las estrellas calculadas
+        // Recalcular bloqueo para asegurar que esté actualizado
         final index = _modulos.indexWhere((m) => m.id == modulo.id);
         if (index != -1) {
+          final nivelMinimo = modulo.nivel;
+          final bloqueadoPorNivel = _userLevel < nivelMinimo;
+          // Mantener el bloqueo si ya estaba bloqueado por Firestore o por nivel
+          final estaBloqueado = modulo.bloqueado || bloqueadoPorNivel;
+          
           _modulos[index] = ModuloInfo(
             id: modulo.id,
             titulo: modulo.titulo,
@@ -107,7 +152,7 @@ class LearningViewModel extends ChangeNotifier {
             nivel: modulo.nivel,
             imagenPath: modulo.imagenPath,
             color: modulo.color,
-            bloqueado: modulo.bloqueado,
+            bloqueado: estaBloqueado,
             descripcion: modulo.descripcion,
           );
         }
@@ -233,6 +278,7 @@ class LearningViewModel extends ChangeNotifier {
       orden: ordenValue,
       pictogramaUrl: data['pictogramaUrl']?.toString(),
       videoUrl: data['videoUrl']?.toString(),
+      audioUrl: data['audioUrl']?.toString(),
       actividadType: data['actividadType']?.toString() ?? 'simple_selection',
       actividadData: actividadDataValue,
       estrellas: estrellasValue,
@@ -340,6 +386,7 @@ class LearningViewModel extends ChangeNotifier {
   Future<void> reloadModules() async {
     _moduleLevels.clear();
     _userProgress.clear();
+    await _loadUserLevel(); // Recargar nivel del usuario también
     await loadModules();
   }
 

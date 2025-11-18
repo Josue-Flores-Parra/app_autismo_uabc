@@ -192,6 +192,14 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
           videoDesc: data.description,
           isPreview: false, // Modo fullscreen
         );
+      case ContentType.audio:
+        return AudioPreviewCard(
+          audioPath: data.audioPath!,
+          audioTitle: data.title,
+          audioDesc: data.description,
+          isPreview: false, // Modo fullscreen
+          imagePath: data.imagePath.isNotEmpty ? data.imagePath : null,
+        );
       case ContentType.miniGame:
         return MiniGamePreviewCard(
           gameTitle: data.title,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 /// Agregar nuevos tipos de minijuegos aquí a medida que se implementen
 enum MinigameType {
   simpleSelection, // primer minijuego especificado en el issue #65
+  video, // minijuego de video tutorial
   // TODO: Agregar más tipos de minijuegos a medida que se implementen
 }
 

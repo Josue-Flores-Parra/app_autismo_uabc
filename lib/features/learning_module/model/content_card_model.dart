@@ -1,4 +1,4 @@
-enum ContentType { pictogram, video, miniGame }
+enum ContentType { pictogram, video, audio, miniGame }
 
 class ContentCardData {
   final ContentType type;
@@ -6,6 +6,7 @@ class ContentCardData {
   final String? description;
   final String imagePath;
   final String? videoPath;
+  final String? audioPath;
 
   ContentCardData({
     required this.type,
@@ -13,5 +14,6 @@ class ContentCardData {
     this.description,
     required this.imagePath,
     this.videoPath,
+    this.audioPath,
   });
 }

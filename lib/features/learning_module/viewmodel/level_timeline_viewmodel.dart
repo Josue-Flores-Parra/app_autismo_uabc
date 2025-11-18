@@ -7,11 +7,13 @@ class LevelTimelineViewModel extends ChangeNotifier {
   final String _moduleId;
 
   List<LevelStepInfo> _steps = [];
+  List<ModuleLevelInfo> _moduleLevels = []; // Guardar los niveles completos
   String _moduleTitle = '';
   bool _isLoading = false;
   String? _errorMessage;
 
   List<LevelStepInfo> get steps => _steps;
+  List<ModuleLevelInfo> get moduleLevels => _moduleLevels; // Getter para acceder a los niveles completos
   String get moduleTitle => _moduleTitle;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -48,6 +50,7 @@ class LevelTimelineViewModel extends ChangeNotifier {
 
       // Obtener niveles desde LearningViewModel
       final moduleLevels = await _learningViewModel.getModuleLevels(moduleId);
+      _moduleLevels = moduleLevels; // Guardar los niveles completos
 
       if (moduleLevels.isEmpty) {
         _errorMessage = 'No se encontraron niveles para este módulo';

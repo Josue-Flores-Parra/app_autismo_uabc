@@ -101,11 +101,32 @@ class _DynamicLevelContentScreenState extends State<DynamicLevelContentScreen> {
   /*
   Convierte los datos de Firestore en ContentCardData
   Aquí defines cómo interpretar actividadData desde Firestore
+  
+  ORDEN DE CONTENIDO EN EL CARRUSEL:
+  1. Video (si existe videoUrl)
+  2. Pictograma (si existe pictogramaUrl)
+  3. Audio (si existe audioUrl)
+  
+  La actividad principal (actividadType) se juega cuando el usuario presiona "JUGAR",
+  no se muestra en el carrusel.
   */
   List<ContentCardData> _buildContentFromFirestore(ModuleLevelInfo level) {
     final List<ContentCardData> contents = [];
 
-    // Si hay pictograma, agregar tarjeta de pictograma
+    // 1. PRIMERO: Si hay video, agregar tarjeta de video
+    if (level.videoUrl != null && level.videoUrl!.isNotEmpty) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.video,
+          title: level.titulo,
+          description: 'Video educativo',
+          imagePath: level.pictogramaUrl ?? '',
+          videoPath: level.videoUrl,
+        ),
+      );
+    }
+
+    // 2. SEGUNDO: Si hay pictograma, agregar tarjeta de pictograma
     if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
       contents.add(
         ContentCardData(
@@ -117,28 +138,15 @@ class _DynamicLevelContentScreenState extends State<DynamicLevelContentScreen> {
       );
     }
 
-    // Si hay video, agregar tarjeta de video
-    if (level.videoUrl != null && level.videoUrl!.isNotEmpty) {
+    // 3. TERCERO: Si hay audio, agregar tarjeta de audio
+    if (level.audioUrl != null && level.audioUrl!.isNotEmpty) {
       contents.add(
         ContentCardData(
-          type: ContentType.video,
-          title: 'Video: ${level.titulo}',
-          description: 'Video educativo',
+          type: ContentType.audio,
+          title: level.titulo,
+          description: 'Audio educativo',
           imagePath: level.pictogramaUrl ?? '',
-          videoPath: level.videoUrl,
-        ),
-      );
-    }
-
-    // Si hay actividad configurada, agregar minijuego
-    if (level.actividadData != null &&
-        level.actividadData!['enabled'] == true) {
-      contents.add(
-        ContentCardData(
-          type: ContentType.miniGame,
-          title: 'Actividad: ${level.titulo}',
-          description: 'Práctica interactiva',
-          imagePath: level.pictogramaUrl ?? '',
+          audioPath: level.audioUrl,
         ),
       );
     }
