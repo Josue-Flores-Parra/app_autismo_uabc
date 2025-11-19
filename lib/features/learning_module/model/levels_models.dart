@@ -37,7 +37,7 @@ class ModuleLevelInfo {
   final String? pictogramaUrl;
   final String? videoUrl;
   final String? audioUrl;
-  final String actividadType;
+  final String? actividadType; // Nullable para detectar cuando no hay actividad interactiva
   final Map<String, dynamic>? actividadData;
   final int estrellas;
   final StateOfStep estado;
@@ -50,7 +50,7 @@ class ModuleLevelInfo {
     this.pictogramaUrl,
     this.videoUrl,
     this.audioUrl,
-    required this.actividadType,
+    this.actividadType, // Ahora es nullable
     this.actividadData,
     this.estrellas = 0,
     this.estado = StateOfStep.blocked,
@@ -108,13 +108,31 @@ class ModuleLevelInfo {
       pictogramaUrl: data['pictogramaUrl']?.toString(),
       videoUrl: data['videoUrl']?.toString(),
       audioUrl: data['audioUrl']?.toString(),
-      actividadType: data['actividadType']?.toString() ?? 'simple_selection',
+      // Tratar null y cadenas vacías como null
+      actividadType: _parseActividadType(data['actividadType']),
       actividadData: actividadDataValue,
       estrellas: estrellasValue,
       estado: _parseEstado(data['estado']?.toString()),
     );
 
     return nivel;
+  }
+
+  /*
+  Helper para parsear actividadType desde Firestore.
+  Trata null, cadenas vacías y la cadena "null" como null.
+  */
+  static String? _parseActividadType(dynamic actividadType) {
+    if (actividadType == null) {
+      return null;
+    }
+    
+    final String str = actividadType.toString().trim();
+    if (str.isEmpty || str.toLowerCase() == 'null') {
+      return null;
+    }
+    
+    return str;
   }
 
   /*
