@@ -7,6 +7,8 @@ class FullScreenContentView extends StatefulWidget {
   final int initialIndex;
   final String levelName;
   final String? bgLevelImg;
+  final VoidCallback? onVideoCompleted;
+  final VoidCallback? onPictogramViewed;
 
   const FullScreenContentView({
     super.key,
@@ -14,6 +16,8 @@ class FullScreenContentView extends StatefulWidget {
     required this.initialIndex,
     required this.levelName,
     this.bgLevelImg,
+    this.onVideoCompleted,
+    this.onPictogramViewed,
   });
 
   @override
@@ -184,6 +188,7 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
           pictogramTitle: data.title,
           pictogramDesc: data.description ?? '',
           isPreview: false, // Modo fullscreen
+          onPictogramViewed: widget.onPictogramViewed,
         );
       case ContentType.video:
         return VideoPreviewCard(
@@ -191,6 +196,7 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
           videoTitle: data.title,
           videoDesc: data.description,
           isPreview: false, // Modo fullscreen
+          onVideoCompleted: widget.onVideoCompleted,
         );
       case ContentType.audio:
         return AudioPreviewCard(

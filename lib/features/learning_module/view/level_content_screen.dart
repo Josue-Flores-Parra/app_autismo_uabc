@@ -41,6 +41,35 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late PageController _pageController;
+  
+  // Rastrear condiciones para habilitar el botón "COMPLETAR"
+  bool _videoCompleted = false;
+  bool _pictogramViewed = false;
+  
+  // Verificar qué tipos de contenido hay
+  bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
+  bool get _hasPictogram => widget.contents.any((c) => c.type == ContentType.pictogram);
+  
+  // El botón está habilitado si se cumplen todas las condiciones necesarias
+  bool get _canComplete {
+    bool videoOk = !_hasVideo || _videoCompleted;
+    bool pictogramOk = !_hasPictogram || _pictogramViewed;
+    return videoOk && pictogramOk;
+  }
+  
+  // Verificar si NO hay actividadType (null, vacío, o cadena "null")
+  bool get _hasNoActividadType {
+    return widget.actividadType == null || 
+        widget.actividadType!.trim().isEmpty || 
+        widget.actividadType!.toLowerCase().trim() == 'null';
+  }
+  
+  // Verificar si SÍ hay actividadType válido
+  bool get _hasValidActividadType {
+    return widget.actividadType != null && 
+        widget.actividadType!.trim().isNotEmpty && 
+        widget.actividadType!.toLowerCase().trim() != 'null';
+  }
 
   @override
   void initState() {
@@ -98,8 +127,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
                   const SizedBox(height: 20),
                   
-                  // Botón "JUGAR" si hay datos del minijuego
-                  if (widget.minigameData != null && widget.actividadType != null)
+                  // Botón "JUGAR" si hay actividadType (minijuego interactivo)
+                  if (_hasValidActividadType && widget.minigameData != null)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
@@ -142,29 +171,37 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                       ),
                     ),
                   
-                  // Botón "COMPLETAR" si NO hay minijuego (solo contenido de observación)
-                  if ((widget.minigameData == null || widget.actividadType == null) && 
+                  // Botón "COMPLETAR" si NO hay actividadType (solo contenido de observación)
+                  if (_hasNoActividadType && 
                       widget.levelId != null && widget.moduleId != null)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
-                        onPressed: () => _handleCompleteObservationLevel(context),
-                        icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 32),
-                        label: const Text(
-                          'COMPLETAR',
+                        onPressed: _canComplete ? () => _handleCompleteObservationLevel(context) : null,
+                        icon: Icon(
+                          _canComplete ? Icons.check_circle_rounded : Icons.lock_outline,
+                          color: _canComplete ? Colors.white : Colors.white70,
+                          size: 32,
+                        ),
+                        label: Text(
+                          _canComplete ? 'COMPLETAR' : 'SIN COMPLETAR',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: _canComplete ? Colors.white : Colors.white70,
                             letterSpacing: 1.5,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF05E995),
+                          backgroundColor: _canComplete 
+                              ? const Color(0xFF05E995) 
+                              : Colors.grey.shade600,
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          elevation: 10,
-                          shadowColor: const Color.fromARGB(204, 5, 233, 149),
+                          elevation: _canComplete ? 10 : 0,
+                          shadowColor: _canComplete 
+                              ? const Color.fromARGB(204, 5, 233, 149) 
+                              : Colors.transparent,
                         ),
                       ),
                     ),
@@ -202,15 +239,62 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       ),
       child: Column(
         children: [
-          Text(
-            widget.levelName,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: 0.8,
-            ),
-            textAlign: TextAlign.center,
+          // Fila con botón de regreso y título
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Botón de regreso - centrado verticalmente
+              Align(
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 30), // Mueve el botón un poco más abajo
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0x33FFFFFF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0x4DFFFFFF), width: 1),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Título (centrado)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    widget.levelName,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 0.8,
+                      height: 1.2, // Ajustar altura de línea para mejor alineación
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              
+              // Espaciador para balancear el botón de regreso (mismo ancho que el botón + padding)
+              const SizedBox(width: 52),
+            ],
           ),
 
           const SizedBox(height: 6),
@@ -275,6 +359,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           pictogramTitle: data.title,
           pictogramDesc: data.description ?? '',
           isPreview: isPreview,
+          onPictogramViewed: () {
+            if (mounted) {
+              setState(() {
+                _pictogramViewed = true;
+              });
+            }
+          },
         );
       case ContentType.video:
         return VideoPreviewCard(
@@ -282,6 +373,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           videoTitle: data.title,
           videoDesc: data.description,
           isPreview: isPreview,
+          onVideoCompleted: () {
+            if (mounted) {
+              setState(() {
+                _videoCompleted = true;
+              });
+            }
+          },
         );
       case ContentType.audio:
         return AudioPreviewCard(
@@ -309,6 +407,20 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           initialIndex: initialIndex,
           levelName: widget.levelName,
           bgLevelImg: widget.bgLevelImg,
+          onVideoCompleted: () {
+            if (mounted) {
+              setState(() {
+                _videoCompleted = true;
+              });
+            }
+          },
+          onPictogramViewed: () {
+            if (mounted) {
+              setState(() {
+                _pictogramViewed = true;
+              });
+            }
+          },
         ),
       ),
     );

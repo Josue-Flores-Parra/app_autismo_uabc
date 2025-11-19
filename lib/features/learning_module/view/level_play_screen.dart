@@ -53,22 +53,36 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Si no hay actividadType, no deberíamos estar aquí (debería mostrar "COMPLETAR" en lugar de "JUGAR")
+    // Pero por seguridad, si llegamos aquí sin actividadType, volvemos atrás
+    if (widget.actividadType == null || widget.actividadType!.trim().isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     // Convertir actividadType directamente desde Firestore a MinigameType
     MinigameType minigameType;
-    if (widget.actividadType != null) {
-      switch (widget.actividadType!.toLowerCase().trim()) {
-        case 'simple_selection':
-          minigameType = MinigameType.simpleSelection;
-          break;
-        case 'video':
-          minigameType = MinigameType.video;
-          break;
-        // TODO: Agregar más casos cuando se implementen otros tipos
-        default:
-          minigameType = MinigameType.simpleSelection; // Fallback por defecto
-      }
-    } else {
-      minigameType = MinigameType.simpleSelection; // Fallback por defecto
+    switch (widget.actividadType!.toLowerCase().trim()) {
+      case 'simple_selection':
+        minigameType = MinigameType.simpleSelection;
+        break;
+      case 'video':
+        minigameType = MinigameType.video;
+        break;
+      case 'pictogram':
+        minigameType = MinigameType.pictogram;
+        break;
+      // TODO: Agregar más casos cuando se implementen otros tipos
+      default:
+        minigameType = MinigameType.simpleSelection; // Fallback por defecto
     }
     
     return Scaffold(

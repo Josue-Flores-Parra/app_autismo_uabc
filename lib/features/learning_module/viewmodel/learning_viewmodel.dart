@@ -227,6 +227,23 @@ class LearningViewModel extends ChangeNotifier {
   }
 
   /*
+  Helper para parsear actividadType desde Firestore.
+  Trata null, cadenas vacías y la cadena "null" como null.
+  */
+  String? _parseActividadType(dynamic actividadType) {
+    if (actividadType == null) {
+      return null;
+    }
+    
+    final String str = actividadType.toString().trim();
+    if (str.isEmpty || str.toLowerCase() == 'null') {
+      return null;
+    }
+    
+    return str;
+  }
+
+  /*
   Crea un ModuleLevelInfo desde datos de Firestore
   */
   ModuleLevelInfo _createModuleLevelInfoWithProgress(
@@ -279,7 +296,8 @@ class LearningViewModel extends ChangeNotifier {
       pictogramaUrl: data['pictogramaUrl']?.toString(),
       videoUrl: data['videoUrl']?.toString(),
       audioUrl: data['audioUrl']?.toString(),
-      actividadType: data['actividadType']?.toString() ?? 'simple_selection',
+      // Tratar null y cadenas vacías como null
+      actividadType: _parseActividadType(data['actividadType']),
       actividadData: actividadDataValue,
       estrellas: estrellasValue,
       estado: StateOfStep.blocked, // Se determinará después

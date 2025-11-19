@@ -27,9 +27,12 @@ class VideoViewModel extends ChangeNotifier {
       _isExternalController = true;
       if (_videoController.value.isInitialized) {
         _initializeVideoFuture = Future.value();
+        // Asegurarse de que el loop esté desactivado (no reproducir automáticamente)
+        _videoController.setLooping(false);
       } else {
         _initializeVideoFuture = _videoController.initialize().then((_) {
-          _videoController.setLooping(true);
+          // Desactivar loop por defecto - el video solo se reproduce cuando el usuario lo inicia
+          _videoController.setLooping(false);
         });
       }
     }
@@ -50,6 +53,8 @@ class VideoViewModel extends ChangeNotifier {
 
   void replay() {
     _videoController.seekTo(Duration.zero);
+    // Asegurarse de que el loop esté desactivado para que solo se reproduzca una vez
+    _videoController.setLooping(false);
     _videoController.play();
     _showTemporaryIcon();
   }

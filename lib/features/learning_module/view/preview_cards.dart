@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -60,6 +61,7 @@ class PictogramPreviewCard extends StatefulWidget {
   final String pictogramTitle;
   final String pictogramDesc;
   final bool isPreview;
+  final VoidCallback? onPictogramViewed; // Callback cuando se ve por 10 segundos
 
   const PictogramPreviewCard({
     super.key,
@@ -67,6 +69,7 @@ class PictogramPreviewCard extends StatefulWidget {
     required this.pictogramTitle,
     required this.pictogramDesc,
     this.isPreview = true,
+    this.onPictogramViewed,
   });
 
   @override
@@ -75,6 +78,49 @@ class PictogramPreviewCard extends StatefulWidget {
 
 class _PictogramPreviewCardState extends State<PictogramPreviewCard>
     with AutomaticKeepAliveClientMixin {
+  Timer? _viewTimer;
+  bool _hasNotified = false;
+  DateTime? _fullscreenStartTime;
+
+  @override
+  void initState() {
+    super.initState();
+    // Solo iniciar timer si NO es preview (es decir, está en fullscreen)
+    // El timer se iniciará cuando se detecte que isPreview cambió a false
+    if (!widget.isPreview) {
+      _startViewTimer();
+    }
+  }
+
+  @override
+  void didUpdateWidget(PictogramPreviewCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si cambió de preview a fullscreen, iniciar el timer
+    if (oldWidget.isPreview && !widget.isPreview && !_hasNotified) {
+      _startViewTimer();
+    }
+  }
+
+  void _startViewTimer() {
+    // Cancelar timer anterior si existe
+    _viewTimer?.cancel();
+    _fullscreenStartTime = DateTime.now();
+    
+    // Iniciar timer para rastrear tiempo de visualización (10 segundos)
+    _viewTimer = Timer(const Duration(seconds: 10), () {
+      if (mounted && !_hasNotified && widget.onPictogramViewed != null) {
+        _hasNotified = true;
+        widget.onPictogramViewed!();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _viewTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext ctx) {
     super.build(ctx);
@@ -153,56 +199,8 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
 
             const SizedBox(height: 16),
 
-            Container(
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF92C5BC), Color(0xFF5A97B8)],
-                ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFB0D9D1), width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x4DFFFFFF),
-                    blurRadius: 8,
-                    offset: Offset(0, -2),
-                    spreadRadius: 0,
-                  ),
-                  BoxShadow(
-                    color: Color(0x665A97B8),
-                    blurRadius: 15,
-                    offset: Offset(0, 0),
-                    spreadRadius: 1,
-                  ),
-                  BoxShadow(
-                    color: Color(0x80000000),
-                    blurRadius: 12,
-                    offset: Offset(0, 5),
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(30),
-                  onTap: () {},
-                  child: const Center(
-                    child: Text(
-                      '¡Ver Pictograma!',
-                      style: TextStyle(
-                        color: Color(0xFFFFFFFF),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            // El botón se oculta porque el clic en la tarjeta completa ya navega a fullscreen
+            // El botón era redundante y causaba confusión
           ],
         ),
       ),
@@ -219,6 +217,7 @@ class VideoPreviewCard extends StatefulWidget {
   final String? videoDesc;
   final bool isPreview;
   final VideoPlayerController? externalController;
+  final VoidCallback? onVideoCompleted; // Callback cuando el video se completa
 
   const VideoPreviewCard({
     super.key,
@@ -227,6 +226,7 @@ class VideoPreviewCard extends StatefulWidget {
     this.videoDesc,
     this.isPreview = true,
     this.externalController,
+    this.onVideoCompleted,
   });
 
   @override
@@ -236,6 +236,8 @@ class VideoPreviewCard extends StatefulWidget {
 class _VideoPreviewCardState extends State<VideoPreviewCard>
     with AutomaticKeepAliveClientMixin {
   late VideoViewModel _viewModel;
+  bool _hasNotifiedCompletion = false;
+  Timer? _completionCheckTimer;
 
   @override
   void initState() {
@@ -244,6 +246,59 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.initialize(widget.videoPath, widget.externalController);
     _viewModel.addListener(() {
       if (mounted) setState(() {});
+    });
+    
+    // Verificar periódicamente si el video se completó
+    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!mounted || _hasNotifiedCompletion) return;
+      
+      try {
+        final controller = _viewModel.videoController;
+        if (controller.value.isInitialized) {
+          final position = controller.value.position;
+          final duration = controller.value.duration;
+          
+          // Verificar si el video se completó (al menos 90% visto o llegó al final)
+          if (duration.inMilliseconds > 0) {
+            final progress = position.inMilliseconds / duration.inMilliseconds;
+            final isAtEnd = position >= duration;
+            
+            if ((progress >= 0.9 || isAtEnd) && !_hasNotifiedCompletion) {
+              _hasNotifiedCompletion = true;
+              // NO cancelar el timer completamente, solo marcar como notificado
+              // Esto permite que el usuario pueda volver a reproducir el video
+              
+              // Detener el video cuando se completa (pero permitir reproducirlo de nuevo)
+              try {
+                // Asegurarse de que el loop esté desactivado
+                if (controller.value.isLooping) {
+                  controller.setLooping(false);
+                }
+                // Solo pausar si el video llegó al final y está reproduciéndose
+                // Esto permite que el usuario pueda reproducirlo de nuevo fácilmente
+                if (isAtEnd && controller.value.isPlaying) {
+                  controller.pause();
+                }
+              } catch (e) {
+                // Error al pausar, continuar
+              }
+              
+              if (widget.onVideoCompleted != null) {
+                widget.onVideoCompleted!();
+              }
+            }
+            
+            // Si el usuario vuelve a reproducir el video después de completarlo,
+            // permitir que se pueda completar de nuevo (resetear el flag si el video se reinicia)
+            if (_hasNotifiedCompletion && position < duration * 0.5) {
+              // Si el video se reinició (volvió al inicio), permitir completarlo de nuevo
+              _hasNotifiedCompletion = false;
+            }
+          }
+        }
+      } catch (e) {
+        // Error al verificar, continuar
+      }
     });
   }
 
@@ -460,6 +515,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void dispose() {
+    _completionCheckTimer?.cancel();
     _viewModel.dispose();
     super.dispose();
   }
