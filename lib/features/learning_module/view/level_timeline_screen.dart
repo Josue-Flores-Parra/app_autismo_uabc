@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
-import 'level_play_screen.dart';
+import 'package:appy/features/learning_module/view/level_play_screen.dart';
+import 'package:appy/features/learning_module/view/level_content_screen.dart';
+import 'package:appy/features/learning_module/model/content_card_model.dart';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -387,16 +389,29 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     
     return ElevatedButton.icon(
       onPressed: () async {
-        // Navegar a la pantalla de juego con los datos del minijuego
+        // Obtener el nivel completo desde el ViewModel
+        final levelInfo = viewModel.moduleLevels.firstWhere(
+          (level) => level.id == step.levelId,
+          orElse: () => throw Exception('Nivel no encontrado'),
+        );
+        
+        // Construir el contenido del carrusel desde el nivel completo
+        final contents = _buildContentFromLevel(levelInfo);
+        
+        // Primero navegar a la pantalla de preview con el carrusel
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LevelPlayScreen(
-              levelTitle: step.previewTitle,
+            builder: (context) => LevelContentPreviewScreen(
+              levelName: levelInfo.titulo,
+              bgLevelImg: levelInfo.pictogramaUrl,
+              contents: contents,
+              // Pasar los datos del minijuego para cuando presionen "JUGAR"
               minigameData: step.minigameData,
               actividadType: step.actividadType,
               levelId: step.levelId,
               moduleId: step.moduleId,
+              levelTitle: step.previewTitle,
             ),
           ),
         );
@@ -563,12 +578,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
               const SizedBox(height: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(18.0),
-                child: Image.asset(
+                child: _buildImageFromUrl(
                   step.posibleImagePreview!,
                   height: 120,
                   width: double.infinity,
                   fit: BoxFit.contain,
-                  errorBuilder: (c, e, s) => const Icon(Icons.error),
                 ),
               ),
             ],
@@ -580,16 +594,30 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 onPressed: () async {
                   // Cerrar el popup primero
                   viewModel.clearSelection();
-                  // Navegar a la pantalla de juego
+                  
+                  // Obtener el nivel completo desde el ViewModel
+                  final levelInfo = viewModel.moduleLevels.firstWhere(
+                    (level) => level.id == step.levelId,
+                    orElse: () => throw Exception('Nivel no encontrado'),
+                  );
+                  
+                  // Construir el contenido del carrusel desde el nivel completo
+                  final contents = _buildContentFromLevel(levelInfo);
+                  
+                  // Primero navegar a la pantalla de preview con el carrusel
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => LevelPlayScreen(
-                        levelTitle: step.previewTitle,
+                      builder: (context) => LevelContentPreviewScreen(
+                        levelName: levelInfo.titulo,
+                        bgLevelImg: levelInfo.pictogramaUrl,
+                        contents: contents,
+                        // Pasar los datos del minijuego para cuando presionen "JUGAR"
                         minigameData: step.minigameData,
                         actividadType: step.actividadType,
                         levelId: step.levelId,
                         moduleId: step.moduleId,
+                        levelTitle: step.previewTitle,
                       ),
                     ),
                   );
@@ -703,6 +731,99 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           ),
         ),
       ),
+    );
+  }
+
+  /// Construye el contenido del carrusel desde un ModuleLevelInfo
+  List<ContentCardData> _buildContentFromLevel(ModuleLevelInfo level) {
+    final List<ContentCardData> contents = [];
+
+    // 1. PRIMERO: Si hay video, agregar tarjeta de video
+    if (level.videoUrl != null && level.videoUrl!.isNotEmpty) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.video,
+          title: level.titulo,
+          description: 'Video educativo',
+          imagePath: level.pictogramaUrl ?? '',
+          videoPath: level.videoUrl,
+        ),
+      );
+    }
+
+    // 2. SEGUNDO: Si hay pictograma, agregar tarjeta de pictograma
+    if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.pictogram,
+          title: level.titulo,
+          description: 'Pictograma del nivel',
+          imagePath: level.pictogramaUrl!,
+        ),
+      );
+    }
+
+    // 3. TERCERO: Si hay audio, agregar tarjeta de audio
+    if (level.audioUrl != null && level.audioUrl!.isNotEmpty) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.audio,
+          title: level.titulo,
+          description: 'Audio educativo',
+          imagePath: level.pictogramaUrl ?? '',
+          audioPath: level.audioUrl,
+        ),
+      );
+    }
+
+    // Si no hay contenido, mostrar mensaje
+    if (contents.isEmpty) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.pictogram,
+          title: level.titulo,
+          description: 'Contenido pendiente de agregar',
+          imagePath: '',
+        ),
+      );
+    }
+
+    return contents;
+  }
+
+  /// Construye una imagen desde una URL, detectando automáticamente si es un asset local o URL externa
+  /// Permite usar URLs tal cual están en la base de datos sin agregar prefijos automáticos
+  Widget _buildImageFromUrl(
+    String url, {
+    double? height,
+    double? width,
+    BoxFit fit = BoxFit.contain,
+  }) {
+    // Si la URL es una URL externa (http/https), usar Image.network
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return Image.network(
+        url,
+        height: height,
+        width: width,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+    }
+
+    // Si es un asset local, usar Image.asset directamente con la URL tal cual está
+    // No agregamos "assets/" porque la URL ya viene completa desde la BD
+    return Image.asset(
+      url,
+      height: height,
+      width: width,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
     );
   }
 }

@@ -36,6 +36,7 @@ class ModuleLevelInfo {
   final int orden;
   final String? pictogramaUrl;
   final String? videoUrl;
+  final String? audioUrl;
   final String actividadType;
   final Map<String, dynamic>? actividadData;
   final int estrellas;
@@ -48,6 +49,7 @@ class ModuleLevelInfo {
     required this.orden,
     this.pictogramaUrl,
     this.videoUrl,
+    this.audioUrl,
     required this.actividadType,
     this.actividadData,
     this.estrellas = 0,
@@ -105,6 +107,7 @@ class ModuleLevelInfo {
       orden: ordenValue,
       pictogramaUrl: data['pictogramaUrl']?.toString(),
       videoUrl: data['videoUrl']?.toString(),
+      audioUrl: data['audioUrl']?.toString(),
       actividadType: data['actividadType']?.toString() ?? 'simple_selection',
       actividadData: actividadDataValue,
       estrellas: estrellasValue,
@@ -146,6 +149,7 @@ class ModuleLevelInfo {
       'orden': orden,
       'pictogramaUrl': pictogramaUrl,
       'videoUrl': videoUrl,
+      'audioUrl': audioUrl,
       'actividadType': actividadType,
       'actividadData': actividadData,
       'estrellas': estrellas,

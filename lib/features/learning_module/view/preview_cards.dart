@@ -106,7 +106,7 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: widget.imgPreview.isNotEmpty
-                      ? Image.asset(widget.imgPreview, fit: BoxFit.contain)
+                      ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain)
                       : const Center(
                           child: Icon(
                             Icons.image_outlined,
@@ -759,4 +759,148 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
 
   @override
   bool get wantKeepAlive => true;
+}
+
+class AudioPreviewCard extends StatefulWidget {
+  final String audioPath;
+  final String audioTitle;
+  final String? audioDesc;
+  final bool isPreview;
+  final String? imagePath;
+
+  const AudioPreviewCard({
+    super.key,
+    required this.audioPath,
+    required this.audioTitle,
+    this.audioDesc,
+    this.isPreview = true,
+    this.imagePath,
+  });
+
+  @override
+  State<AudioPreviewCard> createState() => _AudioPreviewCardState();
+}
+
+class _AudioPreviewCardState extends State<AudioPreviewCard>
+    with AutomaticKeepAliveClientMixin {
+  bool _isPlaying = false;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    return BasePreviewCard(
+      isPreview: widget.isPreview,
+      typeOfPreviewCard: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: widget.imagePath != null && widget.imagePath!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _buildImageFromUrl(
+                          widget.imagePath!,
+                          fit: BoxFit.contain,
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(
+                          Icons.audiotrack,
+                          size: 80,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.audioTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (widget.audioDesc != null && widget.audioDesc!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.audioDesc!,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 16),
+            Center(
+              child: IconButton(
+                onPressed: () {
+                  setState(() {
+                    _isPlaying = !_isPlaying;
+                  });
+                  // TODO: Implementar reproducción de audio
+                  // Por ahora solo cambia el estado visual
+                },
+                icon: Icon(
+                  _isPlaying ? Icons.pause_circle : Icons.play_circle,
+                  size: 64,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+}
+
+/// Helper function para construir imágenes desde URLs
+/// Detecta automáticamente si es un asset local o URL externa
+/// Permite usar URLs tal cual están en la base de datos sin agregar prefijos automáticos
+Widget _buildImageFromUrl(
+  String url, {
+  double? height,
+  double? width,
+  BoxFit fit = BoxFit.contain,
+}) {
+  // Si la URL es una URL externa (http/https), usar Image.network
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return Image.network(
+      url,
+      height: height,
+      width: width,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+  }
+
+  // Si es un asset local, usar Image.asset directamente con la URL tal cual está
+  // No agregamos "assets/" porque la URL ya viene completa desde la BD
+  return Image.asset(
+    url,
+    height: height,
+    width: width,
+    fit: fit,
+    errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+  );
 }

@@ -23,6 +23,7 @@ import 'shared/widgets/loading_wrapper.dart';
 
 // Minigames
 import 'features/minigames/view/types/simple_selection_minigame.dart';
+import 'features/minigames/view/types/video_minigame.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,7 @@ void main() async {
 
   // Registrar minijuegos
   registerSimpleSelectionMinigame();
+  registerVideoMinigame();
 
   runApp(const MyApp());
 }

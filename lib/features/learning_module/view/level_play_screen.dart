@@ -60,6 +60,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         case 'simple_selection':
           minigameType = MinigameType.simpleSelection;
           break;
+        case 'video':
+          minigameType = MinigameType.video;
+          break;
         // TODO: Agregar más casos cuando se implementen otros tipos
         default:
           minigameType = MinigameType.simpleSelection; // Fallback por defecto

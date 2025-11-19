@@ -303,4 +303,24 @@ class FirestoreService {
       return null;
     }
   }
+
+  /*
+  Obtiene el nivel del usuario desde Firestore
+  Retorna el nivel del usuario o 1 por defecto si no existe
+  */
+  Future<int> getUserLevel(String uid) async {
+    try {
+      final userData = await getUserData(uid);
+      if (userData != null && userData['nivel'] != null) {
+        if (userData['nivel'] is int) {
+          return userData['nivel'] as int;
+        } else if (userData['nivel'] is String) {
+          return int.tryParse(userData['nivel']) ?? 1;
+        }
+      }
+      return 1; // Nivel por defecto
+    } catch (e) {
+      return 1; // Nivel por defecto en caso de error
+    }
+  }
 }

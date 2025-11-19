@@ -51,9 +51,38 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     // Verificar si hay múltiples preguntas (formato nuevo) o una sola (formato antiguo)
     if (data.containsKey('questions')) {
       // Formato nuevo: múltiples preguntas
-      final questionsData = data['questions'] as List<dynamic>;
+      // Manejar questions de manera robusta: puede venir como List o como Map (LinkedMap de Firestore)
+      List<dynamic> questionsData = [];
+      try {
+        final rawQuestions = data['questions'];
+        if (rawQuestions == null) {
+          questionsData = [];
+        } else if (rawQuestions is List) {
+          questionsData = rawQuestions;
+        } else if (rawQuestions is Map) {
+          // Si viene como Map (LinkedMap), convertir a List
+          questionsData = rawQuestions.values.toList();
+        } else {
+          questionsData = [];
+        }
+      } catch (e) {
+        debugPrint('Error al parsear questions: $e');
+        questionsData = [];
+      }
+
       _questions = questionsData
-          .map((q) => QuestionData.fromMap(q as Map<String, dynamic>))
+          .map((q) {
+            if (q is Map<String, dynamic>) {
+              return QuestionData.fromMap(q);
+            }
+            // Si no es un Map, intentar crear una pregunta por defecto
+            return QuestionData(
+              question: '¿Cuál es la imagen correcta?',
+              correctIndex: 0,
+              maxAttempts: 3,
+              options: [],
+            );
+          })
           .toList();
 
       // Limitar a máximo 3 preguntas
@@ -110,7 +139,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
     _correctOption = loadedOptions[safeCorrectIndex];
 
-    // Mezclar las opciones
+    // mezclar las opciones
     loadedOptions.shuffle(Random());
     _options = loadedOptions;
 
@@ -541,17 +570,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: Image.asset(
-                  option.imagePath,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.image_not_supported,
-                      size: 64,
-                      color: Colors.white54,
-                    );
-                  },
-                ),
+                child: _buildImageFromPath(option.imagePath),
               ),
             ),
 
@@ -653,7 +672,26 @@ class QuestionData {
   });
 
   factory QuestionData.fromMap(Map<String, dynamic> map) {
-    final optionsData = map['options'] as List<dynamic>? ?? [];
+    // Manejar options de manera robusta: puede venir como List o como Map (LinkedMap de Firestore)
+    List<dynamic> optionsData = [];
+    try {
+      final rawOptions = map['options'];
+      if (rawOptions == null) {
+        optionsData = [];
+      } else if (rawOptions is List) {
+        optionsData = rawOptions;
+      } else if (rawOptions is Map) {
+        // Si viene como Map (LinkedMap), convertir a List
+        // Esto puede pasar cuando Firestore devuelve los datos de manera diferente
+        optionsData = rawOptions.values.toList();
+      } else {
+        optionsData = [];
+      }
+    } catch (e) {
+      debugPrint('Error al parsear options: $e');
+      optionsData = [];
+    }
+
     final options = optionsData.map((opt) {
       if (opt is Map<String, dynamic>) {
         return SelectionOption.fromMap(opt);
@@ -687,6 +725,46 @@ class SelectionOption {
   Map<String, dynamic> toMap() {
     return {'imagePath': imagePath, 'label': label};
   }
+}
+
+/// Helper function para construir imágenes desde paths
+/// Detecta automáticamente si es un asset local o URL externa
+/// Permite usar URLs tal cual están en la base de datos sin agregar prefijos automáticos
+Widget _buildImageFromPath(String path) {
+  // Si la URL es una URL externa (http/https), usar Image.network
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return Image.network(
+      path,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(
+          Icons.image_not_supported,
+          size: 64,
+          color: Colors.white54,
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+  }
+
+  // Si es un asset local, usar Image.asset directamente con la URL tal cual está
+  // No agregamos "assets/" porque la URL ya viene completa desde la BD
+  return Image.asset(
+    path,
+    fit: BoxFit.contain,
+    errorBuilder: (context, error, stackTrace) {
+      return const Icon(
+        Icons.image_not_supported,
+        size: 64,
+        color: Colors.white54,
+      );
+    },
+  );
 }
 
 /// Registrar este minijuego con el factory
