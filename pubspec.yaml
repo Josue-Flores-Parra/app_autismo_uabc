@@ -17,6 +17,8 @@ dependencies:
   cloud_firestore: ^6.0.2
   video_player: ^2.8.1
   flutter_svg: ^2.2.1
+  just_audio: ^0.9.40
+  audio_session: ^0.1.18
 
 dev_dependencies:
   flutter_test:
@@ -69,3 +71,4 @@ flutter:
     - assets/icons/              # Iconos SVG para controles de video
     - assets/imgs/               # Imágenes para preview cards
     - assets/videos/             # Videos para el módulo de aprendizaje
+    - assets/audio/              # Audios para el módulo de aprendizaje
