@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../viewmodel/video_viewmodel.dart';
+import '../viewmodel/audio_viewmodel.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -823,6 +824,7 @@ class AudioPreviewCard extends StatefulWidget {
   final String? audioDesc;
   final bool isPreview;
   final String? imagePath;
+  final VoidCallback? onAudioCompleted; // Callback cuando el audio se completa
 
   const AudioPreviewCard({
     super.key,
@@ -831,6 +833,7 @@ class AudioPreviewCard extends StatefulWidget {
     this.audioDesc,
     this.isPreview = true,
     this.imagePath,
+    this.onAudioCompleted,
   });
 
   @override
@@ -839,7 +842,69 @@ class AudioPreviewCard extends StatefulWidget {
 
 class _AudioPreviewCardState extends State<AudioPreviewCard>
     with AutomaticKeepAliveClientMixin {
-  bool _isPlaying = false;
+  late AudioViewModel _viewModel;
+  bool _hasNotifiedCompletion = false;
+  Timer? _completionCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = AudioViewModel();
+    _viewModel.initialize(widget.audioPath).then((_) {
+      if (mounted) setState(() {});
+    }).catchError((error) {
+      debugPrint('Error al inicializar audio: $error');
+    });
+    
+    _viewModel.addListener(() {
+      if (mounted) setState(() {});
+    });
+    
+    // Verificar periódicamente si el audio se completó
+    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!mounted) return;
+      
+      try {
+        final position = _viewModel.position;
+        final duration = _viewModel.duration;
+        
+        // Verificar si el audio se completó (al menos 90% visto o llegó al final)
+        if (duration != null && duration.inMilliseconds > 0) {
+          final progress = position.inMilliseconds / duration.inMilliseconds;
+          final isAtEnd = position >= duration;
+          
+          if ((progress >= 0.9 || isAtEnd) && !_hasNotifiedCompletion) {
+            _hasNotifiedCompletion = true;
+            
+            // Pausar el audio cuando se completa
+            if (isAtEnd && _viewModel.isPlaying) {
+              _viewModel.pause();
+            }
+            
+            if (widget.onAudioCompleted != null) {
+              widget.onAudioCompleted!();
+            }
+          }
+          
+          // Si el usuario vuelve a reproducir el audio después de completarlo,
+          // permitir que se pueda completar de nuevo (resetear el flag si el audio se reinicia)
+          if (_hasNotifiedCompletion && position < duration * 0.5) {
+            // Si el audio se reinició (volvió al inicio), permitir completarlo de nuevo
+            _hasNotifiedCompletion = false;
+          }
+        }
+      } catch (e) {
+        // Error al verificar, continuar
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _completionCheckTimer?.cancel();
+    _viewModel.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -898,21 +963,75 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
               ),
             ],
             const SizedBox(height: 16),
-            Center(
-              child: IconButton(
-                onPressed: () {
-                  setState(() {
-                    _isPlaying = !_isPlaying;
-                  });
-                  // TODO: Implementar reproducción de audio
-                  // Por ahora solo cambia el estado visual
-                },
-                icon: Icon(
-                  _isPlaying ? Icons.pause_circle : Icons.play_circle,
-                  size: 64,
-                  color: Colors.white,
+            // Controles de audio
+            Column(
+              children: [
+                // Barra de progreso
+                if (_viewModel.duration != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      children: [
+                        Slider(
+                          value: _viewModel.position.inMilliseconds.toDouble().clamp(
+                            0.0,
+                            _viewModel.duration!.inMilliseconds.toDouble(),
+                          ),
+                          min: 0.0,
+                          max: _viewModel.duration!.inMilliseconds.toDouble(),
+                          onChanged: (value) {
+                            _viewModel.seek(Duration(milliseconds: value.toInt()));
+                          },
+                          activeColor: Colors.white,
+                          inactiveColor: Colors.white24,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _viewModel.formatDuration(_viewModel.position),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              _viewModel.formatDuration(_viewModel.duration!),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                // Botones de control
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.replay, color: Colors.white, size: 28),
+                      onPressed: () {
+                        _viewModel.replay();
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: Icon(
+                        _viewModel.isPlaying ? Icons.pause_circle : Icons.play_circle,
+                        size: 64,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        _viewModel.togglePlayPause();
+                      },
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ),
           ],
         ),

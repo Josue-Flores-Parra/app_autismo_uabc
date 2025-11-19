@@ -6,6 +6,7 @@ enum MinigameType {
   simpleSelection, // primer minijuego especificado en el issue #65
   video, // minijuego de video tutorial
   pictogram, // minijuego de pictograma
+  audio, // minijuego de audio/música
   // TODO: Agregar más tipos de minijuegos a medida que se implementen
 }
 

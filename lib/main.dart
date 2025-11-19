@@ -25,6 +25,7 @@ import 'shared/widgets/loading_wrapper.dart';
 import 'features/minigames/view/types/simple_selection_minigame.dart';
 import 'features/minigames/view/types/video_minigame.dart';
 import 'features/minigames/view/types/pictogram_minigame.dart';
+import 'features/minigames/view/types/audio_minigame.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ void main() async {
   registerSimpleSelectionMinigame();
   registerVideoMinigame();
   registerPictogramMinigame();
+  registerAudioMinigame();
 
   runApp(const MyApp());
 }

@@ -9,6 +9,7 @@ class FullScreenContentView extends StatefulWidget {
   final String? bgLevelImg;
   final VoidCallback? onVideoCompleted;
   final VoidCallback? onPictogramViewed;
+  final VoidCallback? onAudioCompleted;
 
   const FullScreenContentView({
     super.key,
@@ -18,6 +19,7 @@ class FullScreenContentView extends StatefulWidget {
     this.bgLevelImg,
     this.onVideoCompleted,
     this.onPictogramViewed,
+    this.onAudioCompleted,
   });
 
   @override
@@ -205,6 +207,7 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
           audioDesc: data.description,
           isPreview: false, // Modo fullscreen
           imagePath: data.imagePath.isNotEmpty ? data.imagePath : null,
+          onAudioCompleted: widget.onAudioCompleted,
         );
       case ContentType.miniGame:
         return MiniGamePreviewCard(

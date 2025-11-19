@@ -45,16 +45,19 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // Rastrear condiciones para habilitar el botón "COMPLETAR"
   bool _videoCompleted = false;
   bool _pictogramViewed = false;
+  bool _audioCompleted = false;
   
   // Verificar qué tipos de contenido hay
   bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
   bool get _hasPictogram => widget.contents.any((c) => c.type == ContentType.pictogram);
+  bool get _hasAudio => widget.contents.any((c) => c.type == ContentType.audio);
   
   // El botón está habilitado si se cumplen todas las condiciones necesarias
   bool get _canComplete {
     bool videoOk = !_hasVideo || _videoCompleted;
     bool pictogramOk = !_hasPictogram || _pictogramViewed;
-    return videoOk && pictogramOk;
+    bool audioOk = !_hasAudio || _audioCompleted;
+    return videoOk && pictogramOk && audioOk;
   }
   
   // Verificar si NO hay actividadType (null, vacío, o cadena "null")
@@ -388,6 +391,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           audioDesc: data.description,
           isPreview: isPreview,
           imagePath: data.imagePath.isNotEmpty ? data.imagePath : null,
+          onAudioCompleted: () {
+            if (mounted) {
+              setState(() {
+                _audioCompleted = true;
+              });
+            }
+          },
         );
       case ContentType.miniGame:
         return MiniGamePreviewCard(
@@ -418,6 +428,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
             if (mounted) {
               setState(() {
                 _pictogramViewed = true;
+              });
+            }
+          },
+          onAudioCompleted: () {
+            if (mounted) {
+              setState(() {
+                _audioCompleted = true;
               });
             }
           },
