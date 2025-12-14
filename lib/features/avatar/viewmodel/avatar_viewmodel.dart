@@ -380,6 +380,20 @@ class AvatarViewModel
     await saveAvatarConfigToFirestore();
   }
 
+  /// Sincroniza el nombre del avatar con el displayName del usuario.
+  /// Si falla el guardado remoto, al menos mantiene el estado local actualizado.
+  Future<void> updateNombreDesdeDisplayName(
+    String nuevoNombre,
+  ) async {
+    _currentEstado = _currentEstado.copyWith(nombre: nuevoNombre);
+    notifyListeners();
+    try {
+      await saveAvatarConfigToFirestore();
+    } catch (_) {
+      // Ignorar, el estado local ya refleja el cambio.
+    }
+  }
+
   /* 
   Actualiza la felicidad del avatar (0-100)
   */

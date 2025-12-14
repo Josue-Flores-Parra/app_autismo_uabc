@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:appy/l10n/gen/app_localizations.dart';
 
 // Firebase
 import 'firebase_options.dart';
@@ -8,6 +9,7 @@ import 'firebase_options.dart';
 // Auth
 import 'features/authentication/viewmodel/auth_viewmodel.dart';
 import 'features/authentication/view/login_screen.dart';
+import 'features/settings/viewmodel/settings_viewmodel.dart';
 
 // Avatar
 import 'features/avatar/model/avatar_models.dart';
@@ -26,6 +28,7 @@ import 'features/minigames/view/types/simple_selection_minigame.dart';
 import 'features/minigames/view/types/video_minigame.dart';
 import 'features/minigames/view/types/pictogram_minigame.dart';
 import 'features/minigames/view/types/audio_minigame.dart';
+import 'core/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +72,7 @@ class MyApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => SettingsViewModel()),
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
         ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>(
           create: (_) => AvatarViewModel(estadoInicial),
@@ -83,24 +87,46 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LearningViewModel()),
         ChangeNotifierProvider(create: (_) => LoadingService()),
       ],
-      child: LoadingWrapper(
-        child: MaterialApp(
-          title: 'Appy',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF5B8DB3),
+      child: Consumer<SettingsViewModel>(
+        builder: (context, settings, _) {
+          final textScaler = TextScaler.linear(settings.textScaleFactor);
+          return LoadingWrapper(
+            child: MaterialApp(
+              title: 'Appy',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light(
+                fontScale: settings.textScaleFactor,
+                highContrast: settings.highContrast,
+                reduceMotion: settings.reduceAnimations,
+              ),
+              darkTheme: AppTheme.dark(
+                fontScale: settings.textScaleFactor,
+                highContrast: settings.highContrast,
+                reduceMotion: settings.reduceAnimations,
+              ),
+              themeMode: settings.themeMode,
+              locale: settings.locale,
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) {
+                final mediaQuery = MediaQuery.of(context);
+                return MediaQuery(
+                  data: mediaQuery.copyWith(
+                    textScaler: textScaler,
+                  ),
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+              home: const LoginScreen(),
+              // home: const ModuleListScreen(),
+              // home: LevelTimelineScreen(
+              //   moduleId: moduleId,
+              //   backgroundImagePath:
+              //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
+              // ),
             ),
-            useMaterial3: true,
-          ),
-          home: const LoginScreen(),
-          // home: const ModuleListScreen(),
-          // home: LevelTimelineScreen(
-          //   moduleId: moduleId,
-          //   backgroundImagePath:
-          //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-          // ),
-        ),
+          );
+        },
       ),
     );
   }

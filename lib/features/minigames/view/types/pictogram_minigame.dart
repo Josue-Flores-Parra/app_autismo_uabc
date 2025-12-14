@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Pictograma
@@ -17,19 +18,85 @@ class PictogramMinigame extends MinigameBase {
 
 class _PictogramMinigameState extends State<PictogramMinigame> {
   bool _isCompleted = false;
+  late final PageController _pageController;
+  int _currentIndex = 0;
+  late final List<_StepItem> _steps;
+  bool _precached = false;
+  final FlutterTts _tts = FlutterTts();
+  bool _ttsReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _steps = _parseSteps(widget.minigameData);
+    _initTts();
+  }
+
+  @override
+  void dispose() {
+    _tts.stop();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _tts.setLanguage('es-MX');
+      await _tts.setSpeechRate(0.6);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+      setState(() => _ttsReady = true);
+    } catch (_) {
+      setState(() => _ttsReady = false);
+    }
+  }
+
+  Future<void> _speakCaption(int index) async {
+    if (!_ttsReady) return;
+    if (index < 0 || index >= _steps.length) return;
+    final caption = _steps[index].caption;
+    if (caption == null || caption.isEmpty) return;
+    await _tts.stop();
+    await _tts.speak(caption);
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Precargar imágenes una sola vez para evitar parpadeos al pasar rápido
+    if (!_precached) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final item in _steps) {
+          if (item.url.startsWith('http')) {
+            precacheImage(NetworkImage(item.url), context);
+          } else {
+            precacheImage(AssetImage(item.url), context);
+          }
+        }
+      });
+      _precached = true;
+    }
+
     // Obtener pictogramaUrl desde actividadData o desde el nivel
     // Puede venir en actividadData['pictogramaUrl'] o directamente en minigameData['pictogramaUrl']
     final pictogramaUrl = widget.minigameData['pictogramaUrl'] as String?;
-    final title = widget.minigameData['title'] as String? ?? 
-                  widget.minigameData['titulo'] as String? ?? 
-                  'Pictograma';
-    final description = widget.minigameData['description'] as String? ?? 
-                       widget.minigameData['descripcion'] as String?;
 
-    if (pictogramaUrl == null || pictogramaUrl.isEmpty) {
+    // Título/descripcion
+    final title = widget.minigameData['title'] as String? ??
+        widget.minigameData['titulo'] as String? ??
+        'Pictograma';
+    final description =
+        widget.minigameData['description'] as String? ??
+            widget.minigameData['descripcion'] as String?;
+
+    final hasSequence = _steps.isNotEmpty;
+    final images = hasSequence
+        ? _steps
+        : (pictogramaUrl != null && pictogramaUrl.isNotEmpty
+            ? [ _StepItem(url: pictogramaUrl) ]
+            : <_StepItem>[]);
+
+    if (images.isEmpty) {
       return Scaffold(
         backgroundColor: const Color(0xFF091F2C),
         body: Center(
@@ -118,7 +185,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
               ),
             ),
 
-            // Pictograma a pantalla completa
+            // Pictograma a pantalla completa (único o secuencia)
             Expanded(
               child: Center(
                 child: Container(
@@ -141,12 +208,78 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
-                    child: _buildImageFromUrl(
-                      pictogramaUrl,
-                      fit: BoxFit.contain,
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: images.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentIndex = index);
+                        _speakCaption(index);
+                      },
+                      itemBuilder: (context, index) {
+                        final item = images[index];
+                        return Semantics(
+                          label: item.caption ??
+                              'Paso ${index + 1}${title.isNotEmpty ? " - $title" : ""}',
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _buildImageFromUrl(
+                                  item.url,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                              if (item.caption != null && item.caption!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Text(
+                                    item.caption!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
+              ),
+            ),
+
+            if (images.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(images.length, (index) {
+                    final active = index == _currentIndex;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: active ? 12 : 8,
+                      height: active ? 12 : 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: active
+                            ? const Color(0xFF5B8DB3)
+                            : Colors.white54,
+                      ),
+                    );
+                  }),
+                ),
+              ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: ElevatedButton.icon(
+                onPressed: _ttsReady ? () => _speakCaption(_currentIndex) : null,
+                icon: const Icon(Icons.volume_up),
+                label: const Text('Escuchar'),
               ),
             ),
 
@@ -242,6 +375,34 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       },
     );
   }
+
+  List<_StepItem> _parseSteps(Map<String, dynamic> data) {
+    // Admite keys steps o pictogramSteps
+    final raw = data['steps'] ?? data['pictogramSteps'];
+    if (raw == null) return [];
+    if (raw is List) {
+      final items = <_StepItem>[];
+      for (final e in raw) {
+        if (e is String && e.trim().isNotEmpty) {
+          items.add(_StepItem(url: e.trim()));
+        } else if (e is Map) {
+          final url = (e['url'] ?? e['src'] ?? '').toString().trim();
+          if (url.isEmpty) continue;
+          final caption = (e['caption'] ?? e['label'] ?? e['text'])?.toString();
+          items.add(_StepItem(url: url, caption: caption));
+        }
+      }
+      return items;
+    }
+    return [];
+  }
+}
+
+class _StepItem {
+  final String url;
+  final String? caption;
+
+  _StepItem({required this.url, this.caption});
 }
 
 /// Registrar este minijuego con el factory

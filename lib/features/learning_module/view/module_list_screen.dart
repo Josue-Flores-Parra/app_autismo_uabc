@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:appy/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import 'level_timeline_screen.dart';
 import '../../../examples/firestore_debug_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../settings/view/settings_page.dart';
+import '../../settings/viewmodel/settings_viewmodel.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
@@ -13,14 +16,26 @@ class ModuleListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text(
-          'Mis Módulos',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        title: Text(
+          l10n?.navModules ?? 'Mis Módulos',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: l10n?.settingsTitle ?? 'Ajustes',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -63,10 +78,12 @@ class ModuleListScreen extends StatelessWidget {
             final nombreUsuario = user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
             final nivelUsuario = 2; // TODO: Obtener desde Firestore si está disponible
 
+            final parentalMinLevel = context.watch<SettingsViewModel>().parentalMinLevel;
             return ModulosGridView(
               modulos: viewModel.modulos,
               nombreUsuario: nombreUsuario,
               nivelUsuario: nivelUsuario,
+              parentalMinLevel: parentalMinLevel,
             );
           },
         ),
@@ -81,16 +98,33 @@ class ModulosGridView extends StatelessWidget {
   final List<ModuloInfo> modulos;
   final String nombreUsuario;
   final int nivelUsuario;
+  final int parentalMinLevel;
 
   const ModulosGridView({
     super.key,
     required this.modulos,
     required this.nombreUsuario,
     required this.nivelUsuario,
+    required this.parentalMinLevel,
   });
 
   @override
   Widget build(BuildContext context) {
+    final filteredModules = modulos
+        .map(
+          (modulo) => ModuloInfo(
+            id: modulo.id,
+            titulo: modulo.titulo,
+            estrellas: modulo.estrellas,
+            nivel: modulo.nivel,
+            imagenPath: modulo.imagenPath,
+            color: modulo.color,
+            bloqueado: modulo.bloqueado || modulo.nivel < parentalMinLevel,
+            descripcion: modulo.descripcion,
+          ),
+        )
+        .toList();
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -107,9 +141,9 @@ class ModulosGridView extends StatelessWidget {
                 crossAxisSpacing: 7,
                 mainAxisSpacing: 7,
               ),
-              itemCount: modulos.length,
+              itemCount: filteredModules.length,
               itemBuilder: (context, index) {
-                return ModuloPlantilla(modulo: modulos[index]);
+                return ModuloPlantilla(modulo: filteredModules[index]);
               },
             ),
           ),
