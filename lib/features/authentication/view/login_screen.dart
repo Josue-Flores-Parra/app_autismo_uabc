@@ -383,20 +383,27 @@ class _LoginScreenState
                             keyboardType:
                                 TextInputType
                                     .emailAddress,
-                            decoration: const InputDecoration(
-                              labelText:
-                                  'Correo electrónico',
-                              border:
-                                  OutlineInputBorder(),
-                              filled:
-                                  true,
-                              fillColor:
-                                  Colors
-                                      .white,
-                              prefixIcon:
-                                  Icon(
-                                    Icons.email,
-                                  ),
+                            style: const TextStyle(color: Colors.black87),
+                            cursorColor: primaryColor,
+                            decoration: InputDecoration(
+                              labelText: 'Correo electrónico',
+                              labelStyle: TextStyle(color: Colors.grey.shade800),
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                              hintText: 'usuario@correo.com',
+                              hintStyle:
+                                  TextStyle(color: Colors.grey.shade600),
+                              prefixIcon: const Icon(
+                                Icons.email,
+                                color: Color(0xFF5B8DB3),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: primaryColor,
+                                  width: 1.8,
+                                ),
+                              ),
                             ),
                             validator: (value) {
                               if (value ==
@@ -423,20 +430,27 @@ class _LoginScreenState
                                 _passwordController,
                             obscureText:
                                 true,
-                            decoration: const InputDecoration(
-                              labelText:
-                                  'Contraseña',
-                              border:
-                                  OutlineInputBorder(),
-                              filled:
-                                  true,
-                              fillColor:
-                                  Colors
-                                      .white,
-                              prefixIcon:
-                                  Icon(
-                                    Icons.lock,
-                                  ),
+                            style: const TextStyle(color: Colors.black87),
+                            cursorColor: primaryColor,
+                            decoration: InputDecoration(
+                              labelText: 'Contraseña',
+                              labelStyle: TextStyle(color: Colors.grey.shade800),
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                              hintText: '••••••',
+                              hintStyle:
+                                  TextStyle(color: Colors.grey.shade600),
+                              prefixIcon: const Icon(
+                                Icons.lock,
+                                color: Color(0xFF5B8DB3),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: primaryColor,
+                                  width: 1.8,
+                                ),
+                              ),
                             ),
                             validator: (value) {
                               if (value ==

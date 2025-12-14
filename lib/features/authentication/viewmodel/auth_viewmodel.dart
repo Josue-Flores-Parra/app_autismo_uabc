@@ -11,6 +11,10 @@ class AuthViewModel extends ChangeNotifier {
   String? _errorMessage;
   User? _currentUser;
 
+  AuthViewModel() {
+    _currentUser = _authService.currentUser;
+  }
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   User? get currentUser => _currentUser;
@@ -123,5 +127,60 @@ class AuthViewModel extends ChangeNotifier {
   /// Limpia el mensaje de error manualmente
   void clearError() {
     _clearError();
+  }
+
+  Future<bool> updateDisplayName(String name) async {
+    _setLoading(true);
+    try {
+      final updated = await _authService.updateDisplayName(name);
+      await _refreshUser();
+      _setLoading(false);
+      return updated;
+    } catch (e) {
+      _setLoading(false);
+      _setError('No se pudo actualizar el nombre: $e');
+      return false;
+    }
+  }
+
+  Future<bool> changePassword(String newPassword) async {
+    _setLoading(true);
+    try {
+      final updated = await _authService.changePassword(newPassword);
+      _setLoading(false);
+      return updated;
+    } on FirebaseAuthException catch (e) {
+      _setLoading(false);
+      _handleAuthError(e);
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('No se pudo actualizar la contraseña: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    _setLoading(true);
+    try {
+      final deleted = await _authService.deleteAccount();
+      _currentUser = null;
+      _setLoading(false);
+      return deleted;
+    } on FirebaseAuthException catch (e) {
+      _setLoading(false);
+      _handleAuthError(e);
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('No se pudo eliminar la cuenta: $e');
+      return false;
+    }
+  }
+
+  Future<void> _refreshUser() async {
+    await _authService.currentUser?.reload();
+    _currentUser = _authService.currentUser;
+    notifyListeners();
   }
 }
