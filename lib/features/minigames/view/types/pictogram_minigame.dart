@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../../minigame_core.dart';
@@ -127,10 +129,60 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       );
     }
 
+    // Mostrar indicador de carga mientras se precargan las imágenes
+    if (!_imagesPrecached) {
+      final progress = _totalImagesCount > 0 
+          ? _imagesLoadedCount / _totalImagesCount 
+          : 0.0;
+      
+      return Scaffold(
+        backgroundColor: const Color(0xFF091F2C),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(
+                color: Color(0xFF5B8DB3),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Cargando imágenes...',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                ),
+              ),
+              if (_totalImagesCount > 0) ...[
+                const SizedBox(height: 16),
+                Text(
+                  '$_imagesLoadedCount / $_totalImagesCount',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 200,
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5B8DB3)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF091F2C),
-      body: SafeArea(
-        child: Column(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
           children: [
             // Header con título
             Container(
@@ -285,82 +337,242 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
             // Botón Completar
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: ElevatedButton.icon(
-                onPressed: _isCompleted
-                    ? null
-                    : () {
-                        setState(() {
-                          _isCompleted = true;
-                        });
-                        widget.onComplete(true, 1);
-                      },
-                icon: const Icon(Icons.check_circle_rounded, size: 32),
-                label: const Text(
-                  'COMPLETAR',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isCompleted
-                      ? Colors.grey
-                      : const Color(0xFF05E995),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 10,
-                  shadowColor: const Color.fromARGB(204, 5, 233, 149),
-                ),
+                onPressed: _ttsReady ? () => _speakCaption(_currentIndex) : null,
+                icon: const Icon(Icons.volume_up),
+                label: const Text('Escuchar'),
               ),
             ),
+
+            // Botón Completar - Solo se muestra en la última imagen
+            if (_currentIndex == images.length - 1)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: ElevatedButton.icon(
+                  onPressed: _isCompleted
+                      ? null
+                      : () async {
+                          setState(() {
+                            _isCompleted = true;
+                          });
+                          // Reproducir sonido de felicitación y mostrar confettis
+                          _celebrateCompletion(); // No esperar para que no bloquee la UI
+                          // Esperar un momento antes de completar para que se vea la celebración
+                          await Future.delayed(const Duration(milliseconds: 1500));
+                          widget.onComplete(true, 1);
+                        },
+                  icon: const Icon(Icons.check_circle_rounded, size: 32),
+                  label: const Text(
+                    'COMPLETAR',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isCompleted
+                        ? Colors.grey
+                        : const Color(0xFF05E995),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 10,
+                    shadowColor: const Color.fromARGB(204, 5, 233, 149),
+                  ),
+                ),
+              ),
           ],
         ),
+      ),
+          // Confettis overlay
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: 3.14 / 2, // Hacia abajo
+              maxBlastForce: 5,
+              minBlastForce: 2,
+              emissionFrequency: 0.05,
+              numberOfParticles: 50,
+              gravity: 0.1,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.purple,
+                Colors.yellow,
+                Colors.red,
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  /// Reproduce el sonido de felicitación y muestra los confettis
+  void _celebrateCompletion() {
+    // Iniciar confettis inmediatamente
+    _confettiController.play();
+    
+    // Reproducir sonido de felicitación de forma asíncrona
+    _playCelebrationSound();
+  }
+
+  /// Reproduce el sonido de celebración de forma asíncrona
+  Future<void> _playCelebrationSound() async {
+    try {
+      debugPrint('🎉 [CELEBRACIÓN] Intentando reproducir sonido...');
+      
+      // Configurar sesión de audio primero
+      try {
+        final session = await AudioSession.instance;
+        await session.configure(const AudioSessionConfiguration.music());
+        await session.setActive(true);
+        debugPrint(' [CELEBRACIÓN] Sesión de audio configurada');
+      } catch (e) {
+        debugPrint(' [CELEBRACIÓN] Error configurando sesión: $e');
+      }
+      
+      // Intentar cargar y reproducir el audio
+      try {
+        debugPrint(' [CELEBRACIÓN] Cargando audio desde assets/audio/celebration.mp3');
+        
+        // Usar setAudioSource con AudioSource.asset()
+        await _celebrationPlayer.setAudioSource(
+          AudioSource.asset('assets/audio/celebration.mp3'),
+        );
+        
+        debugPrint(' [CELEBRACIÓN]  Audio cargado exitosamente');
+        debugPrint(' [CELEBRACIÓN] Duración: ${_celebrationPlayer.duration}');
+        
+        // Configurar volumen al máximo
+        await _celebrationPlayer.setVolume(1.0);
+        debugPrint(' [CELEBRACIÓN] Volumen: ${_celebrationPlayer.volume}');
+        
+        // Esperar a que el audio esté listo
+        if (_celebrationPlayer.processingState == ProcessingState.loading) {
+          debugPrint(' [CELEBRACIÓN] Esperando a que el audio cargue...');
+          await _celebrationPlayer.playerStateStream
+              .timeout(const Duration(seconds: 3))
+              .firstWhere(
+            (state) => state.processingState != ProcessingState.loading,
+          );
+        }
+        
+        debugPrint(' [CELEBRACIÓN] Reproduciendo...');
+        
+        // Reproducir el audio
+        await _celebrationPlayer.play();
+        
+        debugPrint(' [CELEBRACIÓN]  Play() llamado');
+        
+        // Verificar después de un momento
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_celebrationPlayer.playing) {
+            debugPrint('[CELEBRACIÓN]  Audio reproduciéndose correctamente');
+          } else {
+            debugPrint('⚠[CELEBRACIÓN] El audio no se está reproduciendo');
+            debugPrint('[CELEBRACIÓN] Estado: ${_celebrationPlayer.processingState}');
+          }
+        });
+      } catch (e, stackTrace) {
+        debugPrint('[CELEBRACIÓN] Error al cargar/reproducir audio: $e');
+        debugPrint('[CELEBRACIÓN] Stack trace: $stackTrace');
+        
+        // Si falla, usar TTS como respaldo
+        if (_ttsReady) {
+          debugPrint('[CELEBRACIÓN] Usando TTS como respaldo...');
+          try {
+            await _tts.speak('¡Felicitaciones! ¡Nivel completado!');
+          } catch (ttsError) {
+            debugPrint('[CELEBRACIÓN] Error con TTS: $ttsError');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[CELEBRACIÓN] Error general: $e');
+      // Al menos mostrar los confettis
+    }
+  }
+
   /// Helper function para construir imágenes desde URLs
   /// Detecta automáticamente si es un asset local o URL externa
-  /// Permite usar URLs tal cual están en la base de datos sin agregar prefijos automáticos
+  /// Para URLs de red, intenta usar la versión en caché primero
   Widget _buildImageFromUrl(
     String url, {
     BoxFit fit = BoxFit.contain,
   }) {
-    // Si la URL es una URL externa (http/https), usar Image.network
+    // Si la URL es una URL externa (http/https), intentar usar la versión en caché
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) {
-          return const Center(
-            child: Icon(
-              Icons.image_not_supported,
-              size: 80,
-              color: Color(0xFFCCCCCC),
-            ),
-          );
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF5B8DB3),
-            ),
+      return FutureBuilder<String?>(
+        future: _getCachedImagePath(url),
+        builder: (context, snapshot) {
+          // Si hay una versión en caché, usarla
+          if (snapshot.hasData && snapshot.data != null) {
+            final cachedPath = snapshot.data!;
+            final cachedFile = File(cachedPath);
+            if (cachedFile.existsSync()) {
+              return Image.file(
+                cachedFile,
+                fit: fit,
+                errorBuilder: (context, error, stackTrace) {
+                  // Si falla el archivo en caché, intentar con NetworkImage
+                  return Image.network(
+                    url,
+                    fit: fit,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: 80,
+                          color: Color(0xFFCCCCCC),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            }
+          }
+          
+          // Si no hay caché o está cargando, usar NetworkImage
+          return Image.network(
+            url,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: 80,
+                  color: Color(0xFFCCCCCC),
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF5B8DB3),
+                  strokeWidth: 2,
+                ),
+              );
+            },
           );
         },
       );
     }
 
     // Si es un asset local, usar Image.asset directamente con la URL tal cual está
-    // No agregamos "assets/" porque la URL ya viene completa desde la BD
     return Image.asset(
       url,
       fit: fit,
@@ -416,4 +628,3 @@ void registerPictogramMinigame() {
     ),
   );
 }
-
