@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:appy/l10n/gen/app_localizations.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   const CustomBottomNavBar({
@@ -12,23 +13,26 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
-      selectedItemColor: Colors.black,
-      unselectedItemColor: Colors.grey,
-      items: const [
+      selectedItemColor: colorScheme.primary,
+      unselectedItemColor: colorScheme.onSurface.withOpacity(0.6),
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard, color: Color(0xFF5B8DB3)),
-          label: "Módulos",
+          icon: const Icon(Icons.dashboard),
+          label: l10n?.navModules ?? 'Módulos',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person, color: Color(0xFF92C5BC)),
-          label: "Avatar",
+          icon: const Icon(Icons.person),
+          label: l10n?.navAvatar ?? 'Avatar',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.settings, color: Color(0xFF5B8DB3)),
-          label: "Ajustes",
+          icon: const Icon(Icons.settings),
+          label: l10n?.navSettings ?? 'Ajustes',
         ),
       ],
     );

@@ -2,12 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
-import 'package:confetti/confetti.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:audio_session/audio_session.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Pictograma
@@ -29,13 +23,9 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   late final PageController _pageController;
   int _currentIndex = 0;
   late final List<_StepItem> _steps;
-  bool _imagesPrecached = false;
-  int _imagesLoadedCount = 0;
-  int _totalImagesCount = 0;
+  bool _precached = false;
   final FlutterTts _tts = FlutterTts();
   bool _ttsReady = false;
-  late ConfettiController _confettiController;
-  final AudioPlayer _celebrationPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -43,262 +33,12 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     _pageController = PageController();
     _steps = _parseSteps(widget.minigameData);
     _initTts();
-    _initConfetti();
-    // Precargar imágenes después del primer frame para asegurar que el contexto esté disponible
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _precacheAllImages();
-    });
-  }
-
-  void _initConfetti() {
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-  }
-
-  Future<void> _configureAudioSession() async {
-    try {
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
-      await session.setActive(true);
-      debugPrint('Sesión de audio configurada para celebración');
-    } catch (e) {
-      debugPrint('Error al configurar sesión de audio: $e');
-    }
-  }
-
-  /// Precarga todas las imágenes del carrusel al inicializar el widget
-  /// Esto evita que las imágenes tarden en cargar cuando el usuario hace scroll
-  Future<void> _precacheAllImages() async {
-    if (!mounted) return;
-    
-    // Obtener todas las URLs que se van a mostrar
-    final pictogramaUrl = widget.minigameData['pictogramaUrl'] as String?;
-    final List<String> urlsToPrecache = [];
-    
-    // Si hay steps, usar esos
-    if (_steps.isNotEmpty) {
-      urlsToPrecache.addAll(_steps.map((item) => item.url));
-    } 
-    // Si no hay steps pero hay un pictogramaUrl único, usar ese
-    else if (pictogramaUrl != null && pictogramaUrl.isNotEmpty) {
-      urlsToPrecache.add(pictogramaUrl);
-    }
-    
-    // Si no hay imágenes que precargar, marcar como listo
-    if (urlsToPrecache.isEmpty) {
-      if (mounted) {
-        setState(() => _imagesPrecached = true);
-      }
-      return;
-    }
-
-    // Establecer el total de imágenes a cargar
-    _totalImagesCount = urlsToPrecache.length;
-    if (mounted) {
-      setState(() {
-        _imagesLoadedCount = 0;
-      });
-    }
-
-    try {
-      // Precargar todas las imágenes en paralelo esperando a que se completen completamente
-      final futures = urlsToPrecache.map((url) => _precacheImageCompletely(url));
-      
-      // Esperar a que todas las imágenes se carguen completamente
-      // Usar Future.wait con eagerError: false para que continúe aunque algunas fallen
-      await Future.wait(futures, eagerError: false);
-      
-      debugPrint('Todas las imágenes precargadas: $_imagesLoadedCount/$_totalImagesCount');
-    } catch (e) {
-      // Si hay un error al precargar, continuar de todas formas
-      // Las imágenes se cargarán bajo demanda
-      debugPrint('Error al precargar imágenes: $e');
-    } finally {
-      // Solo marcar como precargado cuando realmente todas estén listas
-      if (mounted) {
-        setState(() {
-          _imagesPrecached = true;
-        });
-      }
-    }
-  }
-
-  /// Descarga y guarda una imagen de red localmente, o precarga un asset local
-  Future<void> _precacheImageCompletely(String url) async {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      // Para imágenes de red: descargar y guardar localmente
-      await _downloadAndCacheImage(url);
-    } else {
-      // Para assets locales: solo precargar en memoria
-      await _precacheLocalAsset(url);
-    }
-    
-    // Actualizar el contador
-    if (mounted) {
-      setState(() {
-        _imagesLoadedCount++;
-      });
-    }
-  }
-
-  /// Descarga una imagen de red y la guarda en el caché local del dispositivo
-  Future<void> _downloadAndCacheImage(String url) async {
-    try {
-      // Obtener el directorio de caché
-      final cacheDir = await getTemporaryDirectory();
-      final imageCacheDir = Directory(path.join(cacheDir.path, 'pictogram_images'));
-      
-      // Crear el directorio si no existe
-      if (!await imageCacheDir.exists()) {
-        await imageCacheDir.create(recursive: true);
-      }
-      
-      // Generar un nombre de archivo único basado en la URL
-      final uri = Uri.parse(url);
-      final fileName = path.basename(uri.path);
-      final fileExtension = path.extension(fileName).isEmpty ? '.jpg' : path.extension(fileName);
-      final cacheFileName = '${_urlToHash(url)}$fileExtension';
-      final cachedImagePath = path.join(imageCacheDir.path, cacheFileName);
-      final cachedImageFile = File(cachedImagePath);
-      
-      // Si ya existe en caché, verificar que esté completo
-      if (await cachedImageFile.exists()) {
-        final fileSize = await cachedImageFile.length();
-        if (fileSize > 0) {
-          // La imagen ya está en caché, precargarla en memoria
-          await _precacheCachedFile(cachedImagePath);
-          return;
-        }
-      }
-      
-      // Descargar la imagen
-      debugPrint('Descargando imagen: $url');
-      final response = await http.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Timeout al descargar imagen');
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        // Guardar la imagen en el archivo
-        await cachedImageFile.writeAsBytes(response.bodyBytes);
-        debugPrint('Imagen guardada en caché: $cachedImagePath');
-        
-        // Precargar la imagen desde el archivo local
-        await _precacheCachedFile(cachedImagePath);
-      } else {
-        throw Exception('Error HTTP ${response.statusCode} al descargar $url');
-      }
-    } catch (e) {
-      debugPrint('Error al descargar y cachear imagen $url: $e');
-      // Si falla la descarga, intentar usar NetworkImage como respaldo
-      if (!mounted) return;
-      try {
-        final imageProvider = NetworkImage(url);
-        await precacheImage(imageProvider, context);
-        final stream = imageProvider.resolve(ImageConfiguration.empty);
-        final completer = Completer<void>();
-        late ImageStreamListener listener;
-        listener = ImageStreamListener(
-          (ImageInfo image, bool synchronousCall) {
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-            stream.removeListener(listener);
-          },
-          onError: (exception, stackTrace) {
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-            stream.removeListener(listener);
-          },
-        );
-        stream.addListener(listener);
-        await completer.future.timeout(const Duration(seconds: 10));
-        stream.removeListener(listener);
-      } catch (_) {
-        // Si también falla, continuar sin bloquear
-      }
-    }
-  }
-
-  /// Precarga un archivo de imagen desde el caché local
-  Future<void> _precacheCachedFile(String filePath) async {
-    if (!mounted) return;
-    try {
-      final imageProvider = FileImage(File(filePath));
-      await precacheImage(imageProvider, context);
-      
-      // Esperar a que el ImageStream se complete
-      final stream = imageProvider.resolve(ImageConfiguration.empty);
-      final completer = Completer<void>();
-      late ImageStreamListener listener;
-      listener = ImageStreamListener(
-        (ImageInfo image, bool synchronousCall) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-          stream.removeListener(listener);
-        },
-        onError: (exception, stackTrace) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-          stream.removeListener(listener);
-        },
-      );
-      stream.addListener(listener);
-      await completer.future.timeout(const Duration(seconds: 10));
-      stream.removeListener(listener);
-    } catch (e) {
-      debugPrint('Error al precargar archivo local $filePath: $e');
-    }
-  }
-
-  /// Precarga un asset local
-  Future<void> _precacheLocalAsset(String url) async {
-    if (!mounted) return;
-    try {
-      final imageProvider = AssetImage(url);
-      await precacheImage(imageProvider, context);
-      
-      // Esperar a que el ImageStream se complete
-      final stream = imageProvider.resolve(ImageConfiguration.empty);
-      final completer = Completer<void>();
-      late ImageStreamListener listener;
-      listener = ImageStreamListener(
-        (ImageInfo image, bool synchronousCall) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-          stream.removeListener(listener);
-        },
-        onError: (exception, stackTrace) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-          stream.removeListener(listener);
-        },
-      );
-      stream.addListener(listener);
-      await completer.future.timeout(const Duration(seconds: 10));
-      stream.removeListener(listener);
-    } catch (e) {
-      debugPrint('Error al precargar asset local $url: $e');
-    }
-  }
-
-  /// Convierte una URL a un hash para usarlo como nombre de archivo
-  String _urlToHash(String url) {
-    return url.hashCode.toString().replaceAll('-', '');
   }
 
   @override
   void dispose() {
     _tts.stop();
     _pageController.dispose();
-    _confettiController.dispose();
-    _celebrationPlayer.dispose();
     super.dispose();
   }
 
@@ -325,6 +65,20 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
   @override
   Widget build(BuildContext context) {
+    // Precargar imágenes una sola vez para evitar parpadeos al pasar rápido
+    if (!_precached) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final item in _steps) {
+          if (item.url.startsWith('http')) {
+            precacheImage(NetworkImage(item.url), context);
+          } else {
+            precacheImage(AssetImage(item.url), context);
+          }
+        }
+      });
+      _precached = true;
+    }
+
     // Obtener pictogramaUrl desde actividadData o desde el nivel
     // Puede venir en actividadData['pictogramaUrl'] o directamente en minigameData['pictogramaUrl']
     final pictogramaUrl = widget.minigameData['pictogramaUrl'] as String?;
@@ -581,6 +335,16 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
               ),
             ),
 
+            // Botón Completar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: ElevatedButton.icon(
+                onPressed: _ttsReady ? () => _speakCaption(_currentIndex) : null,
+                icon: const Icon(Icons.volume_up),
+                label: const Text('Escuchar'),
+              ),
+            ),
+
             // Botón Completar - Solo se muestra en la última imagen
             if (_currentIndex == images.length - 1)
               Padding(
@@ -674,30 +438,30 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
         final session = await AudioSession.instance;
         await session.configure(const AudioSessionConfiguration.music());
         await session.setActive(true);
-        debugPrint('🎉 [CELEBRACIÓN] Sesión de audio configurada');
+        debugPrint(' [CELEBRACIÓN] Sesión de audio configurada');
       } catch (e) {
-        debugPrint('⚠️ [CELEBRACIÓN] Error configurando sesión: $e');
+        debugPrint(' [CELEBRACIÓN] Error configurando sesión: $e');
       }
       
       // Intentar cargar y reproducir el audio
       try {
-        debugPrint('🎉 [CELEBRACIÓN] Cargando audio desde assets/audio/celebration.mp3');
+        debugPrint(' [CELEBRACIÓN] Cargando audio desde assets/audio/celebration.mp3');
         
         // Usar setAudioSource con AudioSource.asset()
         await _celebrationPlayer.setAudioSource(
           AudioSource.asset('assets/audio/celebration.mp3'),
         );
         
-        debugPrint('🎉 [CELEBRACIÓN] ✅ Audio cargado exitosamente');
-        debugPrint('🎉 [CELEBRACIÓN] Duración: ${_celebrationPlayer.duration}');
+        debugPrint(' [CELEBRACIÓN]  Audio cargado exitosamente');
+        debugPrint(' [CELEBRACIÓN] Duración: ${_celebrationPlayer.duration}');
         
         // Configurar volumen al máximo
         await _celebrationPlayer.setVolume(1.0);
-        debugPrint('🎉 [CELEBRACIÓN] Volumen: ${_celebrationPlayer.volume}');
+        debugPrint(' [CELEBRACIÓN] Volumen: ${_celebrationPlayer.volume}');
         
         // Esperar a que el audio esté listo
         if (_celebrationPlayer.processingState == ProcessingState.loading) {
-          debugPrint('🎉 [CELEBRACIÓN] Esperando a que el audio cargue...');
+          debugPrint(' [CELEBRACIÓN] Esperando a que el audio cargue...');
           await _celebrationPlayer.playerStateStream
               .timeout(const Duration(seconds: 3))
               .firstWhere(
@@ -705,38 +469,38 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
           );
         }
         
-        debugPrint('🎉 [CELEBRACIÓN] Reproduciendo...');
+        debugPrint(' [CELEBRACIÓN] Reproduciendo...');
         
         // Reproducir el audio
         await _celebrationPlayer.play();
         
-        debugPrint('🎉 [CELEBRACIÓN] ✅ Play() llamado');
+        debugPrint(' [CELEBRACIÓN]  Play() llamado');
         
         // Verificar después de un momento
         Future.delayed(const Duration(milliseconds: 500), () {
           if (_celebrationPlayer.playing) {
-            debugPrint('🎉 [CELEBRACIÓN] ✅ Audio reproduciéndose correctamente');
+            debugPrint('[CELEBRACIÓN]  Audio reproduciéndose correctamente');
           } else {
-            debugPrint('⚠️ [CELEBRACIÓN] El audio no se está reproduciendo');
-            debugPrint('⚠️ [CELEBRACIÓN] Estado: ${_celebrationPlayer.processingState}');
+            debugPrint('⚠[CELEBRACIÓN] El audio no se está reproduciendo');
+            debugPrint('[CELEBRACIÓN] Estado: ${_celebrationPlayer.processingState}');
           }
         });
       } catch (e, stackTrace) {
-        debugPrint('❌ [CELEBRACIÓN] Error al cargar/reproducir audio: $e');
-        debugPrint('❌ [CELEBRACIÓN] Stack trace: $stackTrace');
+        debugPrint('[CELEBRACIÓN] Error al cargar/reproducir audio: $e');
+        debugPrint('[CELEBRACIÓN] Stack trace: $stackTrace');
         
         // Si falla, usar TTS como respaldo
         if (_ttsReady) {
-          debugPrint('🎉 [CELEBRACIÓN] Usando TTS como respaldo...');
+          debugPrint('[CELEBRACIÓN] Usando TTS como respaldo...');
           try {
             await _tts.speak('¡Felicitaciones! ¡Nivel completado!');
           } catch (ttsError) {
-            debugPrint('❌ [CELEBRACIÓN] Error con TTS: $ttsError');
+            debugPrint('[CELEBRACIÓN] Error con TTS: $ttsError');
           }
         }
       }
     } catch (e) {
-      debugPrint('❌ [CELEBRACIÓN] Error general: $e');
+      debugPrint('[CELEBRACIÓN] Error general: $e');
       // Al menos mostrar los confettis
     }
   }
@@ -822,35 +586,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
         );
       },
     );
-  }
-
-  /// Obtiene la ruta del archivo en caché para una URL de red
-  Future<String?> _getCachedImagePath(String url) async {
-    try {
-      final cacheDir = await getTemporaryDirectory();
-      final imageCacheDir = Directory(path.join(cacheDir.path, 'pictogram_images'));
-      
-      if (!await imageCacheDir.exists()) {
-        return null;
-      }
-      
-      final uri = Uri.parse(url);
-      final fileName = path.basename(uri.path);
-      final fileExtension = path.extension(fileName).isEmpty ? '.jpg' : path.extension(fileName);
-      final cacheFileName = '${_urlToHash(url)}$fileExtension';
-      final cachedImagePath = path.join(imageCacheDir.path, cacheFileName);
-      final cachedImageFile = File(cachedImagePath);
-      
-      if (await cachedImageFile.exists()) {
-        final fileSize = await cachedImageFile.length();
-        if (fileSize > 0) {
-          return cachedImagePath;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error al obtener ruta de caché para $url: $e');
-    }
-    return null;
   }
 
   List<_StepItem> _parseSteps(Map<String, dynamic> data) {
