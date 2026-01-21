@@ -34,6 +34,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   int _totalImagesCount = 0;
   final FlutterTts _tts = FlutterTts();
   bool _ttsReady = false;
+  bool _autoSpeakTriggered = false;
   late ConfettiController _confettiController;
   final AudioPlayer _celebrationPlayer = AudioPlayer();
 
@@ -423,6 +424,16 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       );
     }
 
+    // Activar TTS automáticamente cuando se muestre la vista principal por primera vez
+    if (_imagesPrecached && !_autoSpeakTriggered && _ttsReady) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_autoSpeakTriggered) {
+          _autoSpeakTriggered = true;
+          _speakCaption(0);
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF091F2C),
       body: Stack(
@@ -485,68 +496,44 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
             // Pictograma a pantalla completa (único o secuencia)
             Expanded(
-              child: Center(
-                child: Container(
-                  margin: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0x997BA5C9),
-                      width: 2,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x80000000),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: images.length,
-                      onPageChanged: (index) {
-                        setState(() => _currentIndex = index);
-                        _speakCaption(index);
-                      },
-                      itemBuilder: (context, index) {
-                        final item = images[index];
-                        return Semantics(
-                          label: item.caption ??
-                              'Paso ${index + 1}${title.isNotEmpty ? " - $title" : ""}',
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: _buildImageFromUrl(
-                                  item.url,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                              if (item.caption != null && item.caption!.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Text(
-                                    item.caption!,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                            ],
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: images.length,
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                  _speakCaption(index);
+                },
+                itemBuilder: (context, index) {
+                  final item = images[index];
+                  return Semantics(
+                    label: item.caption ??
+                        'Paso ${index + 1}${title.isNotEmpty ? " - $title" : ""}',
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: _buildImageFromUrl(
+                            item.url,
+                            fit: BoxFit.contain,
                           ),
-                        );
-                      },
+                        ),
+                        if (item.caption != null && item.caption!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0, left: 12.0, right: 12.0, bottom: 8.0),
+                            child: Text(
+                              item.caption!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
 
@@ -572,12 +559,26 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
                 ),
               ),
 
+            // Botón Escuchar abajo
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: ElevatedButton.icon(
                 onPressed: _ttsReady ? () => _speakCaption(_currentIndex) : null,
-                icon: const Icon(Icons.volume_up),
-                label: const Text('Escuchar'),
+                icon: const Icon(Icons.volume_up, size: 28),
+                label: const Text(
+                  'Escuchar',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  minimumSize: const Size(double.infinity, 56),
+                ),
               ),
             ),
 

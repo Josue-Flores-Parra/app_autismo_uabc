@@ -175,6 +175,97 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     }
   }
 
+  /// Construye la imagen del pictograma para mostrar en el diálogo
+  Widget _buildPictogramImage(Map<String, dynamic> minigameData) {
+    // Obtener la URL del pictograma - intentar obtener la última imagen si hay steps
+    String? imageUrl;
+    
+    // Si hay steps, obtener la última imagen (la que se completó)
+    if (minigameData['steps'] != null) {
+      final steps = minigameData['steps'];
+      if (steps is List && steps.isNotEmpty) {
+        // Obtener la última imagen del carrusel
+        final lastStep = steps[steps.length - 1];
+        if (lastStep is Map) {
+          imageUrl = lastStep['url'] ?? lastStep['src'];
+        } else if (lastStep is String) {
+          imageUrl = lastStep;
+        }
+      }
+    }
+    
+    // Si no hay steps o no se encontró, intentar obtener pictogramaUrl directo
+    if (imageUrl == null || imageUrl.isEmpty) {
+      imageUrl = minigameData['pictogramaUrl'] as String?;
+    }
+    
+    // Si no hay imagen, retornar un placeholder
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    // Construir la imagen según el tipo de URL
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return Container(
+        constraints: const BoxConstraints(maxHeight: 250, maxWidth: 300),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x66FFFFFF), width: 2),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: 60,
+                  color: Colors.white54,
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF5B8DB3),
+                  strokeWidth: 2,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } else {
+      // Asset local
+      return Container(
+        constraints: const BoxConstraints(maxHeight: 250, maxWidth: 300),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x66FFFFFF), width: 2),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.asset(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: 60,
+                  color: Colors.white54,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   /// Maneja la finalización del minijuego
   void _handleMinigameComplete(
     BuildContext context,
@@ -219,14 +310,21 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Mostrar imagen del pictograma si es un minigame de tipo pictogram
+            if (widget.actividadType?.toLowerCase().trim() == 'pictogram' &&
+                widget.minigameData != null) ...[
+              _buildPictogramImage(widget.minigameData!),
+              const SizedBox(height: 16),
+            ],
             Text(
               success
                   ? '¡Excelente trabajo! Has completado el nivel con éxito.'
                   : _retriesLeft > 0
                   ? 'No te preocupes, puedes intentarlo de nuevo.'
                   : 'Has agotado todos tus reintentos.',
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16, color: Colors.white70),
             ),
             const SizedBox(height: 16),
