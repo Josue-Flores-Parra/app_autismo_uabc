@@ -48,10 +48,8 @@ flutter:
     # Level Timeline Module Assets
     # ----------------------------
     - assets/images/LevelBGs/Alimentacion/AlimentacionModuloBG.png
-    - assets/images/LevelBGs/Dormir/DormirModuloBG.png
     - assets/images/LevelBGs/Socializar/SocializarModuloBG.png
     - assets/images/LevelBGs/Higiene/HigieneModuloBG.png
-    - assets/images/LevelBGs/Higiene/StepsBGs/
 
     # ----------------------------
     # Avatar Skins Module Assets
