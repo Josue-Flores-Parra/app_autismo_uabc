@@ -35,6 +35,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.3
 
 flutter:
   uses-material-design: true
@@ -84,3 +86,18 @@ flutter:
     - assets/imgs/               # Imágenes para preview cards
     - assets/videos/             # Videos para el módulo de aprendizaje
     - assets/audio/              # Audios para el módulo de aprendizaje
+
+# App icon configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"  # Use 2048x2048 or higher for best quality
+  adaptive_icon_background: "#FFFFFF"  # Background color for Android adaptive icon
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+
+# Splash screen configuration
+flutter_native_splash:
+  color: "#1A3D52"  # Background color
+  image: "assets/images/splash_icon.png"  # Use high resolution (2048x2048+)
+  android: true
+  ios: true  # Foreground image for Android
