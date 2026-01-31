@@ -10,6 +10,7 @@ class ModuloInfo {
   final int estrellas;
   final int nivel;
   final String imagenPath;
+  final String? lvlBackgroundImageUrl; // campo para la imagen de fondo del nivel, apunta a asset local de momento
   final Color color;
   final bool bloqueado;
   final String? descripcion;
@@ -20,6 +21,7 @@ class ModuloInfo {
     required this.estrellas,
     required this.nivel,
     required this.imagenPath,
+    this.lvlBackgroundImageUrl,
     required this.color,
     this.bloqueado = false,
     this.descripcion,
@@ -39,6 +41,7 @@ class ModuloInfo {
       estrellas: estrellas,
       nivel: data['nivelMinimo'] ?? 1,
       imagenPath: data['imagenUrl'] ?? '',
+      lvlBackgroundImageUrl: data['lvlBackgroundImageUrl'],
       color: _parseColor(data['color']),
       bloqueado: data['bloqueado'] ?? false,
     );
@@ -77,6 +80,7 @@ class ModuloInfo {
       'descripcion': descripcion,
       'nivelMinimo': nivel,
       'imagenUrl': imagenPath,
+      'lvlBackgroundImageUrl': lvlBackgroundImageUrl,
       'color': '#${color.value.toRadixString(16).substring(2).toUpperCase()}',
       'bloqueado': bloqueado,
     };

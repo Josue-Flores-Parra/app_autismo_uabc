@@ -47,9 +47,11 @@ flutter:
     # ----------------------------
     # Level Timeline Module Assets
     # ----------------------------
-    - assets/images/LevelBGs/                     # Carpeta principal de fondos de niveles
-    - assets/images/LevelBGs/Higiene/            # Subcarpeta del módulo Higiene
-    - assets/images/LevelBGs/Higiene/StepsBGs/   # Fondos específicos de pasos del módulo Higiene
+    - assets/images/LevelBGs/Alimentacion/AlimentacionModuloBG.png
+    - assets/images/LevelBGs/Dormir/DormirModuloBG.png
+    - assets/images/LevelBGs/Socializar/SocializarModuloBG.png
+    - assets/images/LevelBGs/Higiene/HigieneModuloBG.png
+    - assets/images/LevelBGs/Higiene/StepsBGs/
 
     # ----------------------------
     # Avatar Skins Module Assets

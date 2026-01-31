@@ -118,6 +118,7 @@ class ModulosGridView extends StatelessWidget {
             estrellas: modulo.estrellas,
             nivel: modulo.nivel,
             imagenPath: modulo.imagenPath,
+            lvlBackgroundImageUrl: modulo.lvlBackgroundImageUrl,
             color: modulo.color,
             bloqueado: modulo.bloqueado || modulo.nivel < parentalMinLevel,
             descripcion: modulo.descripcion,
@@ -288,7 +289,7 @@ class ModuloPlantilla extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => LevelTimelineScreen(
                 moduleId: modulo.id,
-                backgroundImagePath: modulo.imagenPath,
+                backgroundImagePath: modulo.lvlBackgroundImageUrl,
               ),
             ),
           );
