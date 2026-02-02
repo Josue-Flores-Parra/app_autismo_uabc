@@ -544,6 +544,7 @@ class _LoginScreenState
                             children: [
                               const Text(
                                 '¿No tienes una cuenta?',
+                                style: TextStyle(color: Colors.black),
                               ),
                               TextButton(
                                 onPressed: () {

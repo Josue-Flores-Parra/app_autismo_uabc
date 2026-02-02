@@ -34,6 +34,9 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _onItemTapped(int index) async {
+    // Si ya está en Ajustes y vuelve a tocar Ajustes, no pedir PIN de nuevo.
+    if (index == 2 && _selectedIndex == 2) return;
+
     if (index == 2) {
       final unlocked = await _ensureSettingsAccess();
       if (!unlocked) return;

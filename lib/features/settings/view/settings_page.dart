@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../authentication/view/login_screen.dart';
 import '../../authentication/viewmodel/auth_viewmodel.dart';
-import '../../avatar/view/avatar_screen.dart';
 import '../../avatar/viewmodel/avatar_viewmodel.dart';
 import '../viewmodel/settings_viewmodel.dart';
 
@@ -56,18 +55,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       icon: const Icon(Icons.edit),
                       onPressed: () => _editDisplayName(context),
                     ),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.image),
-                    title: Text(l10n?.changeAvatar ?? 'Cambiar avatar'),
-                    subtitle: const Text('Personaliza tu apariencia'),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AvatarScreen(),
-                        ),
-                      );
-                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.email_outlined),

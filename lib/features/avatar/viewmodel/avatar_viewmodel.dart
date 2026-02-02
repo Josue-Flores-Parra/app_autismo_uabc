@@ -159,6 +159,9 @@ class AvatarViewModel
           await _firestoreService
               .getUserData(userId);
 
+      final nombreEnFirestore =
+          userData?['name'] as String?;
+
       if (userData != null &&
           userData.containsKey(
             'avatarConfig',
@@ -223,6 +226,16 @@ class AvatarViewModel
           }
         }
 
+        // Si no hay nombre en avatarConfig o es el valor por defecto "MRBEAST",
+        // usar el nombre de la cuenta (displayName o Firestore "name") como en Módulos.
+        final nombreFinal = (nombre != null && nombre.trim().isNotEmpty && nombre != 'MRBEAST')
+            ? nombre
+            : (user.displayName?.trim().isNotEmpty == true
+                ? user.displayName!
+                : (nombreEnFirestore?.trim().isNotEmpty == true
+                    ? nombreEnFirestore!
+                    : _currentEstado.nombre));
+
         _currentEstado = _currentEstado
             .copyWith(
               skinActual: skinActual,
@@ -234,9 +247,7 @@ class AvatarViewModel
                   backgroundPath ??
                   _currentEstado
                       .backgroundActual,
-              nombre:
-                  nombre ??
-                  _currentEstado.nombre,
+              nombre: nombreFinal,
               felicidad:
                   felicidad ??
                   _currentEstado
@@ -263,6 +274,17 @@ class AvatarViewModel
         print(
           'Info: No se encontró configuración de avatar guardada para el usuario.',
         );
+        // Usuario nuevo o sin avatarConfig: usar nombre de la cuenta (como en Módulos).
+        final nombreAUsar = user.displayName?.trim().isNotEmpty == true
+            ? user.displayName!
+            : (nombreEnFirestore?.trim().isNotEmpty == true
+                ? nombreEnFirestore!
+                : null);
+        if (nombreAUsar != null && _currentEstado.nombre == 'MRBEAST') {
+          _currentEstado = _currentEstado.copyWith(nombre: nombreAUsar);
+          notifyListeners();
+          await saveAvatarConfigToFirestore();
+        }
       }
     } catch (e) {
       print(

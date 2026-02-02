@@ -150,12 +150,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           // Campo de texto para el nombre
                           TextFormField(
                             controller: _nameController,
+                            style: const TextStyle(color: Colors.black),
                             decoration: const InputDecoration(
                               labelText: 'Nombre',
+                              labelStyle: TextStyle(color: Colors.black),
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.person),
+                              prefixIcon: Icon(Icons.person, color: Colors.black54),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -169,12 +171,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(color: Colors.black),
                             decoration: const InputDecoration(
                               labelText: 'Correo electrónico',
+                              labelStyle: TextStyle(color: Colors.black),
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.email),
+                              prefixIcon: Icon(Icons.email, color: Colors.black54),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -191,12 +195,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: true,
+                            style: const TextStyle(color: Colors.black),
                             decoration: const InputDecoration(
                               labelText: 'Contraseña',
+                              labelStyle: TextStyle(color: Colors.black),
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.lock),
+                              prefixIcon: Icon(Icons.lock, color: Colors.black54),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -249,7 +255,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('¿Ya tienes una cuenta?'),
+                              const Text(
+                                '¿Ya tienes una cuenta?',
+                                style: TextStyle(color: Colors.black),
+                              ),
                               TextButton(
                                 onPressed: () {
                                   // Limpiar errores antes de navegar
