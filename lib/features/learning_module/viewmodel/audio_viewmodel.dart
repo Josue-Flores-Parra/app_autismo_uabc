@@ -32,8 +32,7 @@ class AudioViewModel extends ChangeNotifier {
       notifyListeners();
     });
     
-    _audioPlayer.playerStateStream.listen((state) {
-      debugPrint('AudioPlayer state: playing=${state.playing}, processingState=${state.processingState}');
+    _audioPlayer.playerStateStream.listen((_) {
       notifyListeners();
     });
   }
@@ -43,9 +42,7 @@ class AudioViewModel extends ChangeNotifier {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
       await session.setActive(true);
-      debugPrint('Sesión de audio configurada y activada correctamente');
     } catch (e) {
-      debugPrint('Error al configurar sesión de audio: $e');
       // Continuar de todas formas, puede que funcione sin la configuración
     }
   }
@@ -54,15 +51,8 @@ class AudioViewModel extends ChangeNotifier {
     try {
       // Cargar el audio desde la URL o path
       if (audioPath.startsWith('http://') || audioPath.startsWith('https://')) {
-        debugPrint('Intentando cargar audio desde URL: $audioPath');
         await _audioPlayer.setUrl(audioPath);
-        debugPrint('Audio cargado exitosamente desde URL: $audioPath');
-        debugPrint('Duración del audio: ${_audioPlayer.duration}');
-        debugPrint('Volumen actual: ${_audioPlayer.volume}');
-        
-        // Asegurar que el volumen esté en 1.0 después de cargar
         await _audioPlayer.setVolume(1.0);
-        debugPrint('Volumen configurado a: ${_audioPlayer.volume}');
       } else {
         // Para assets locales, usar AudioSource.asset()
         String assetPath = audioPath;
@@ -72,25 +62,13 @@ class AudioViewModel extends ChangeNotifier {
           assetPath = 'assets/$assetPath';
         }
         
-        debugPrint('Intentando cargar audio desde asset: $assetPath (original: $audioPath)');
-        
-        // Usar AudioSource.asset() que es el método correcto para assets locales
         await _audioPlayer.setAudioSource(AudioSource.asset(assetPath));
-        
-        debugPrint('Audio cargado exitosamente desde asset: $assetPath');
-        debugPrint('Duración del audio: ${_audioPlayer.duration}');
-        debugPrint('Volumen actual: ${_audioPlayer.volume}');
-        
-        // Asegurar que el volumen esté en 1.0 después de cargar
         await _audioPlayer.setVolume(1.0);
-        debugPrint('Volumen configurado a: ${_audioPlayer.volume}');
       }
       
       _initializeAudioFuture = Future.value();
       notifyListeners();
     } catch (e) {
-      debugPrint('Error al inicializar audio: $e');
-      debugPrint('Ruta del audio original: $audioPath');
       _initializeAudioFuture = Future.error(e);
       rethrow; // Re-lanzar el error para que el minigame lo maneje
     }
@@ -98,55 +76,24 @@ class AudioViewModel extends ChangeNotifier {
 
   Future<void> play() async {
     try {
-      debugPrint('Intentando reproducir audio...');
-      debugPrint('Estado antes de play: playing=${_audioPlayer.playing}, volume=${_audioPlayer.volume}');
-      debugPrint('Duración del audio: ${_audioPlayer.duration}');
-      debugPrint('Posición actual: ${_audioPlayer.position}');
-      debugPrint('ProcessingState: ${_audioPlayer.processingState}');
-      
-      // Asegurar que la sesión de audio esté activa
       try {
         final session = await AudioSession.instance;
         await session.setActive(true);
-        debugPrint('Sesión de audio activada antes de reproducir');
-      } catch (e) {
-        debugPrint('Error al activar sesión de audio: $e');
-      }
-      
-      // Asegurar que el volumen esté en 1.0 antes de reproducir
+      } catch (_) {}
       await _audioPlayer.setVolume(1.0);
-      
-      // Esperar a que el audio esté listo si está cargando
       if (_audioPlayer.processingState == ProcessingState.loading) {
-        debugPrint('Audio aún cargando, esperando...');
         try {
           await _audioPlayer.playerStateStream
               .timeout(const Duration(seconds: 10))
               .firstWhere(
             (state) => state.processingState != ProcessingState.loading,
           );
-        } catch (e) {
-          debugPrint('Timeout esperando a que el audio cargue: $e');
-          // Continuar de todas formas, el audio podría estar listo
-        }
+        } catch (_) {}
       }
-      
       await _audioPlayer.play();
-      debugPrint('Audio play() llamado exitosamente');
       _showTemporaryIcon();
       notifyListeners();
-      
-      // Verificar después de un momento si realmente está reproduciendo
-      Future.delayed(const Duration(milliseconds: 500), () {
-        debugPrint('Estado después de play: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}');
-        if (!_audioPlayer.playing) {
-          debugPrint('⚠️ ADVERTENCIA: El audio no se está reproduciendo después de play()');
-        }
-      });
-    } catch (e) {
-      debugPrint('Error al reproducir audio: $e');
-      debugPrint('Stack trace: ${StackTrace.current}');
-    }
+    } catch (_) {}
   }
 
   Future<void> pause() async {
@@ -154,9 +101,7 @@ class AudioViewModel extends ChangeNotifier {
       await _audioPlayer.pause();
       _showTemporaryIcon();
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error al pausar audio: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> togglePlayPause() async {
@@ -173,27 +118,21 @@ class AudioViewModel extends ChangeNotifier {
       await _audioPlayer.play();
       _showTemporaryIcon();
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error al reiniciar audio: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> seek(Duration position) async {
     try {
       await _audioPlayer.seek(position);
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error al buscar posición: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> setVolume(double volume) async {
     try {
       await _audioPlayer.setVolume(volume.clamp(0.0, 1.0));
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error al cambiar volumen: $e');
-    }
+    } catch (_) {}
   }
 
   void _showTemporaryIcon() {

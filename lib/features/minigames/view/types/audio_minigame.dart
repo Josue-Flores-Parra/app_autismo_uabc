@@ -34,18 +34,8 @@ class _AudioMinigameState extends State<AudioMinigame> {
   }
 
   void _initializeAudio() {
-    // Debug: imprimir todos los datos recibidos
-    debugPrint('AudioMinigame - minigameData recibido: ${widget.minigameData}');
-    
-    // Obtener la URL del audio desde minigameData
     final audioUrl = widget.minigameData['audioUrl'] as String?;
-    
-    debugPrint('AudioMinigame - audioUrl extraído: $audioUrl');
-    
-    // Crear el ViewModel siempre, incluso si hay error
     _viewModel = AudioViewModel();
-    
-    // Agregar listener para actualizar la UI cuando cambie el estado del audio
     _viewModel!.addListener(() {
       if (mounted && !_isDisposed) {
         setState(() {});
@@ -53,8 +43,6 @@ class _AudioMinigameState extends State<AudioMinigame> {
     });
     
     if (audioUrl == null || audioUrl.isEmpty) {
-      // Si no hay audio, mostrar error pero NO completar automáticamente
-      debugPrint('AudioMinigame - ERROR: audioUrl es null o vacío');
       if (mounted && !_isDisposed) {
         setState(() {
           _hasError = true;
@@ -75,9 +63,6 @@ class _AudioMinigameState extends State<AudioMinigame> {
         _startPositionTimer();
       }
     }).catchError((error) {
-      debugPrint('Error al inicializar audio: $error');
-      debugPrint('Ruta intentada: $audioUrl');
-      // Mostrar error pero NO completar automáticamente
       if (mounted && !_isDisposed) {
         setState(() {
           _hasError = true;
@@ -343,8 +328,6 @@ class _AudioMinigameState extends State<AudioMinigame> {
                           onPressed: _isCompleted
                               ? null
                               : () {
-                                  debugPrint('Botón play/pause presionado');
-                                  debugPrint('Estado actual: isPlaying=${_viewModel!.isPlaying}, volume=${_viewModel!.volume}');
                                   if (_viewModel != null && !_isDisposed && mounted) {
                                     _viewModel!.togglePlayPause();
                                   }

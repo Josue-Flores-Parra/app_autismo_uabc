@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import 'level_timeline_screen.dart';
-import '../../../examples/firestore_debug_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../settings/view/settings_page.dart';
 import '../../settings/viewmodel/settings_viewmodel.dart';

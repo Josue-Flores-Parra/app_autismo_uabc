@@ -76,10 +76,6 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Maneja los errores de FirebaseAuth y los convierte a mensajes legibles
   void _handleAuthError(FirebaseAuthException e) {
-    // Debug: imprimir el código de error para diagnóstico
-    debugPrint('Firebase Auth Error Code: ${e.code}');
-    debugPrint('Firebase Auth Error Message: ${e.message}');
-
     switch (e.code) {
       case 'user-not-found':
         _setError('No existe una cuenta con este correo electrónico');

@@ -121,9 +121,6 @@ class AvatarViewModel
               'avatarConfig':
                   giveCurrentDataToAvatarConfigMap,
             });
-        print(
-          'Avatar config saved YES.',
-        );
       } catch (e) {
         throw Exception(
           'Error saving avatar config to Firestore: $e',
@@ -145,12 +142,7 @@ class AvatarViewModel
         .instance
         .currentUser;
 
-    if (user == null) {
-      print(
-        'Info: No hay usuario logueado para cargar avatar.',
-      );
-      return;
-    }
+    if (user == null) return;
 
     final userId = user.uid;
 
@@ -266,14 +258,8 @@ class AvatarViewModel
                       .accesoriosDesbloqueados,
             );
 
-        print(
-          'Configuración del avatar cargada desde Firestore.',
-        );
         notifyListeners();
       } else {
-        print(
-          'Info: No se encontró configuración de avatar guardada para el usuario.',
-        );
         // Usuario nuevo o sin avatarConfig: usar nombre de la cuenta (como en Módulos).
         final nombreAUsar = user.displayName?.trim().isNotEmpty == true
             ? user.displayName!
@@ -286,11 +272,7 @@ class AvatarViewModel
           await saveAvatarConfigToFirestore();
         }
       }
-    } catch (e) {
-      print(
-        'Error al cargar la configuración del avatar: $e',
-      );
-    }
+    } catch (_) {}
   }
 
   // Getters públicos

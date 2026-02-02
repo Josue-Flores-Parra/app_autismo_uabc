@@ -66,7 +66,6 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           questionsData = [];
         }
       } catch (e) {
-        debugPrint('Error al parsear questions: $e');
         questionsData = [];
       }
 
@@ -130,12 +129,6 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       0,
       loadedOptions.length - 1,
     );
-
-    if (safeCorrectIndex != questionData.correctIndex) {
-      debugPrint(
-        'SimpleSelectionMinigame: correctIndex fuera de rango, se ajustó a $safeCorrectIndex (pregunta $_currentQuestionIndex)',
-      );
-    }
 
     _correctOption = loadedOptions[safeCorrectIndex];
 
@@ -688,7 +681,6 @@ class QuestionData {
         optionsData = [];
       }
     } catch (e) {
-      debugPrint('Error al parsear options: $e');
       optionsData = [];
     }
 

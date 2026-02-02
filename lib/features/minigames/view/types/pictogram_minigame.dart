@@ -126,12 +126,8 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       // Esperar a que todas las imágenes se carguen completamente
       // Usar Future.wait con eagerError: false para que continúe aunque algunas fallen
       await Future.wait(futures, eagerError: false);
-      
-      debugPrint('Todas las imágenes precargadas: $_imagesLoadedCount/$_totalImagesCount');
     } catch (e) {
       // Si hay un error al precargar, continuar de todas formas
-      // Las imágenes se cargarán bajo demanda
-      debugPrint('Error al precargar imágenes: $e');
     } finally {
       // Solo marcar como precargado cuando realmente todas estén listas
       if (mounted) {
@@ -191,7 +187,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       }
       
       // Descargar la imagen
-      debugPrint('Descargando imagen: $url');
       final response = await http.get(Uri.parse(url)).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
@@ -202,7 +197,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       if (response.statusCode == 200) {
         // Guardar la imagen en el archivo
         await cachedImageFile.writeAsBytes(response.bodyBytes);
-        debugPrint('Imagen guardada en caché: $cachedImagePath');
         
         // Precargar la imagen desde el archivo local
         await _precacheCachedFile(cachedImagePath);
@@ -210,7 +204,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
         throw Exception('Error HTTP ${response.statusCode} al descargar $url');
       }
     } catch (e) {
-      debugPrint('Error al descargar y cachear imagen $url: $e');
       // Si falla la descarga, intentar usar NetworkImage como respaldo
       if (!mounted) return;
       try {
@@ -271,7 +264,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       await completer.future.timeout(const Duration(seconds: 10));
       stream.removeListener(listener);
     } catch (e) {
-      debugPrint('Error al precargar archivo local $filePath: $e');
     }
   }
 
@@ -304,7 +296,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       await completer.future.timeout(const Duration(seconds: 10));
       stream.removeListener(listener);
     } catch (e) {
-      debugPrint('Error al precargar asset local $url: $e');
     }
   }
 
@@ -318,9 +309,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
       await session.setActive(true);
-      debugPrint('Sesión de audio configurada para celebración');
     } catch (e) {
-      debugPrint('Error al configurar sesión de audio: $e');
     }
   }
 
@@ -668,71 +657,28 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   /// Reproduce el sonido de celebración de forma asíncrona
   Future<void> _playCelebrationSound() async {
     try {
-      debugPrint('🎉 [CELEBRACIÓN] Intentando reproducir sonido...');
-      
-      // Configurar sesión de audio primero
       await _configureAudioSession();
-      
-      // Intentar cargar y reproducir el audio
       try {
-        debugPrint(' [CELEBRACIÓN] Cargando audio desde assets/audio/celebration.mp3');
-        
-        // Usar setAudioSource con AudioSource.asset()
         await _celebrationPlayer.setAudioSource(
           AudioSource.asset('assets/audio/celebration.mp3'),
         );
-        
-        debugPrint(' [CELEBRACIÓN]  Audio cargado exitosamente');
-        debugPrint(' [CELEBRACIÓN] Duración: ${_celebrationPlayer.duration}');
-        
-        // Configurar volumen al máximo
         await _celebrationPlayer.setVolume(1.0);
-        debugPrint(' [CELEBRACIÓN] Volumen: ${_celebrationPlayer.volume}');
-        
-        // Esperar a que el audio esté listo
         if (_celebrationPlayer.processingState == ProcessingState.loading) {
-          debugPrint(' [CELEBRACIÓN] Esperando a que el audio cargue...');
           await _celebrationPlayer.playerStateStream
               .timeout(const Duration(seconds: 3))
               .firstWhere(
             (state) => state.processingState != ProcessingState.loading,
           );
         }
-        
-        debugPrint(' [CELEBRACIÓN] Reproduciendo...');
-        
-        // Reproducir el audio
         await _celebrationPlayer.play();
-        
-        debugPrint(' [CELEBRACIÓN]  Play() llamado');
-        
-        // Verificar después de un momento
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (_celebrationPlayer.playing) {
-            debugPrint('[CELEBRACIÓN]  Audio reproduciéndose correctamente');
-          } else {
-            debugPrint('⚠[CELEBRACIÓN] El audio no se está reproduciendo');
-            debugPrint('[CELEBRACIÓN] Estado: ${_celebrationPlayer.processingState}');
-          }
-        });
       } catch (e, stackTrace) {
-        debugPrint('[CELEBRACIÓN] Error al cargar/reproducir audio: $e');
-        debugPrint('[CELEBRACIÓN] Stack trace: $stackTrace');
-        
-        // Si falla, usar TTS como respaldo
         if (_ttsReady) {
-          debugPrint('[CELEBRACIÓN] Usando TTS como respaldo...');
           try {
             await _tts.speak('¡Felicitaciones! ¡Nivel completado!');
-          } catch (ttsError) {
-            debugPrint('[CELEBRACIÓN] Error con TTS: $ttsError');
-          }
+          } catch (_) {}
         }
       }
-    } catch (e) {
-      debugPrint('[CELEBRACIÓN] Error general: $e');
-      // Al menos mostrar los confettis
-    }
+    } catch (_) {}
   }
 
   /// Obtiene la ruta del archivo en caché para una URL de red
@@ -759,7 +705,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
         }
       }
     } catch (e) {
-      debugPrint('Error al obtener ruta de caché para $url: $e');
     }
     return null;
   }

@@ -504,7 +504,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '¡Nivel completado! +$stars ⭐ +$coins 🪙',
+                    '¡Nivel completado! +$stars +$coins',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),

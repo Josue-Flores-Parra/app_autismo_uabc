@@ -852,9 +852,7 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
     _viewModel = AudioViewModel();
     _viewModel.initialize(widget.audioPath).then((_) {
       if (mounted) setState(() {});
-    }).catchError((error) {
-      debugPrint('Error al inicializar audio: $error');
-    });
+    }).catchError((_) {});
     
     _viewModel.addListener(() {
       if (mounted) setState(() {});

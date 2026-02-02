@@ -60,14 +60,9 @@ class _VideoMinigameState extends State<VideoMinigame> {
           setState(() {
             _hasStartedPlaying = true;
           });
-        } catch (e) {
-          // El viewModel puede haber sido disposed
-          debugPrint('Error al iniciar video: $e');
-        }
+        } catch (e) {}
       }
-    }).catchError((error) {
-      debugPrint('Error al inicializar video: $error');
-    });
+    }).catchError((_) {});
 
     // Iniciar timer para verificar si el video se completó
     _startCompletionCheck();
@@ -102,9 +97,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
           }
         }
       } catch (e) {
-        // El viewModel puede haber sido disposed
         timer.cancel();
-        debugPrint('Error en completion check: $e');
       }
     });
   }
@@ -127,9 +120,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
       if (_viewModel!.videoController.value.isPlaying) {
         _viewModel!.videoController.pause();
       }
-    } catch (e) {
-      debugPrint('Error al pausar video: $e');
-    }
+    } catch (e) {}
     
     // Llamar al callback de completado
     widget.onComplete(true, 1);
@@ -145,9 +136,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
       try {
         _viewModel!.removeListener(_onVideoStateChanged);
         _viewModel!.dispose();
-      } catch (e) {
-        debugPrint('Error al dispose viewModel: $e');
-      }
+      } catch (e) {}
       _viewModel = null;
     }
     
