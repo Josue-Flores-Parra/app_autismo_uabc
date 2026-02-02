@@ -283,22 +283,34 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           ),
           body: Stack(
             children: [
-              if (widget.backgroundImagePath != null)
-                Positioned.fill(
-                  child: Image.asset(
-                    widget.backgroundImagePath!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+              // Always show a background (either image or gradient)
+              Positioned.fill(
+                child: widget.backgroundImagePath != null
+                    ? Image.asset(
+                        widget.backgroundImagePath!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
+              ),
               /*
                 Como se nos pidió, wrapeamos Al Listview builder dentro de
                 SingleChildScrollView para que se pueda scrollear tanto dentro de lo que es los niveles
