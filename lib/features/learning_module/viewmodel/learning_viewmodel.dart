@@ -204,6 +204,7 @@ class LearningViewModel extends ChangeNotifier {
         final levelId = data['id']?.toString() ?? '';
         final levelProgress = userProgress[levelId];
 
+
         return _createModuleLevelInfoWithProgress(
           data,
           levelProgress,

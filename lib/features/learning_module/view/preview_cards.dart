@@ -248,7 +248,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.addListener(() {
       if (mounted) setState(() {});
     });
-    
+
     // Verificar periódicamente si el video se completó
     _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (!mounted || _hasNotifiedCompletion) return;
@@ -510,7 +510,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void deactivate() {
-    // Pausar cada vez que se sale de la pantalla (incluso temporalmente) para evitar que el video siga sonando en segundo plano
+    // Pause whenever this card leaves the viewport (page swipe in carousel)
     try {
       if (_viewModel.videoController.value.isPlaying) {
         _viewModel.videoController.pause();

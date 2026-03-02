@@ -115,6 +115,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         levelTitle: widget.levelTitle,
         levelId: widget.levelId,
         moduleId: widget.moduleId,
+        previewImageUrl: widget.minigameData?['pictogramaUrl'] as String?,
         onCompleted: (success) async {
           if (success) {
             await _saveProgress(context, true, 1);
@@ -232,29 +233,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
   /// Construye la imagen del pictograma para mostrar en el diálogo
   Widget _buildPictogramImage(Map<String, dynamic> minigameData) {
-    // Obtener la URL del pictograma - intentar obtener la última imagen si hay steps
-    String? imageUrl;
-    
-    // Si hay steps, obtener la última imagen (la que se completó)
-    if (minigameData['steps'] != null) {
-      final steps = minigameData['steps'];
-      if (steps is List && steps.isNotEmpty) {
-        // Obtener la última imagen del carrusel
-        final lastStep = steps[steps.length - 1];
-        if (lastStep is Map) {
-          imageUrl = lastStep['url'] ?? lastStep['src'];
-        } else if (lastStep is String) {
-          imageUrl = lastStep;
-        }
-      }
-    }
-    
-    // Si no hay steps o no se encontró, intentar obtener pictogramaUrl directo
-    if (imageUrl == null || imageUrl.isEmpty) {
-      imageUrl = minigameData['pictogramaUrl'] as String?;
-    }
-    
-    // Si no hay imagen, retornar un placeholder
+    final imageUrl = minigameData['pictogramaUrl'] as String?;
+
     if (imageUrl == null || imageUrl.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -536,6 +516,7 @@ class _LevelVideoPlayerScreen extends StatefulWidget {
   final String levelTitle;
   final String? levelId;
   final String? moduleId;
+  final String? previewImageUrl;
   final void Function(bool success) onCompleted;
 
   const _LevelVideoPlayerScreen({
@@ -544,6 +525,7 @@ class _LevelVideoPlayerScreen extends StatefulWidget {
     required this.onCompleted,
     this.levelId,
     this.moduleId,
+    this.previewImageUrl,
   });
 
   @override
@@ -555,6 +537,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
   late VideoViewModel _viewModel;
   bool _hasNotifiedCompletion = false;
   bool _isCompleted = false;
+  bool _hasStartedPlaying = false;
 
   @override
   void initState() {
@@ -648,35 +631,8 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
 
                 // ── Video area ────────────────────────────────────────────────
                 Expanded(
-                  child: ready
-                      ? GestureDetector(
-                          onTap: _viewModel.togglePlayPause,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Center(
-                                child: AspectRatio(
-                                  aspectRatio:
-                                      _viewModel.videoController.value.aspectRatio,
-                                  child: VideoPlayer(_viewModel.videoController),
-                                ),
-                              ),
-                              // Giant play/pause icon
-                              AnimatedOpacity(
-                                opacity: _viewModel.showGiantIcon ? 1.0 : 0.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: SvgPicture.asset(
-                                  _viewModel.videoController.value.isPlaying
-                                      ? 'assets/icons/pausebigbutton.svg'
-                                      : 'assets/icons/playbigbutton.svg',
-                                  width: 80,
-                                  height: 80,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : snapshot.connectionState != ConnectionState.done
+                  child: !ready
+                      ? (snapshot.connectionState != ConnectionState.done
                           ? const Center(
                               child: CircularProgressIndicator(color: Colors.white),
                             )
@@ -698,7 +654,69 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                                   ],
                                 ),
                               ),
-                            ),
+                            ))
+                      // ── Ready: show cover until first play, then video ──────
+                      : GestureDetector(
+                          onTap: () {
+                            setState(() => _hasStartedPlaying = true);
+                            _viewModel.togglePlayPause();
+                          },
+                          child: Stack(
+                            alignment: Alignment.center,
+                            fit: StackFit.expand,
+                            children: [
+                              Container(color: Colors.black),
+                              // Video (always rendered so it buffers in background)
+                              Center(
+                                child: AspectRatio(
+                                  aspectRatio:
+                                      _viewModel.videoController.value.aspectRatio,
+                                  child: VideoPlayer(_viewModel.videoController),
+                                ),
+                              ),
+                              // Cover image — shown until user first presses play
+                              if (!_hasStartedPlaying)
+                                Center(
+                                  child: AspectRatio(
+                                    aspectRatio:
+                                        _viewModel.videoController.value.aspectRatio,
+                                    child: widget.previewImageUrl != null &&
+                                            widget.previewImageUrl!.isNotEmpty
+                                        ? Image.network(
+                                            widget.previewImageUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                Container(color: Colors.black),
+                                          )
+                                        : Container(color: Colors.black),
+                                  ),
+                                ),
+                              // Play button on cover / play-pause icon during playback
+                              if (!_hasStartedPlaying)
+                                const Center(
+                                  child: Icon(
+                                    Icons.play_circle_fill_rounded,
+                                    color: Colors.white70,
+                                    size: 72,
+                                  ),
+                                )
+                              else
+                                AnimatedOpacity(
+                                  opacity: _viewModel.showGiantIcon ? 1.0 : 0.0,
+                                  duration: const Duration(milliseconds: 300),
+                                  child: Center(
+                                    child: SvgPicture.asset(
+                                      _viewModel.videoController.value.isPlaying
+                                          ? 'assets/icons/pausebigbutton.svg'
+                                          : 'assets/icons/playbigbutton.svg',
+                                      width: 80,
+                                      height: 80,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                 ),
 
                 // ── Bottom controls ───────────────────────────────────────────
@@ -731,6 +749,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                               onTap: () {
                                 _viewModel.replay();
                                 setState(() {
+                                  _hasStartedPlaying = true;
                                   _hasNotifiedCompletion = false;
                                   _isCompleted = false;
                                 });
