@@ -424,6 +424,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
               levelId: step.levelId,
               moduleId: step.moduleId,
               levelTitle: step.previewTitle,
+              videoUrl: levelInfo.videoUrl,
             ),
           ),
         );
@@ -630,6 +631,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                         levelId: step.levelId,
                         moduleId: step.moduleId,
                         levelTitle: step.previewTitle,
+                        videoUrl: levelInfo.videoUrl,
                       ),
                     ),
                   );
@@ -750,7 +752,19 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   List<ContentCardData> _buildContentFromLevel(ModuleLevelInfo level) {
     final List<ContentCardData> contents = [];
 
-    // 1. PRIMERO: Si hay video, agregar tarjeta de video
+    // 1. PRIMERO: Si hay pictograma, agregar tarjeta de pictograma
+    if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.pictogram,
+          title: level.titulo,
+          description: 'Pictograma del nivel',
+          imagePath: level.pictogramaUrl!,
+        ),
+      );
+    }
+
+    // 2. SEGUNDO: Si hay video, agregar tarjeta de video
     if (level.videoUrl != null && level.videoUrl!.isNotEmpty) {
       contents.add(
         ContentCardData(
@@ -763,17 +777,6 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       );
     }
 
-    // 2. SEGUNDO: Si hay pictograma, agregar tarjeta de pictograma
-    if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
-      contents.add(
-        ContentCardData(
-          type: ContentType.pictogram,
-          title: level.titulo,
-          description: 'Pictograma del nivel',
-          imagePath: level.pictogramaUrl!,
-        ),
-      );
-    }
 
     // 3. TERCERO: Si hay audio, agregar tarjeta de audio
     if (level.audioUrl != null && level.audioUrl!.isNotEmpty) {

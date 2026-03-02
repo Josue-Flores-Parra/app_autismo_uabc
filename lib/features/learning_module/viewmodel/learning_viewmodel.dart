@@ -203,7 +203,7 @@ class LearningViewModel extends ChangeNotifier {
       final nivelesTemporales = levelsData.map((data) {
         final levelId = data['id']?.toString() ?? '';
         final levelProgress = userProgress[levelId];
-        
+
         return _createModuleLevelInfoWithProgress(
           data,
           levelProgress,
@@ -331,7 +331,7 @@ class LearningViewModel extends ChangeNotifier {
 
       // Si hay progreso, verificar estado
       if (progress != null) {
-        final status = progress['status']?.toString()?.toLowerCase();
+        final status = progress['status']?.toString().toLowerCase();
         final estrellas = progress['estrellas'] as int? ?? 0;
         
         if (status == 'completed' || estrellas > 0) {

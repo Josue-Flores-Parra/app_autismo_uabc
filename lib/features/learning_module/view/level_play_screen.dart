@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../minigames/minigame_core.dart';
 import '../../minigames/view/minigames_widget.dart';
 import '../../../data/services/firestore_services.dart';
 import '../viewmodel/learning_viewmodel.dart';
+import '../viewmodel/video_viewmodel.dart';
 import '../../avatar/viewmodel/avatar_viewmodel.dart';
 
 /// Pantalla de juego de nivel
@@ -15,6 +18,8 @@ class LevelPlayScreen extends StatefulWidget {
   final String? actividadType;
   final String? levelId;
   final String? moduleId;
+  /// URL del video (desde Firebase Storage o Firestore) para niveles de tipo 'video'
+  final String? videoUrl;
 
   const LevelPlayScreen({
     super.key,
@@ -23,6 +28,7 @@ class LevelPlayScreen extends StatefulWidget {
     this.actividadType,
     this.levelId,
     this.moduleId,
+    this.videoUrl,
   });
 
   @override
@@ -67,15 +73,64 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         ),
       );
     }
-    
+
+    final type = widget.actividadType!.toLowerCase().trim();
+
+    // Manejo especial para niveles de tipo 'video': mostrar reproductor de video
+    if (type == 'video') {
+      final url = widget.videoUrl ??
+          (widget.minigameData?['videoUrl'] as String?) ??
+          (widget.minigameData?['url'] as String?);
+
+      if (url == null || url.isEmpty) {
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      'No hay video disponible para este nivel.',
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return _LevelVideoPlayerScreen(
+        videoUrl: url,
+        levelTitle: widget.levelTitle,
+        levelId: widget.levelId,
+        moduleId: widget.moduleId,
+        onCompleted: (success) async {
+          if (success) {
+            await _saveProgress(context, true, 1);
+          }
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+      );
+    }
+
     // Convertir actividadType directamente desde Firestore a MinigameType
     MinigameType minigameType;
-    switch (widget.actividadType!.toLowerCase().trim()) {
+    switch (type) {
       case 'simple_selection':
         minigameType = MinigameType.simpleSelection;
-        break;
-      case 'video':
-        minigameType = MinigameType.video;
         break;
       case 'pictogram':
         minigameType = MinigameType.pictogram;
@@ -466,6 +521,290 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         {'imagePath': 'assets/images/MEH.png', 'label': 'Opción 3'},
       ],
     };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Widget de reproductor de video para niveles con actividadType == 'video'
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Pantalla dedicada al reproductor de video para niveles de tipo 'video'.
+/// Muestra el video en pantalla completa con controles y marca el nivel como
+/// completado cuando el usuario ha visto al menos el 90% del video.
+class _LevelVideoPlayerScreen extends StatefulWidget {
+  final String videoUrl;
+  final String levelTitle;
+  final String? levelId;
+  final String? moduleId;
+  final void Function(bool success) onCompleted;
+
+  const _LevelVideoPlayerScreen({
+    required this.videoUrl,
+    required this.levelTitle,
+    required this.onCompleted,
+    this.levelId,
+    this.moduleId,
+  });
+
+  @override
+  State<_LevelVideoPlayerScreen> createState() =>
+      _LevelVideoPlayerScreenState();
+}
+
+class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
+  late VideoViewModel _viewModel;
+  bool _hasNotifiedCompletion = false;
+  bool _isCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = VideoViewModel();
+    _viewModel.initialize(widget.videoUrl, null);
+    _viewModel.addListener(_onVideoUpdate);
+  }
+
+  void _onVideoUpdate() {
+    if (!mounted) return;
+    setState(() {});
+
+    if (_hasNotifiedCompletion) return;
+
+    try {
+      final controller = _viewModel.videoController;
+      if (!controller.value.isInitialized) return;
+
+      final position = controller.value.position;
+      final duration = controller.value.duration;
+
+      if (duration.inMilliseconds <= 0) return;
+
+      final progress = position.inMilliseconds / duration.inMilliseconds;
+      final isAtEnd = position >= duration;
+
+      if (progress >= 0.9 || isAtEnd) {
+        _hasNotifiedCompletion = true;
+        setState(() => _isCompleted = true);
+        // Pause when done
+        if (controller.value.isPlaying) {
+          controller.pause();
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _viewModel.removeListener(_onVideoUpdate);
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: FutureBuilder<void>(
+          future: _viewModel.initializeVideoFuture,
+          builder: (context, snapshot) {
+            final ready = snapshot.connectionState == ConnectionState.done &&
+                snapshot.error == null;
+
+            return Column(
+              children: [
+                // ── Top bar ──────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xCC000000), Colors.transparent],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      Expanded(
+                        child: Text(
+                          widget.levelTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+
+                // ── Video area ────────────────────────────────────────────────
+                Expanded(
+                  child: ready
+                      ? GestureDetector(
+                          onTap: _viewModel.togglePlayPause,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Center(
+                                child: AspectRatio(
+                                  aspectRatio:
+                                      _viewModel.videoController.value.aspectRatio,
+                                  child: VideoPlayer(_viewModel.videoController),
+                                ),
+                              ),
+                              // Giant play/pause icon
+                              AnimatedOpacity(
+                                opacity: _viewModel.showGiantIcon ? 1.0 : 0.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: SvgPicture.asset(
+                                  _viewModel.videoController.value.isPlaying
+                                      ? 'assets/icons/pausebigbutton.svg'
+                                      : 'assets/icons/playbigbutton.svg',
+                                  width: 80,
+                                  height: 80,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : snapshot.connectionState != ConnectionState.done
+                          ? const Center(
+                              child: CircularProgressIndicator(color: Colors.white),
+                            )
+                          : Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        color: Colors.red, size: 64),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No se pudo cargar el video.\n${snapshot.error}',
+                                      style: const TextStyle(
+                                          color: Colors.white70, fontSize: 14),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                ),
+
+                // ── Bottom controls ───────────────────────────────────────────
+                if (ready)
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                    color: const Color(0xCC000000),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Progress bar
+                        VideoProgressIndicator(
+                          _viewModel.videoController,
+                          allowScrubbing: true,
+                          colors: const VideoProgressColors(
+                            playedColor: Color(0xFF00E5FF),
+                            bufferedColor: Colors.white38,
+                            backgroundColor: Colors.white24,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Controls row — use GestureDetector instead of IconButton
+                        // to avoid the 48px minimum touch target enforcing an overflow
+                        // on narrow screens.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Replay
+                            GestureDetector(
+                              onTap: () {
+                                _viewModel.replay();
+                                setState(() {
+                                  _hasNotifiedCompletion = false;
+                                  _isCompleted = false;
+                                });
+                              },
+                              child: SvgPicture.asset(
+                                'assets/icons/replay.svg',
+                                width: 28,
+                                height: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            // Play / Pause
+                            GestureDetector(
+                              onTap: _viewModel.togglePlayPause,
+                              child: SvgPicture.asset(
+                                _viewModel.videoController.value.isPlaying
+                                    ? 'assets/icons/pausebutton.svg'
+                                    : 'assets/icons/playbuttoncontroller.svg',
+                                width: 36,
+                                height: 36,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            // Time label — Expanded so it takes remaining space
+                            // and never pushes the row past the screen edge.
+                            Expanded(
+                              child: Text(
+                                '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / '
+                                '${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // "COMPLETAR" button
+                        if (_isCompleted) ...[
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => widget.onCompleted(true),
+                              icon: const Icon(Icons.check_circle_rounded,
+                                  color: Colors.white),
+                              label: const Text(
+                                'COMPLETAR',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF05E995),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30)),
+                                elevation: 10,
+                                shadowColor: const Color(0x8005E995),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
   }
 }
 
