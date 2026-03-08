@@ -27,7 +27,7 @@ class VideoViewModel extends ChangeNotifier {
       _isExternalController = true;
       if (_videoController.value.isInitialized) {
         _initializeVideoFuture = Future.value();
-        // Defer setLooping to avoid triggering notifyListeners during build
+        // setLooping a false para evitar el trigger a notifyListeners() durante la construcción del widget
         Future.microtask(() {
           _videoController.setLooping(false);
         });
@@ -39,7 +39,7 @@ class VideoViewModel extends ChangeNotifier {
       }
     }
 
-    // Defer listener attachment to avoid setState() during build
+    // Referir el listener para evitar setState() durante la construcción del widget
     Future.microtask(() {
       _videoController.addListener(() {
         notifyListeners();

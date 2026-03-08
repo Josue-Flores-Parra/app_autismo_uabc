@@ -510,7 +510,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void deactivate() {
-    // Pause whenever this card leaves the viewport (page swipe in carousel)
+    // Pausar cada que la tarjeta se desactiva del viewport (deslizar en el carrusel) para evitar que el video siga sonando en segundo plano
     try {
       if (_viewModel.videoController.value.isPlaying) {
         _viewModel.videoController.pause();
