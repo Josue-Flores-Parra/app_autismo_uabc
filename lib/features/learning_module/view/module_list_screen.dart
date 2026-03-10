@@ -46,9 +46,9 @@ class ModuleListScreen extends StatelessWidget {
         ),
         child: Consumer<LearningViewModel>(
           builder: (context, viewModel, child) {
-            // Mostrar loading
+            // Mostrar skeleton mientras carga
             if (viewModel.isLoadingModules) {
-              return const Center(child: CircularProgressIndicator());
+              return const _ModuleListSkeleton();
             }
 
             // Mostrar error
@@ -554,3 +554,324 @@ class ModuloPlantilla extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Skeleton / shimmer widgets shown while modules are loading
+// ---------------------------------------------------------------------------
+// Widgets de esqueleto / shimmer mostrados mientras los módulos cargan
+// ---------------------------------------------------------------------------
+
+/// Animación shimmer base — effecto de pulso barrido sobre el widget [child] dado.
+/// Usa un [ShaderMask] con gradiente animado que se desplaza de izquierda a derecha.
+class _Shimmer extends StatefulWidget {
+  final Widget child;
+  const _Shimmer({required this.child});
+
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ciclo de 1.4 segundos que se repite indefinidamente
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    // El gradiente viaja desde el lado izquierdo (-2) hasta el derecho (+2)
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: const [
+                Color(0xFF1E4D6B),
+                Color(0xFF2E7DAA),
+                Color(0xFF3A9AD9),
+                Color(0xFF2E7DAA),
+                Color(0xFF1E4D6B),
+              ],
+              stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Bloque rectangular redondeado que sirve como placeholder genérico.
+/// Acepta sombras opcionales para imitar la elevación del elemento real.
+class _SkeletonBox extends StatelessWidget {
+  final double? width;
+  final double? height;
+  final BorderRadius borderRadius;
+  final List<BoxShadow> shadows;
+
+  const _SkeletonBox({
+    this.width,
+    this.height,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+    this.shadows = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E4D6B),
+        borderRadius: borderRadius,
+        boxShadow: shadows,
+      ),
+    );
+  }
+}
+
+/// Tarjeta esqueleto que imita la apariencia de [ModuloPlantilla].
+/// Replica el gradiente de fondo, el borde y las dos sombras de la tarjeta real.
+class _SkeletonModuleCard extends StatelessWidget {
+  const _SkeletonModuleCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xE63A6A8A), Color(0xCC2E5570)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x994A7A9A), width: 1.5),
+        // Mismas dos sombras que usa ModuloPlantilla
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xCC2A4A5C),
+            blurRadius: 25,
+            offset: Offset(0, 12),
+            spreadRadius: 3,
+          ),
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 35,
+            offset: Offset(0, 18),
+            spreadRadius: -5,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
+        child: Column(
+          children: [
+            // Placeholder del área de imagen del módulo
+            Expanded(
+              child: _SkeletonBox(
+                width: double.infinity,
+                height: double.infinity,
+                borderRadius: BorderRadius.circular(18),
+                // Sombra interior que replica el efecto de la imagen real
+                shadows: const [
+                  BoxShadow(
+                    color: Color(0x80000000),
+                    blurRadius: 30,
+                    spreadRadius: 5,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Placeholder del botón con el título del módulo
+            _SkeletonBox(
+              width: double.infinity,
+              height: 45,
+              borderRadius: BorderRadius.circular(30),
+              // Sombras que imitan el botón de título real
+              shadows: const [
+                BoxShadow(
+                  color: Color(0x4DFFFFFF),
+                  blurRadius: 8,
+                  offset: Offset(0, -2),
+                ),
+                BoxShadow(
+                  color: Color(0x80000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 5),
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Encabezado esqueleto que imita [_buildUserHeader].
+/// Replica el contenedor principal y las sombras de cada elemento interno.
+class _SkeletonUserHeader extends StatelessWidget {
+  const _SkeletonUserHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
+        // Sombra del contenedor principal del header
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Placeholder del avatar con borde y sombra suave
+          _SkeletonBox(
+            width: 50,
+            height: 50,
+            borderRadius: BorderRadius.circular(15),
+            shadows: const [
+              BoxShadow(
+                color: Color(0x40000000),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          // Placeholders del saludo y nombre de usuario
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Línea pequeña para "¡HOLA!"
+                _SkeletonBox(
+                  width: 48,
+                  height: 12,
+                  shadows: const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Línea grande para el nombre del usuario
+                _SkeletonBox(
+                  width: 120,
+                  height: 22,
+                  shadows: const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Placeholder de la insignia de nivel con su sombra dorada
+          _SkeletonBox(
+            width: 90,
+            height: 44,
+            borderRadius: BorderRadius.circular(20),
+            shadows: const [
+              BoxShadow(
+                color: Color(0x66FFD700),
+                blurRadius: 15,
+                offset: Offset(0, 0),
+                spreadRadius: 2,
+              ),
+              BoxShadow(
+                color: Color(0x80000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Diseño completo del esqueleto que replica la estructura de [ModulosGridView].
+/// Envuelve todo en [_Shimmer] para la animación y muestra 6 tarjetas placeholder.
+class _ModuleListSkeleton extends StatelessWidget {
+  const _ModuleListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return _Shimmer(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Encabezado con datos del usuario
+            const _SkeletonUserHeader(),
+            // Cuadrícula de tarjetas de módulos
+            Expanded(
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 5 / 8,
+                  crossAxisSpacing: 7,
+                  mainAxisSpacing: 7,
+                ),
+                // Se muestran 4 tarjetas para llenar la pantalla típica
+                // NOTE: Ajustar este número si el diseño cambia o para probar diferentes cantidades de placeholders
+                // Mantendremos un valor hardcodeado porque todavia no estamos obteniendo datos reales, pero idealmente esto debería ser dinámico o al menos configurable.
+                itemCount: 4,
+                itemBuilder: (_, __) => const _SkeletonModuleCard(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

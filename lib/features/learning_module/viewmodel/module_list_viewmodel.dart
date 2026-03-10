@@ -9,8 +9,8 @@ Extiende ChangeNotifier para poder notificar a las vistas cuando el estado cambi
 */
 class ModuleListViewModel extends ChangeNotifier {
   List<ModuloInfo> _modulos = [];
-  final String _nombreUsuario = 'MrBeast';
-  final int _nivelUsuario = 2;
+  final String _nombreUsuario = '';
+  final int _nivelUsuario = 1;
   bool _isLoading = false;
   String? _errorMessage;
 
