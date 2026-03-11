@@ -31,11 +31,13 @@ class LearningViewModel extends ChangeNotifier {
   // Control de race conditions: evitar peticiones duplicadas simultáneas
   final Map<String, Future<List<ModuleLevelInfo>>> _pendingLevelLoads = {};
 
-  // Pines de caché de imágenes por moduleId.
-  // Cada pin mantiene una imagen viva en el ImageCache de Flutter
-  // independientemente de si algún widget la está mostrando en ese momento.
-  // Se liberan únicamente al recargar o al destruir el ViewModel.
-  final Map<String, List<ImageStreamCompleter>> _imagePins = {};
+  // Handles de keep-alive del ImageCache por moduleId.
+  // keepAlive() es la única API que previene la evicción en Flutter:
+  // mientras el handle esté activo el ImageCache no puede descartar la imagen
+  // decodificada, ni siquiera bajo presión del LRU. Simplemente guardar la
+  // referencia al ImageStreamCompleter NO es suficiente — solo keepAlive() lo garantiza.
+  // Se liberan llamando handle.dispose() al salir del timeline o al recargar.
+  final Map<String, List<ImageStreamCompleterHandle>> _imagePins = {};
 
   // Getters
   List<ModuloInfo> get modulos => _modulos;
@@ -460,68 +462,76 @@ class LearningViewModel extends ChangeNotifier {
   // ─────────────────────────────────────────────────────────────────────────
 
   /*
-  Fija en el ImageCache de Flutter todas las imágenes de red de los niveles
-  de un módulo. Mientras el pin esté activo, Flutter nunca desechara esas
-  imágenes aunque ningún widget las esté mostrando — esto es lo que garantiza
-  que las portadas sigan disponibles al regresar del LevelPlayScreen.
+  Fija en el ImageCache de Flutter ÚNICAMENTE las portadas (pictogramaUrl)
+  de los niveles de un módulo usando keepAlive().
 
-  Usa ImageCache.putIfAbsent, la API oficial de Flutter para keep-alives
-  (la misma que usa precacheImage internamente).
+  Solo se pinen las portadas — no las imágenes de actividad, opciones ni
+  preguntas. Motivo: pinear todas simultáneamente abre demasiadas conexiones
+  HTTP a la vez y Firebase Storage cierra las conexiones antes de responder
+  ("Connection closed before full header was received"). Las imágenes de
+  actividad se cargan bajo demanda con el LRU normal de Image.network.
+
+  Las descargas se escalonan con un pequeño delay entre cada una para evitar
+  saturar el pool de conexiones del dispositivo.
   */
   void _pinLevelImages(String moduleId, List<ModuleLevelInfo> levels) {
-    // Soltar pines anteriores del mismo módulo antes de crear los nuevos
+    // Liberar handles anteriores del mismo módulo antes de crear los nuevos
     _releasePinsForModule(moduleId);
 
-    final pins = <ImageStreamCompleter>[];
-
+    // Recolectar solo las URLs de portadas (únicas y no nulas)
+    final urls = <String>{};
     for (final level in levels) {
-      // Portada del nivel
-      _tryPin(level.pictogramaUrl, pins);
-
-      // Imagen dentro de actividadData
-      _tryPin(level.actividadData?['pictogramaUrl'] as String?, pins);
-
-      // Opciones planas (simple_selection)
-      final options = level.actividadData?['options'];
-      if (options is List) {
-        for (final opt in options) {
-          if (opt is Map) _tryPin(opt['imagePath'] as String?, pins);
-        }
-      }
-
-      // Preguntas múltiples (simple_selection con 'questions')
-      final questions = level.actividadData?['questions'];
-      if (questions is List) {
-        for (final q in questions) {
-          if (q is Map) {
-            final qOptions = q['options'];
-            if (qOptions is List) {
-              for (final opt in qOptions) {
-                if (opt is Map) _tryPin(opt['imagePath'] as String?, pins);
-              }
-            }
-          }
-        }
+      final url = level.pictogramaUrl;
+      if (url != null && url.isNotEmpty &&
+          (url.startsWith('http://') || url.startsWith('https://'))) {
+        urls.add(url);
       }
     }
 
-    if (pins.isNotEmpty) {
-      _imagePins[moduleId] = pins;
+    if (urls.isEmpty) return;
+
+    // Inicializar la lista de handles para este módulo antes de la descarga asíncrona
+    _imagePins[moduleId] = [];
+
+    // Escalonar las descargas: una cada 80 ms para no saturar el pool de conexiones
+    _staggeredPin(moduleId, urls.toList());
+  }
+
+  /*
+  Lanza las descargas de portadas de forma escalonada (una cada [_kPinStaggerMs] ms)
+  para evitar que Firebase Storage cierre conexiones por saturación.
+  Si el módulo ya fue liberado (usuario salió del timeline) antes de terminar,
+  se detiene sin crear handles huérfanos.
+  */
+  static const int _kPinStaggerMs = 80;
+
+  Future<void> _staggeredPin(String moduleId, List<String> urls) async {
+    for (int i = 0; i < urls.length; i++) {
+      // Detener si el módulo fue liberado mientras esperábamos
+      if (!_imagePins.containsKey(moduleId)) return;
+
+      _tryPin(urls[i], _imagePins[moduleId]!);
+
+      // Esperar antes de la siguiente descarga, excepto en la última
+      if (i < urls.length - 1) {
+        await Future.delayed(const Duration(milliseconds: _kPinStaggerMs));
+      }
     }
   }
 
   /*
-  Intenta fijar una URL en el ImageCache y agrega el completer a [pins].
-  Si la URL es nula, vacía o no es HTTP, no hace nada.
+  Intenta fijar una URL en el ImageCache mediante keepAlive() y agrega el
+  handle resultante a [handles].
+  - putIfAbsent registra la imagen en el caché (o devuelve la existente).
+  - keepAlive() sobre el completer devuelve un handle que impide la evicción.
+  - Mientras el handle no sea disposed, la imagen está garantizada en memoria.
   */
-  void _tryPin(String? url, List<ImageStreamCompleter> pins) {
+  void _tryPin(String? url, List<ImageStreamCompleterHandle> handles) {
     if (url == null || url.isEmpty) return;
     if (!url.startsWith('http://') && !url.startsWith('https://')) return;
 
     try {
       final provider = NetworkImage(url);
-      // putIfAbsent devuelve el completer existente o crea uno nuevo y lo añade
-      // al caché. Mientras guardemos este completer, la imagen no será evictada.
       final completer = PaintingBinding.instance.imageCache.putIfAbsent(
         provider,
         () => provider.loadImage(
@@ -529,27 +539,44 @@ class LearningViewModel extends ChangeNotifier {
           PaintingBinding.instance.instantiateImageCodecWithSize,
         ),
       );
-      if (completer != null) pins.add(completer);
+      if (completer == null) return;
+      // keepAlive() es el paso crítico: sin él, guardar el completer no pina nada.
+      handles.add(completer.keepAlive());
     } catch (_) {
       // Fallo silencioso — nunca interrumpir la UI por un pin fallido
     }
   }
 
   /*
-  Libera todos los pines del ImageCache para un módulo específico.
-  Llamar al recargar los niveles del módulo.
+  Libera todos los handles de keep-alive para un módulo específico.
   */
   void _releasePinsForModule(String moduleId) {
-    _imagePins.remove(moduleId);
-    // Al eliminar las referencias a los ImageStreamCompleter, el ImageCache
-    // queda libre de evictarlos si necesita memoria — comportamiento correcto.
+    final handles = _imagePins.remove(moduleId);
+    if (handles != null) {
+      for (final h in handles) {
+        h.dispose();
+      }
+    }
   }
 
   /*
-  Libera todos los pines de todos los módulos.
+  Versión pública — llamada desde LevelTimelineScreen.dispose() para liberar
+  los pines exactamente cuando el usuario sale del timeline del módulo.
+  Mientras la pantalla esté visible los pines mantienen todas las portadas
+  cargadas; al hacer pop() se liberan ordenadamente.
+  */
+  void releasePinsForModule(String moduleId) => _releasePinsForModule(moduleId);
+
+  /*
+  Libera todos los handles de todos los módulos.
   Llamar al recargar módulos o al destruir el ViewModel.
   */
   void _releaseAllPins() {
+    for (final handles in _imagePins.values) {
+      for (final h in handles) {
+        h.dispose();
+      }
+    }
     _imagePins.clear();
   }
 

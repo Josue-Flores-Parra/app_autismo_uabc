@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
-import 'package:appy/features/learning_module/view/level_play_screen.dart';
 import 'package:appy/features/learning_module/view/level_content_screen.dart';
 import 'package:appy/features/learning_module/model/content_card_model.dart';
 
@@ -151,6 +150,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
   @override
   void dispose() {
+    // Liberar los pines del ImageCache al salir del timeline.
+    // Mientras la pantalla esté activa los pines mantienen las portadas en
+    // memoria; al hacer pop() se liberan para que el GC pueda recuperarlas.
+    context.read<LearningViewModel>().releasePinsForModule(widget.moduleId);
     _animationController?.dispose();
     _removeOverlay();
     super.dispose();
@@ -406,7 +409,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           (level) => level.id == step.levelId,
           orElse: () => throw Exception('Nivel no encontrado'),
         );
-        
+
         // Construir el contenido del carrusel desde el nivel completo
         final contents = _buildContentFromLevel(levelInfo);
         
@@ -575,7 +578,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
@@ -613,7 +616,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     (level) => level.id == step.levelId,
                     orElse: () => throw Exception('Nivel no encontrado'),
                   );
-                  
+
                   // Construir el contenido del carrusel desde el nivel completo
                   final contents = _buildContentFromLevel(levelInfo);
                   
