@@ -7,13 +7,13 @@ class LevelTimelineViewModel extends ChangeNotifier {
   final String _moduleId;
 
   List<LevelStepInfo> _steps = [];
-  List<ModuleLevelInfo> _moduleLevels = []; // Guardar los niveles completos
+  List<ModuleLevelInfo> _moduleLevels = [];
   String _moduleTitle = '';
   bool _isLoading = false;
   String? _errorMessage;
 
   List<LevelStepInfo> get steps => _steps;
-  List<ModuleLevelInfo> get moduleLevels => _moduleLevels; // Getter para acceder a los niveles completos
+  List<ModuleLevelInfo> get moduleLevels => _moduleLevels;
   String get moduleTitle => _moduleTitle;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -45,12 +45,15 @@ class LevelTimelineViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Obtener título del módulo
-      _moduleTitle = await _learningViewModel.getModuleTitle(moduleId);
+      // Obtener título y niveles en paralelo para reducir latencia
+      final results = await Future.wait([
+        _learningViewModel.getModuleTitle(moduleId),
+        _learningViewModel.getModuleLevels(moduleId),
+      ]);
 
-      // Obtener niveles desde LearningViewModel
-      final moduleLevels = await _learningViewModel.getModuleLevels(moduleId);
-      _moduleLevels = moduleLevels; // Guardar los niveles completos
+      _moduleTitle = results[0] as String;
+      final moduleLevels = results[1] as List<ModuleLevelInfo>;
+      _moduleLevels = moduleLevels;
 
       if (moduleLevels.isEmpty) {
         _errorMessage = 'No se encontraron niveles para este módulo';
@@ -59,8 +62,6 @@ class LevelTimelineViewModel extends ChangeNotifier {
         // Convertir ModuleLevelInfo a LevelStepInfo
         _steps = moduleLevels.asMap().entries.map((entry) {
           final level = entry.value;
-
-          // Agregar "Paso X:" antes del título usando el campo 'orden'
           final stepNumber = level.orden;
           final titleWithPrefix = 'Paso $stepNumber: ${level.titulo}';
 
@@ -77,6 +78,10 @@ class LevelTimelineViewModel extends ChangeNotifier {
             moduleId: _moduleId,
           );
         }).toList();
+
+        // Las imágenes ya están fijadas en el ImageCache por LearningViewModel
+        // (_pinLevelImages) desde el momento en que se cargaron los niveles,
+        // por lo que no es necesario hacer warmup adicional aquí.
       }
     } catch (e) {
       _errorMessage = 'Error al cargar los niveles: $e';
@@ -86,6 +91,7 @@ class LevelTimelineViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   void calculateNodePositions(Size screenSize, double itemHeight) {
     final List<Offset> positions = [];

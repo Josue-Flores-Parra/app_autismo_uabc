@@ -263,12 +263,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
             },
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF5B8DB3),
-                  strokeWidth: 2,
-                ),
-              );
+              // Skeleton con el mismo color de fondo que el diálogo (azul oscuro),
+              // necesario porque el PNG tiene fondo transparente
+              return const _PlayScreenShimmer(baseColor: Color(0xFF1A3D52));
             },
           ),
         ),
@@ -633,9 +630,8 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                 Expanded(
                   child: !ready
                       ? (snapshot.connectionState != ConnectionState.done
-                          ? const Center(
-                              child: CircularProgressIndicator(color: Colors.white),
-                            )
+                          // Skeleton sobre fondo negro mientras el video inicializa
+                          ? const _PlayScreenShimmer(baseColor: Colors.black)
                           : Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
@@ -687,6 +683,11 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                                             fit: BoxFit.cover,
                                             errorBuilder: (_, __, ___) =>
                                                 Container(color: Colors.black),
+                                            // Skeleton sobre fondo negro mientras carga la imagen de portada
+                                            loadingBuilder: (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return const _PlayScreenShimmer(baseColor: Colors.black);
+                                            },
                                           )
                                         : Container(color: Colors.black),
                                   ),
@@ -827,3 +828,89 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shimmer reutilizable para estados de carga en esta pantalla
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Skeleton con shimmer animado para estados de carga de imagen.
+/// Recibe [baseColor] como color de fondo opaco del skeleton box,
+/// de forma que el ShaderMask siempre tenga superficie sobre la que pintar.
+class _PlayScreenShimmer extends StatefulWidget {
+  /// Color base del skeleton box. Debe coincidir con el fondo del contenedor
+  /// para que el resultado se vea como parte natural del layout.
+  final Color baseColor;
+
+  const _PlayScreenShimmer({required this.baseColor});
+
+  @override
+  State<_PlayScreenShimmer> createState() => _PlayScreenShimmerState();
+}
+
+class _PlayScreenShimmerState extends State<_PlayScreenShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ciclo de 1.4 segundos que se repite indefinidamente
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    // El destello viaja de izquierda (-2) a derecha (+2)
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            // El gradiente usa variantes más claras del baseColor para el destello
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                widget.baseColor,
+                widget.baseColor.withAlpha(180),
+                widget.baseColor.withAlpha(120),
+                widget.baseColor.withAlpha(180),
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      // Skeleton box opaco: ocupa todo el espacio del widget padre
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: widget.baseColor,
+          boxShadow: [
+            BoxShadow(
+              color: widget.baseColor.withAlpha(100),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

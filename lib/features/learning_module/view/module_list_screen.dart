@@ -281,6 +281,14 @@ class ModuloPlantilla extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // Iniciar prefetch de niveles cuando el dedo toca la tarjeta (antes de soltar)
+      // así los datos ya están cargándose mientras dura el gesto de toque
+      onTapDown: (_) {
+        if (!modulo.bloqueado) {
+          final learningViewModel = context.read<LearningViewModel>();
+          learningViewModel.prefetchModuleLevels(modulo.id);
+        }
+      },
       onTap: () {
         if (!modulo.bloqueado) {
           Navigator.push(

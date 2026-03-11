@@ -138,7 +138,7 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
               flex: 3,
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF),
+                  color: const Color(0x001A3D52), // Sin fondo blanco, transparente
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0x997BA5C9), width: 2),
                   boxShadow: const [
@@ -153,7 +153,7 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: widget.imgPreview.isNotEmpty
-                      ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain)
+                      ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain, shimmerBaseColor: const Color(0xFF1A3D52))
                       : const Center(
                           child: Icon(
                             Icons.image_outlined,
@@ -502,7 +502,29 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
             ),
           );
         } else {
-          return const Center(child: CircularProgressIndicator());
+          // Mientras el VideoPlayerController inicializa, mostrar un skeleton con
+          // las mismas dimensiones que la tarjeta final para evitar saltos de layout
+          // y asegurar que keepAlive funcione correctamente en todas las rutas de build
+          return BasePreviewCard(
+            isPreview: widget.isPreview,
+            typeOfPreviewCard: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 28,
+                    child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
       },
     );
@@ -933,6 +955,7 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                         child: _buildImageFromUrl(
                           widget.imagePath!,
                           fit: BoxFit.contain,
+                          shimmerBaseColor: const Color(0xFF1A3D52),
                         ),
                       )
                     : const Center(
@@ -1054,6 +1077,7 @@ Widget _buildImageFromUrl(
   double? height,
   double? width,
   BoxFit fit = BoxFit.contain,
+  Color shimmerBaseColor = const Color(0xFFFFFFFF),
 }) {
   // Si la URL es una URL externa (http/https), usar Image.network
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -1063,11 +1087,10 @@ Widget _buildImageFromUrl(
       width: width,
       fit: fit,
       errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+      // Skeleton con shimmer mientras carga la imagen de red
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
+        return _PreviewCardShimmer(baseColor: shimmerBaseColor);
       },
     );
   }
@@ -1082,3 +1105,100 @@ Widget _buildImageFromUrl(
     errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shimmer reutilizable para estados de carga de imágenes en las preview cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Skeleton animado con destello (shimmer) para estados de carga de imagen.
+/// [baseColor] debe coincidir con el fondo del contenedor para una apariencia coherente.
+class _PreviewCardShimmer extends StatefulWidget {
+  final Color baseColor;
+  const _PreviewCardShimmer({required this.baseColor});
+
+  @override
+  State<_PreviewCardShimmer> createState() => _PreviewCardShimmerState();
+}
+
+class _PreviewCardShimmerState extends State<_PreviewCardShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ciclo de 1.4 segundos que se repite indefinidamente
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    // El destello viaja de izquierda a derecha
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        // Color de destello: variante más oscura del baseColor para que sea visible
+        final r = (widget.baseColor.r * 255.0).clamp(0, 255).round();
+        final g = (widget.baseColor.g * 255.0).clamp(0, 255).round();
+        final b = (widget.baseColor.b * 255.0).clamp(0, 255).round();
+        // Para colores claros (como blanco), el destello es más oscuro
+        // Para colores oscuros, el destello es más claro
+        // TODO: Simplify this bloody jumble
+        final brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+        final highlightColor = brightness > 0.5
+            ? Color.fromARGB(255, (r * 0.85).round(), (g * 0.85).round(), (b * 0.85).round())
+            : Color.fromARGB(255, (r + (255 - r) ~/ 2).clamp(0, 255), (g + (255 - g) ~/ 2).clamp(0, 255), (b + (255 - b) ~/ 2).clamp(0, 255));
+
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            // Gradiente de destello que barre de izquierda a derecha
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                widget.baseColor,
+                widget.baseColor,
+                highlightColor,
+                widget.baseColor,
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      // Caja opaca que ocupa todo el espacio del widget padre
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: widget.baseColor,
+          boxShadow: [
+            BoxShadow(
+              color: widget.baseColor.withAlpha(80),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+

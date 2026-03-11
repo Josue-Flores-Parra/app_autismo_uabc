@@ -367,10 +367,10 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
     // Mostrar indicador de carga mientras se precargan las imágenes
     if (!_imagesPrecached) {
-      final progress = _totalImagesCount > 0 
-          ? _imagesLoadedCount / _totalImagesCount 
+      final progress = _totalImagesCount > 0
+          ? _imagesLoadedCount / _totalImagesCount
           : 0.0;
-      
+
       return Scaffold(
         backgroundColor: const Color(0xFF091F2C),
         body: Center(

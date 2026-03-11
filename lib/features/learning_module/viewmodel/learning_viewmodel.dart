@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../data/services/firestore_services.dart';
 import '../model/modulo_info.dart';
@@ -27,6 +28,15 @@ class LearningViewModel extends ChangeNotifier {
   // Nivel del usuario
   int _userLevel = 1;
 
+  // Control de race conditions: evitar peticiones duplicadas simultáneas
+  final Map<String, Future<List<ModuleLevelInfo>>> _pendingLevelLoads = {};
+
+  // Pines de caché de imágenes por moduleId.
+  // Cada pin mantiene una imagen viva en el ImageCache de Flutter
+  // independientemente de si algún widget la está mostrando en ese momento.
+  // Se liberan únicamente al recargar o al destruir el ViewModel.
+  final Map<String, List<ImageStreamCompleter>> _imagePins = {};
+
   // Getters
   List<ModuloInfo> get modulos => _modulos;
   bool get isLoadingModules => _isLoadingModules;
@@ -46,22 +56,12 @@ class LearningViewModel extends ChangeNotifier {
   Constructor que inicializa el ViewModel cargando los módulos
   */
   LearningViewModel() {
-    _loadUserLevel();
     loadModules();
   }
 
   /*
-  Carga el nivel del usuario desde Firestore
-  */
-  Future<void> _loadUserLevel() async {
-    if (_currentUserId != null) {
-      _userLevel = await _firestoreService.getUserLevel(_currentUserId!);
-      notifyListeners();
-    }
-  }
-
-  /*
-  Carga todos los módulos desde Firestore
+  Carga todos los módulos desde Firestore.
+  Paraleliza la carga del nivel de usuario y la lista de módulos.
   */
   Future<void> loadModules() async {
     _isLoadingModules = true;
@@ -69,29 +69,30 @@ class LearningViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final modulesData = await _firestoreService.getAllModules();
+      // Cargar nivel del usuario y módulos en paralelo
+      final results = await Future.wait([
+        _firestoreService.getAllModules(),
+        if (_currentUserId != null)
+          _firestoreService.getUserLevel(_currentUserId!)
+        else
+          Future.value(1),
+      ]);
+
+      final modulesData = results[0] as List<Map<String, dynamic>>;
+      _userLevel = results[1] as int;
 
       if (modulesData.isEmpty) {
         _errorMessageModules = 'No se encontraron módulos en Firestore';
         _modulos = [];
       } else {
-        // Cargar nivel del usuario si no está cargado
-        if (_userLevel == 1 && _currentUserId != null) {
-          await _loadUserLevel();
-        }
-
         // Convertir datos de Firestore a objetos ModuloInfo
-        // Calcular bloqueo dinámicamente basado en nivel del usuario vs nivelMinimo
         _modulos = modulesData.map((data) {
           final modulo = ModuloInfo.fromFirestore(data, estrellas: 0);
           final nivelMinimo = modulo.nivel;
-          
-          // Calcular si está bloqueado: el módulo está bloqueado si el nivel del usuario es menor al nivel mínimo requerido
-          // O si el campo bloqueado en Firestore está en true (para compatibilidad con módulos que se bloquean manualmente)
           final bloqueadoDesdeFirestore = data['bloqueado'] as bool? ?? false;
           final bloqueadoPorNivel = _userLevel < nivelMinimo;
           final estaBloqueado = bloqueadoDesdeFirestore || bloqueadoPorNivel;
-          
+
           return ModuloInfo(
             id: modulo.id,
             titulo: modulo.titulo,
@@ -105,7 +106,7 @@ class LearningViewModel extends ChangeNotifier {
           );
         }).toList();
 
-        // Cargar progreso del usuario para calcular estrellas de cada módulo
+        // Cargar progreso de todos los módulos en paralelo
         await _loadModulesProgress();
       }
     } catch (e) {
@@ -118,106 +119,119 @@ class LearningViewModel extends ChangeNotifier {
   }
 
   /*
-  Carga el progreso del usuario para todos los módulos y calcula las estrellas
+  Carga el progreso del usuario para todos los módulos en paralelo (Future.wait)
+  y actualiza las estrellas de cada módulo.
   */
   Future<void> _loadModulesProgress() async {
-    if (_currentUserId == null) return;
+    if (_currentUserId == null || _modulos.isEmpty) return;
 
-    for (var modulo in _modulos) {
-      try {
-        final progress = await _firestoreService.getUserLevelsProgress(
-          _currentUserId!,
-          modulo.id,
-        );
+    // Lanzar todas las peticiones de progreso en paralelo
+    final progressFutures = _modulos.map(
+      (modulo) => _firestoreService
+          .getUserLevelsProgress(_currentUserId!, modulo.id)
+          .catchError((_) => <String, Map<String, dynamic>>{}),
+    );
 
-        // Calcular estrellas totales del módulo basado en el progreso
-        int totalStars = 0;
-        progress.forEach((levelId, levelProgress) {
-          final stars = levelProgress['estrellas'] as int? ?? 0;
-          totalStars += stars;
-        });
+    final progressResults = await Future.wait(progressFutures);
 
-        // Actualizar el módulo con las estrellas calculadas
-        // Recalcular bloqueo para asegurar que esté actualizado
-        final index = _modulos.indexWhere((m) => m.id == modulo.id);
-        if (index != -1) {
-          final nivelMinimo = modulo.nivel;
-          final bloqueadoPorNivel = _userLevel < nivelMinimo;
-          // Mantener el bloqueo si ya estaba bloqueado por Firestore o por nivel
-          final estaBloqueado = modulo.bloqueado || bloqueadoPorNivel;
-          
-          _modulos[index] = ModuloInfo(
-            id: modulo.id,
-            titulo: modulo.titulo,
-            estrellas: totalStars,
-            nivel: modulo.nivel,
-            imagenPath: modulo.imagenPath,
-            lvlBackgroundImageUrl: modulo.lvlBackgroundImageUrl,
-            color: modulo.color,
-            bloqueado: estaBloqueado,
-            descripcion: modulo.descripcion,
-          );
-        }
-      } catch (e) {
-        // Si falla, continuar con el siguiente módulo
-        continue;
-      }
+    // Aplicar resultados a cada módulo
+    for (int i = 0; i < _modulos.length; i++) {
+      final modulo = _modulos[i];
+      final progress = progressResults[i];
+
+      int totalStars = 0;
+      progress.forEach((_, levelProgress) {
+        totalStars += (levelProgress['estrellas'] as int? ?? 0);
+      });
+
+      final bloqueadoPorNivel = _userLevel < modulo.nivel;
+      final estaBloqueado = modulo.bloqueado || bloqueadoPorNivel;
+
+      _modulos[i] = ModuloInfo(
+        id: modulo.id,
+        titulo: modulo.titulo,
+        estrellas: totalStars,
+        nivel: modulo.nivel,
+        imagenPath: modulo.imagenPath,
+        lvlBackgroundImageUrl: modulo.lvlBackgroundImageUrl,
+        color: modulo.color,
+        bloqueado: estaBloqueado,
+        descripcion: modulo.descripcion,
+      );
     }
     notifyListeners();
   }
 
   /*
-  Obtiene los niveles de un módulo específico desde Firestore
-  y determina su estado basado en el progreso del usuario
+  Obtiene los niveles de un módulo específico desde Firestore.
+  Protege contra race conditions: si ya hay una carga en curso para el mismo
+  moduleId, reutiliza el mismo Future en lugar de lanzar una petición duplicada.
   */
   Future<List<ModuleLevelInfo>> getModuleLevels(String moduleId, {bool forceReload = false}) async {
-    // Si ya están cargados y no se fuerza recarga, retornarlos
+    // Si ya están en caché y no se fuerza recarga, retornarlos inmediatamente
     if (!forceReload && _moduleLevels.containsKey(moduleId)) {
       return _moduleLevels[moduleId]!;
     }
 
+    // Si ya hay una carga en curso para este moduleId, reutilizar ese Future
+    // para evitar peticiones duplicadas (race condition al pulsar un nodo rápido)
+    if (_pendingLevelLoads.containsKey(moduleId)) {
+      return _pendingLevelLoads[moduleId]!;
+    }
+
+    // Registrar el Future antes de await para que llamadas concurrentes lo reutilicen
+    final future = _fetchModuleLevels(moduleId);
+    _pendingLevelLoads[moduleId] = future;
+
+    try {
+      return await future;
+    } finally {
+      _pendingLevelLoads.remove(moduleId);
+    }
+  }
+
+  /*
+  Realiza la carga real de niveles + progreso en paralelo con Future.wait
+  */
+  Future<List<ModuleLevelInfo>> _fetchModuleLevels(String moduleId) async {
     _isLoadingLevels = true;
     _errorMessageLevels = null;
     notifyListeners();
 
     try {
-      // Obtener niveles desde Firestore
-      final levelsData = await _firestoreService.getModuleLevels(moduleId);
+      // Cargar niveles y progreso del usuario en paralelo
+      final results = await Future.wait([
+        _firestoreService.getModuleLevels(moduleId),
+        if (_currentUserId != null)
+          _firestoreService.getUserLevelsProgress(_currentUserId!, moduleId)
+        else
+          Future.value(<String, Map<String, dynamic>>{}),
+      ]);
+
+      final levelsData = results[0] as List<Map<String, dynamic>>;
+      final userProgress = results[1] as Map<String, Map<String, dynamic>>;
 
       if (levelsData.isEmpty) {
         _errorMessageLevels = 'No se encontraron niveles para este módulo';
         return [];
       }
 
-      // Obtener progreso del usuario para este módulo
-      Map<String, Map<String, dynamic>> userProgress = {};
-      if (_currentUserId != null) {
-        userProgress = await _firestoreService.getUserLevelsProgress(
-          _currentUserId!,
-          moduleId,
-        );
-      }
-
-      // Convertir datos de Firestore a ModuleLevelInfo y determinar estados
-      // Primero crear todos los niveles sin estados finales
+      // Convertir datos y determinar estados
       final nivelesTemporales = levelsData.map((data) {
         final levelId = data['id']?.toString() ?? '';
-        final levelProgress = userProgress[levelId];
-
-
         return _createModuleLevelInfoWithProgress(
           data,
-          levelProgress,
+          userProgress[levelId],
           moduleId,
         );
       }).toList();
 
-      // Ahora determinar estados considerando el orden y progreso
       final niveles = _determineLevelStates(nivelesTemporales, userProgress);
 
-      // Guardar en caché
+      // Guardar en caché y fijar imágenes en el ImageCache para todo el módulo
       _moduleLevels[moduleId] = niveles;
       _userProgress[moduleId] = userProgress;
+      _pinLevelImages(moduleId, niveles);
 
       return niveles;
     } catch (e) {
@@ -230,19 +244,26 @@ class LearningViewModel extends ChangeNotifier {
   }
 
   /*
+  Precarga en segundo plano los niveles de un módulo (sin afectar el estado de carga de la UI).
+  Útil para anticipar que el usuario va a entrar a un módulo.
+  No lanza excepciones — falla silenciosamente.
+  */
+  void prefetchModuleLevels(String moduleId) {
+    if (_moduleLevels.containsKey(moduleId)) return; // Ya en caché
+    if (_pendingLevelLoads.containsKey(moduleId)) return; // Ya cargando
+
+    // Lanzar sin await — corre en background
+    getModuleLevels(moduleId).catchError((_) => <ModuleLevelInfo>[]);
+  }
+
+  /*
   Helper para parsear actividadType desde Firestore.
   Trata null, cadenas vacías y la cadena "null" como null.
   */
   String? _parseActividadType(dynamic actividadType) {
-    if (actividadType == null) {
-      return null;
-    }
-    
+    if (actividadType == null) return null;
     final String str = actividadType.toString().trim();
-    if (str.isEmpty || str.toLowerCase() == 'null') {
-      return null;
-    }
-    
+    if (str.isEmpty || str.toLowerCase() == 'null') return null;
     return str;
   }
 
@@ -254,7 +275,6 @@ class LearningViewModel extends ChangeNotifier {
     Map<String, dynamic>? progress,
     String moduleId,
   ) {
-    // Convertir orden de manera segura
     int ordenValue;
     try {
       if (data['orden'] is int) {
@@ -268,7 +288,6 @@ class LearningViewModel extends ChangeNotifier {
       ordenValue = 0;
     }
 
-    // Obtener estrellas del progreso
     int estrellasValue = 0;
     if (progress != null) {
       try {
@@ -282,7 +301,6 @@ class LearningViewModel extends ChangeNotifier {
       }
     }
 
-    // Parsear actividadData
     Map<String, dynamic>? actividadDataValue;
     try {
       if (data['actividadData'] != null) {
@@ -299,16 +317,15 @@ class LearningViewModel extends ChangeNotifier {
       pictogramaUrl: data['pictogramaUrl']?.toString(),
       videoUrl: data['videoUrl']?.toString(),
       audioUrl: data['audioUrl']?.toString(),
-      // Tratar null y cadenas vacías como null
       actividadType: _parseActividadType(data['actividadType']),
       actividadData: actividadDataValue,
       estrellas: estrellasValue,
-      estado: StateOfStep.blocked, // Se determinará después
+      estado: StateOfStep.blocked,
     );
   }
 
   /*
-  Determina los estados de todos los niveles considerando el orden y progreso
+  Determina los estados de todos los niveles considerando el orden y progreso.
   Reglas:
   - El primer nivel (orden = 1) siempre está inProgress si no está completado
   - Un nivel está completado si tiene progreso con estado 'completed' o estrellas > 0
@@ -319,47 +336,36 @@ class LearningViewModel extends ChangeNotifier {
     List<ModuleLevelInfo> niveles,
     Map<String, Map<String, dynamic>> userProgress,
   ) {
-    // Ordenar por orden
     niveles.sort((a, b) => a.orden.compareTo(b.orden));
 
-    // Determinar estados
     for (int i = 0; i < niveles.length; i++) {
       final nivel = niveles[i];
-      final levelId = nivel.id;
-      final progress = userProgress[levelId];
+      final progress = userProgress[nivel.id];
 
       StateOfStep estado;
 
-      // Si hay progreso, verificar estado
       if (progress != null) {
         final status = progress['status']?.toString().toLowerCase();
         final estrellas = progress['estrellas'] as int? ?? 0;
-        
+
         if (status == 'completed' || estrellas > 0) {
           estado = StateOfStep.completed;
         } else if (status == 'in_progress' || status == 'inprogress') {
           estado = StateOfStep.inProgress;
         } else {
-          // Si no hay estado claro pero hay progreso, considerar completado si tiene estrellas
           estado = estrellas > 0 ? StateOfStep.completed : StateOfStep.inProgress;
         }
       } else {
-        // No hay progreso, determinar basado en niveles anteriores
         if (i == 0) {
-          // Primer nivel siempre está en progreso
           estado = StateOfStep.inProgress;
         } else {
-          // Verificar si el nivel anterior está completado
           final previousLevel = niveles[i - 1];
-          if (previousLevel.estado == StateOfStep.completed) {
-            estado = StateOfStep.inProgress;
-          } else {
-            estado = StateOfStep.blocked;
-          }
+          estado = previousLevel.estado == StateOfStep.completed
+              ? StateOfStep.inProgress
+              : StateOfStep.blocked;
         }
       }
 
-      // Actualizar el estado del nivel
       niveles[i] = ModuleLevelInfo(
         id: nivel.id,
         titulo: nivel.titulo,
@@ -377,17 +383,12 @@ class LearningViewModel extends ChangeNotifier {
   }
 
   /*
-  Obtiene el progreso del usuario para un módulo específico
+  Obtiene el progreso del usuario para un módulo específico.
+  Usa caché si está disponible.
   */
   Future<Map<String, Map<String, dynamic>>> getUserProgress(String moduleId) async {
-    if (_currentUserId == null) {
-      return {};
-    }
-
-    // Si ya está en caché, retornarlo
-    if (_userProgress.containsKey(moduleId)) {
-      return _userProgress[moduleId]!;
-    }
+    if (_currentUserId == null) return {};
+    if (_userProgress.containsKey(moduleId)) return _userProgress[moduleId]!;
 
     try {
       final progress = await _firestoreService.getUserLevelsProgress(
@@ -402,12 +403,13 @@ class LearningViewModel extends ChangeNotifier {
   }
 
   /*
-  Recarga los módulos desde Firestore
+  Recarga los módulos desde Firestore limpiando toda la caché
   */
   Future<void> reloadModules() async {
+    _releaseAllPins();
     _moduleLevels.clear();
     _userProgress.clear();
-    await _loadUserLevel(); // Recargar nivel del usuario también
+    _pendingLevelLoads.clear();
     await loadModules();
   }
 
@@ -415,23 +417,33 @@ class LearningViewModel extends ChangeNotifier {
   Recarga los niveles de un módulo específico
   */
   Future<void> reloadModuleLevels(String moduleId) async {
+    _releasePinsForModule(moduleId);
     _moduleLevels.remove(moduleId);
     _userProgress.remove(moduleId);
+    _pendingLevelLoads.remove(moduleId);
     await getModuleLevels(moduleId);
     notifyListeners();
   }
 
   /*
-  Obtiene el título del módulo desde Firestore
+  Obtiene el título del módulo.
+  Primero busca en la caché local de módulos para evitar una petición extra a Firestore.
+  Solo consulta Firestore si no está disponible en caché.
   */
   Future<String> getModuleTitle(String moduleId) async {
+    // Buscar en caché primero — evita una petición a Firestore
+    final cached = _modulos.where((m) => m.id == moduleId).firstOrNull;
+    if (cached != null && cached.titulo.isNotEmpty) {
+      return cached.titulo;
+    }
+
+    // Fallback: consultar Firestore solo si no estaba en caché
     try {
       final moduleData = await _firestoreService.getModuleData(moduleId);
       if (moduleData != null) {
         return moduleData['titulo']?.toString() ?? 'Módulo de Aprendizaje';
       }
     } catch (e) {
-      // Si falla, usar un título por defecto basado en el moduleId
       if (moduleId.contains('Higiene') || moduleId.contains('higiene')) {
         return 'Módulo de Higiene';
       } else if (moduleId.contains('alimentacion')) {
@@ -441,6 +453,110 @@ class LearningViewModel extends ChangeNotifier {
       }
     }
     return 'Módulo de Aprendizaje';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Gestión de pines del ImageCache
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /*
+  Fija en el ImageCache de Flutter todas las imágenes de red de los niveles
+  de un módulo. Mientras el pin esté activo, Flutter nunca desechara esas
+  imágenes aunque ningún widget las esté mostrando — esto es lo que garantiza
+  que las portadas sigan disponibles al regresar del LevelPlayScreen.
+
+  Usa ImageCache.putIfAbsent, la API oficial de Flutter para keep-alives
+  (la misma que usa precacheImage internamente).
+  */
+  void _pinLevelImages(String moduleId, List<ModuleLevelInfo> levels) {
+    // Soltar pines anteriores del mismo módulo antes de crear los nuevos
+    _releasePinsForModule(moduleId);
+
+    final pins = <ImageStreamCompleter>[];
+
+    for (final level in levels) {
+      // Portada del nivel
+      _tryPin(level.pictogramaUrl, pins);
+
+      // Imagen dentro de actividadData
+      _tryPin(level.actividadData?['pictogramaUrl'] as String?, pins);
+
+      // Opciones planas (simple_selection)
+      final options = level.actividadData?['options'];
+      if (options is List) {
+        for (final opt in options) {
+          if (opt is Map) _tryPin(opt['imagePath'] as String?, pins);
+        }
+      }
+
+      // Preguntas múltiples (simple_selection con 'questions')
+      final questions = level.actividadData?['questions'];
+      if (questions is List) {
+        for (final q in questions) {
+          if (q is Map) {
+            final qOptions = q['options'];
+            if (qOptions is List) {
+              for (final opt in qOptions) {
+                if (opt is Map) _tryPin(opt['imagePath'] as String?, pins);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (pins.isNotEmpty) {
+      _imagePins[moduleId] = pins;
+    }
+  }
+
+  /*
+  Intenta fijar una URL en el ImageCache y agrega el completer a [pins].
+  Si la URL es nula, vacía o no es HTTP, no hace nada.
+  */
+  void _tryPin(String? url, List<ImageStreamCompleter> pins) {
+    if (url == null || url.isEmpty) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+
+    try {
+      final provider = NetworkImage(url);
+      // putIfAbsent devuelve el completer existente o crea uno nuevo y lo añade
+      // al caché. Mientras guardemos este completer, la imagen no será evictada.
+      final completer = PaintingBinding.instance.imageCache.putIfAbsent(
+        provider,
+        () => provider.loadImage(
+          provider,
+          PaintingBinding.instance.instantiateImageCodecWithSize,
+        ),
+      );
+      if (completer != null) pins.add(completer);
+    } catch (_) {
+      // Fallo silencioso — nunca interrumpir la UI por un pin fallido
+    }
+  }
+
+  /*
+  Libera todos los pines del ImageCache para un módulo específico.
+  Llamar al recargar los niveles del módulo.
+  */
+  void _releasePinsForModule(String moduleId) {
+    _imagePins.remove(moduleId);
+    // Al eliminar las referencias a los ImageStreamCompleter, el ImageCache
+    // queda libre de evictarlos si necesita memoria — comportamiento correcto.
+  }
+
+  /*
+  Libera todos los pines de todos los módulos.
+  Llamar al recargar módulos o al destruir el ViewModel.
+  */
+  void _releaseAllPins() {
+    _imagePins.clear();
+  }
+
+  @override
+  void dispose() {
+    _releaseAllPins();
+    super.dispose();
   }
 }
 
