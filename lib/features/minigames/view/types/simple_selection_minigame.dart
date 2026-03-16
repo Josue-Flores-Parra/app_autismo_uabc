@@ -18,6 +18,9 @@ class SimpleSelectionMinigame extends MinigameBase {
 }
 
 class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
+  static const String _kQuestionPrefix =
+      'Cual es la imagen correcta para el siguiente paso:';
+
   int _attempts = 0;
   int? _selectedIndex;
   bool _isCompleted = false;
@@ -29,6 +32,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   late final List<QuestionData> _questions;
   int _currentQuestionIndex = 0;
   int _totalAttempts = 0; // Intentos totales a través de todas las preguntas
+  bool _isPreloadingImages = true;
 
   // Datos de la pregunta actual
   late String _question;
@@ -42,11 +46,47 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     super.initState();
     _initializeGameData();
     _loadCurrentQuestion();
+    // Precargar todas las imagenes de las 3 preguntas antes de habilitar el juego.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precacheAllQuestionImages();
+    });
+  }
+
+  Future<void> _precacheAllQuestionImages() async {
+    final uniquePaths = <String>{
+      for (final q in _questions)
+        for (final o in q.options)
+          if (o.imagePath.trim().isNotEmpty) o.imagePath.trim(),
+    };
+
+    final futures = uniquePaths.map((path) async {
+      try {
+        final provider = (path.startsWith('http://') || path.startsWith('https://'))
+            ? NetworkImage(path)
+            : AssetImage(path) as ImageProvider;
+        await precacheImage(provider, context);
+      } catch (_) {
+        // Ignorar errores individuales para no bloquear el minijuego completo.
+      }
+    }).toList();
+
+    await Future.wait(futures);
+    if (!mounted) return;
+    setState(() {
+      _isPreloadingImages = false;
+    });
   }
 
   /// Inicializa los datos del juego desde minigameData
   void _initializeGameData() {
     final data = widget.minigameData;
+
+    // Prioridad: generar preguntas dinámicamente desde actividadData.steps.
+    final generatedQuestions = _buildQuestionsFromSteps(data);
+    if (generatedQuestions.isNotEmpty) {
+      _questions = generatedQuestions;
+      return;
+    }
 
     // Verificar si hay múltiples preguntas (formato nuevo) o una sola (formato antiguo)
     if (data.containsKey('questions')) {
@@ -69,10 +109,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         questionsData = [];
       }
 
-      _questions = questionsData
-          .map((q) {
-            if (q is Map<String, dynamic>) {
-              return QuestionData.fromMap(q);
+      _questions = questionsData.map((q) {
+            if (q is Map) {
+              return QuestionData.fromMap(Map<String, dynamic>.from(q));
             }
             // Si no es un Map, intentar crear una pregunta por defecto
             return QuestionData(
@@ -81,8 +120,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
               maxAttempts: 3,
               options: [],
             );
-          })
-          .toList();
+          }).toList();
 
       // Limitar a máximo 3 preguntas
       if (_questions.length > 3) {
@@ -142,6 +180,97 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           option.imagePath == _correctOption.imagePath &&
           option.label == _correctOption.label,
     );
+    if (_correctIndex < 0) {
+      _correctIndex = 0;
+    }
+  }
+
+  /// Genera exactamente 3 preguntas usando captions e imágenes de `steps`.
+  List<QuestionData> _buildQuestionsFromSteps(Map<String, dynamic> data) {
+    final steps = _parseStepsForSimpleSelection(data);
+    if (steps.length < 2) {
+      return [];
+    }
+
+    final random = Random();
+    final shuffledTargets = List<_SimpleSelectionStep>.from(steps)
+      ..shuffle(random);
+    final maxAttempts = _toInt(data['maxAttempts'], fallback: 3).clamp(1, 10);
+
+    final questions = <QuestionData>[];
+    for (int i = 0; i < 3; i++) {
+      final target = shuffledTargets[i % shuffledTargets.length];
+      final distractors = steps
+          .where((s) => s.imagePath != target.imagePath || s.caption != target.caption)
+          .toList()
+        ..shuffle(random);
+
+      final options = <SelectionOption>[
+        SelectionOption(imagePath: target.imagePath, label: target.caption),
+      ];
+
+      final distractorCount = (steps.length >= 4) ? 3 : (steps.length - 1);
+      options.addAll(
+        distractors.take(distractorCount).map(
+          (s) => SelectionOption(imagePath: s.imagePath, label: s.caption),
+        ),
+      );
+
+      options.shuffle(random);
+      final correctIndex = options.indexWhere(
+        (o) => o.imagePath == target.imagePath && o.label == target.caption,
+      );
+
+      questions.add(
+        QuestionData(
+          question: '$_kQuestionPrefix ${target.caption}',
+          correctIndex: correctIndex < 0 ? 0 : correctIndex,
+          maxAttempts: maxAttempts,
+          options: options,
+        ),
+      );
+    }
+
+    return questions;
+  }
+
+  /// Extrae steps válidos desde actividadData (`steps` o `pictogramSteps`).
+  List<_SimpleSelectionStep> _parseStepsForSimpleSelection(
+    Map<String, dynamic> data,
+  ) {
+    final rawSteps = data['steps'] ?? data['pictogramSteps'];
+    if (rawSteps is! List) return [];
+
+    final unique = <String, _SimpleSelectionStep>{};
+    for (final raw in rawSteps) {
+      if (raw is! Map) continue;
+      final step = Map<String, dynamic>.from(raw);
+
+      final imagePath = (step['url'] ??
+              step['imagePath'] ??
+              step['src'] ??
+              step['pictogramaUrl'] ??
+              '')
+          .toString()
+          .trim();
+      final caption = (step['caption'] ?? step['label'] ?? step['text'] ?? '')
+          .toString()
+          .trim();
+
+      if (imagePath.isEmpty || caption.isEmpty) continue;
+      final key = '$imagePath|$caption';
+      unique[key] = _SimpleSelectionStep(imagePath: imagePath, caption: caption);
+    }
+
+    return unique.values.toList();
+  }
+
+  int _toInt(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
   }
 
   /// Opciones por defecto para propósitos de desarrollo/testing
@@ -275,6 +404,32 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isPreloadingImages) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+            ),
+          ),
+          child: const SafeArea(
+            child: Center(
+              child: Text(
+                'Preparando actividad...',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -289,87 +444,22 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // Fila con indicador de progreso e intentos
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // Layout adaptable para evitar overflow vertical en pantallas bajas.
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
-                    // Indicador de progreso si hay múltiples preguntas
-                    if (_questions.length > 1) ...[
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color.fromARGB(150, 9, 31, 44),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0x33FFFFFF),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.quiz,
-                                    color: Color(0xFFFFD700),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Pregunta ${_currentQuestionIndex + 1} de ${_questions.length}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFFFD700),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              // Indicadores visuales de progreso
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(_questions.length, (
-                                  index,
-                                ) {
-                                  final isCompleted =
-                                      index < _currentQuestionIndex;
-                                  final isCurrent =
-                                      index == _currentQuestionIndex;
-                                  return Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    width: 30,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: isCompleted
-                                          ? const Color(0xFF05E995)
-                                          : isCurrent
-                                          ? const Color(0xFF00E5FF)
-                                          : Colors.white24,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ],
-                          ),
-                        ),
+                    if (_questions.length > 1)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 360),
+                        child: _buildQuestionProgressInfo(),
                       ),
-                      const SizedBox(width: 12),
-                    ],
-
-                    // Información de intentos (siempre visible)
-                    Flexible(child: _buildAttemptsInfo()),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: _buildAttemptsInfo(),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -431,7 +521,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   /// Construye la información de intentos
   Widget _buildAttemptsInfo() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: const Color.fromARGB(216, 9, 31, 44),
         borderRadius: BorderRadius.circular(20),
@@ -441,15 +531,71 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.flag, color: Color(0xFFFFD700), size: 24),
+          const Icon(Icons.flag, color: Color(0xFFFFD700), size: 22),
           const SizedBox(width: 8),
           Text(
             'Intentos: $_attempts / $_maxAttempts',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionProgressInfo() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(150, 9, 31, 44),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x33FFFFFF), width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.quiz, color: Color(0xFFFFD700), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Pregunta ${_currentQuestionIndex + 1} de ${_questions.length}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFFFD700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_questions.length, (index) {
+              final isCompleted = index < _currentQuestionIndex;
+              final isCurrent = index == _currentQuestionIndex;
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 28,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? const Color(0xFF05E995)
+                      : isCurrent
+                      ? const Color(0xFF00E5FF)
+                      : Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -566,33 +712,6 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                 child: _buildImageFromPath(option.imagePath),
               ),
             ),
-
-            // Label (si existe)
-            if (option.label.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 12,
-                ),
-                decoration: const BoxDecoration(
-                  color: Color.fromARGB(100, 0, 0, 0),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Text(
-                  option.label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
           ],
         ),
       ),
@@ -693,11 +812,24 @@ class QuestionData {
 
     return QuestionData(
       question: map['question'] as String? ?? '¿Cuál es la imagen correcta?',
-      correctIndex: map['correctIndex'] as int? ?? 0,
-      maxAttempts: map['maxAttempts'] as int? ?? 3,
+      correctIndex: _parseInt(map['correctIndex'], 0),
+      maxAttempts: _parseInt(map['maxAttempts'], 3),
       options: options,
     );
   }
+
+  static int _parseInt(dynamic value, int fallback) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+}
+
+class _SimpleSelectionStep {
+  final String imagePath;
+  final String caption;
+
+  _SimpleSelectionStep({required this.imagePath, required this.caption});
 }
 
 /// Clase para representar una opción de selección

@@ -44,6 +44,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late PageController _pageController;
+  int _selectedCarouselIndex = 0;
   
   // Rastrear condiciones para habilitar el botón "COMPLETAR"
   bool _videoCompleted = false;
@@ -70,11 +71,66 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         widget.actividadType!.toLowerCase().trim() == 'null';
   }
   
-  // Verificar si SÍ hay actividadType válido
-  bool get _hasValidActividadType {
-    return widget.actividadType != null && 
-        widget.actividadType!.trim().isNotEmpty && 
-        widget.actividadType!.toLowerCase().trim() != 'null';
+  bool get _isSimpleSelectionEnabled {
+    return _asBool(widget.minigameData?['isSimpleSelectionEnabled']);
+  }
+
+  ContentCardData? get _selectedContent {
+    if (widget.contents.isEmpty) return null;
+    final safeIndex = _selectedCarouselIndex.clamp(0, widget.contents.length - 1);
+    return widget.contents[safeIndex];
+  }
+
+  // Decisión de producto:
+  // El botón principal "JUGAR" resuelve en runtime qué actividad abrir según
+  // la tarjeta actualmente seleccionada en el carrusel. No dependemos del
+  // `actividadType` original del documento para esta navegación.
+  bool get _canPlaySelectedContent {
+    final selected = _selectedContent;
+    if (selected == null) return false;
+
+    switch (selected.type) {
+      case ContentType.video:
+        final hasVideo = (selected.videoPath?.isNotEmpty == true) ||
+            (widget.videoUrl?.isNotEmpty == true) ||
+            ((widget.minigameData?['videoUrl'] as String?)?.isNotEmpty == true) ||
+            ((widget.minigameData?['url'] as String?)?.isNotEmpty == true);
+        return hasVideo;
+      case ContentType.pictogram:
+      case ContentType.audio:
+        return widget.minigameData != null;
+      case ContentType.miniGame:
+        if (selected.miniGameType == 'simple_selection') {
+          return _isSimpleSelectionEnabled && widget.minigameData != null;
+        }
+        return false;
+    }
+  }
+
+  String? get _selectedActivityType {
+    final selected = _selectedContent;
+    if (selected == null) return null;
+
+    switch (selected.type) {
+      case ContentType.video:
+        return 'video';
+      case ContentType.pictogram:
+        return 'pictogram';
+      case ContentType.audio:
+        return 'audio';
+      case ContentType.miniGame:
+        return selected.miniGameType;
+    }
+  }
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 
   @override
@@ -133,27 +189,28 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
                   const SizedBox(height: 20),
                   
-                  // Botón "JUGAR" si hay actividadType (minijuego interactivo o video)
-                  // Para video: siempre mostrar si actividadType es 'video' y hay videoUrl
-                  // Para otros tipos: mostrar solo si hay minigameData
-                  if (_hasValidActividadType &&
-                      (widget.actividadType!.toLowerCase().trim() == 'video'
-                          ? (widget.videoUrl != null && widget.videoUrl!.isNotEmpty)
-                          : widget.minigameData != null))
+                  // El botón usa la tarjeta seleccionada para decidir qué actividad abrir.
+                  // Así el usuario controla la actividad desde el carrusel + botón principal.
+                  if (_canPlaySelectedContent)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
                         onPressed: () async {
+                          final activityType = _selectedActivityType;
+                          if (activityType == null) return;
+
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => LevelPlayScreen(
                                 levelTitle: widget.levelTitle ?? widget.levelName,
                                 minigameData: widget.minigameData,
-                                actividadType: widget.actividadType!,
+                                actividadType: activityType,
                                 levelId: widget.levelId ?? '',
                                 moduleId: widget.moduleId ?? '',
                                 videoUrl: widget.videoUrl,
+                                launchSimpleSelectionFromCard:
+                                    activityType == 'simple_selection',
                               ),
                             ),
                           );
@@ -164,14 +221,14 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           }
                         },
                         icon: Icon(
-                          widget.actividadType!.toLowerCase().trim() == 'video'
+                          _selectedActivityType == 'video'
                               ? Icons.play_circle_rounded
                               : Icons.play_arrow_rounded,
                           color: Colors.white,
                           size: 32,
                         ),
                         label: Text(
-                          widget.actividadType!.toLowerCase().trim() == 'video'
+                          _selectedActivityType == 'video'
                               ? 'VER VIDEO'
                               : 'JUGAR',
                           style: const TextStyle(
@@ -182,7 +239,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: widget.actividadType!.toLowerCase().trim() == 'video'
+                          backgroundColor: _selectedActivityType == 'video'
                               ? const Color(0xFF5A97B8)
                               : const Color(0xFF00E5FF),
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -192,42 +249,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                         ),
                       ),
                     ),
-                  
-                  // Botón "COMPLETAR" si NO hay actividadType (solo contenido de observación)
-                  if (_hasNoActividadType && 
-                      widget.levelId != null && widget.moduleId != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      child: ElevatedButton.icon(
-                        onPressed: _canComplete ? () => _handleCompleteObservationLevel(context) : null,
-                        icon: Icon(
-                          _canComplete ? Icons.check_circle_rounded : Icons.lock_outline,
-                          color: _canComplete ? Colors.white : Colors.white70,
-                          size: 32,
-                        ),
-                        label: Text(
-                          _canComplete ? 'COMPLETAR' : 'SIN COMPLETAR',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: _canComplete ? Colors.white : Colors.white70,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _canComplete 
-                              ? const Color(0xFF05E995) 
-                              : Colors.grey.shade600,
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          elevation: _canComplete ? 10 : 0,
-                          shadowColor: _canComplete 
-                              ? const Color.fromARGB(204, 5, 233, 149) 
-                              : Colors.transparent,
-                        ),
-                      ),
-                    ),
-                  
                   const SizedBox(height: 20),
                 ],
               ),
@@ -340,6 +361,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       controller: _pageController,
       physics: const BouncingScrollPhysics(),
       itemCount: widget.contents.length,
+      onPageChanged: (index) {
+        setState(() {
+          _selectedCarouselIndex = index;
+        });
+      },
       itemBuilder: (context, index) {
         return _buildCarouselItem(index);
       },

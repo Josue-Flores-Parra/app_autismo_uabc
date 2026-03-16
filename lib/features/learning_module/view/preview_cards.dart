@@ -735,17 +735,19 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: Image.asset(
-                    widget.imgPreview,
-                    fit: BoxFit.cover,
-                    errorBuilder: (ctx, obj, trace) => const Center(
-                      child: Icon(
-                        Icons.gamepad_rounded,
-                        size: 80,
-                        color: Color(0xFFCCCCCC),
-                      ),
-                    ),
-                  ),
+                  child: widget.imgPreview.isNotEmpty
+                      ? _buildImageFromUrl(
+                          widget.imgPreview,
+                          fit: BoxFit.contain,
+                          shimmerBaseColor: const Color(0xFF1A3D52),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.gamepad_rounded,
+                            size: 80,
+                            color: Color(0xFFCCCCCC),
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -783,58 +785,7 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
                 ),
               ),
 
-            const SizedBox(height: 16),
-
-            Container(
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF92C5BC), Color(0xFF5A97B8)],
-                ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFB0D9D1), width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x4DFFFFFF),
-                    blurRadius: 8,
-                    offset: Offset(0, -2),
-                    spreadRadius: 0,
-                  ),
-                  BoxShadow(
-                    color: Color(0x665A97B8),
-                    blurRadius: 15,
-                    offset: Offset(0, 0),
-                    spreadRadius: 1,
-                  ),
-                  BoxShadow(
-                    color: Color(0x80000000),
-                    blurRadius: 12,
-                    offset: Offset(0, 5),
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(30),
-                  onTap: () {},
-                  child: const Center(
-                    child: Text(
-                      '¡JUGAR!',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFFFFFFF),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

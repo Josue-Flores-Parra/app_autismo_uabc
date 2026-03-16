@@ -35,6 +35,11 @@ class PathPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
 
+    // Dibujar líneas entre nodos con efecto de curva suave
+    // Usamos cubicTo para crear una curva entre cada par de nodos, y el color depende del estado del nodo inicial
+    // Si el nodo está completado, la línea se dibuja con el paint de completed, sino con el paint base.
+    // Esto crea un efecto visual donde las líneas hacia los nodos completados se ven más brillantes
+    // y resaltan, mientras que las líneas hacia los nodos bloqueados o en progreso se ven más tenues.
     for (int i = 0; i < nodePositions.length - 1; i++) {
       final startPoint = nodePositions[i];
       final endPoint = nodePositions[i + 1];
@@ -511,7 +516,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
   Widget _buildStepTitle(String title) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      // Dimensiones ajustadas para el tamaño de fuente: vertical reducido para compensar el aumento del tamaño de fuente
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: const Color.fromARGB(216, 9, 31, 44),
         borderRadius: BorderRadius.circular(15),
@@ -520,7 +526,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 12,
+          fontSize: 18, // Tamaño de fuente mas grande para mejor legibilidad
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
@@ -529,6 +535,9 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
+  // Construye el contenido del popup al hacer tap en un nodo, mostrando la información del paso y el botón de JUGAR
+  // Al presionar JUGAR, primero cierra el popup, luego navega a la pantalla de preview del nivel, pasando
+  // toda la información necesaria para mostrar el carrusel y los datos del minijuego.
   Widget _buildPopupContent(BuildContext context, LevelStepInfo step, LevelTimelineViewModel viewModel) {
     return Material(
       color: Colors.transparent,
@@ -754,6 +763,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   /// Construye el contenido del carrusel desde un ModuleLevelInfo
   List<ContentCardData> _buildContentFromLevel(ModuleLevelInfo level) {
     final List<ContentCardData> contents = [];
+    final simpleSelectionEnabled =
+        _asBool(level.actividadData?['isSimpleSelectionEnabled']);
 
     // 1. PRIMERO: Si hay pictograma, agregar tarjeta de pictograma
     if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
@@ -776,6 +787,19 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           description: 'Video educativo',
           imagePath: level.pictogramaUrl ?? '',
           videoPath: level.videoUrl,
+        ),
+      );
+    }
+
+    // 2.5: Si el nivel habilita seleccion simple, agregar su tarjeta en el carrusel.
+    if (simpleSelectionEnabled) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.miniGame,
+          miniGameType: 'simple_selection',
+          title: 'Seleccion simple',
+          description: 'Elige la imagen correcta para cada paso',
+          imagePath: level.pictogramaUrl ?? '',
         ),
       );
     }
@@ -807,6 +831,16 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     }
 
     return contents;
+  }
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 
   /// Construye una imagen desde una URL, detectando automáticamente si es un asset local o URL externa

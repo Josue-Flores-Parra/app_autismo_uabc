@@ -20,6 +20,8 @@ class LevelPlayScreen extends StatefulWidget {
   final String? moduleId;
   /// URL del video (desde Firebase Storage o Firestore) para niveles de tipo 'video'
   final String? videoUrl;
+  // Permite abrir seleccion simple de forma explicita al tocar la tarjeta del carrusel.
+  final bool launchSimpleSelectionFromCard;
 
   const LevelPlayScreen({
     super.key,
@@ -29,6 +31,7 @@ class LevelPlayScreen extends StatefulWidget {
     this.levelId,
     this.moduleId,
     this.videoUrl,
+    this.launchSimpleSelectionFromCard = false,
   });
 
   @override
@@ -59,22 +62,22 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Si no hay actividadType, no deberíamos estar aquí (debería mostrar "COMPLETAR" en lugar de "JUGAR")
-    // Pero por seguridad, si llegamos aquí sin actividadType, volvemos atrás
-    if (widget.actividadType == null || widget.actividadType!.trim().isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      });
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    final type = widget.actividadType?.toLowerCase().trim();
+    final simpleSelectionEnabled = _isSimpleSelectionEnabled(widget.minigameData);
+
+    // Seleccion simple solo inicia cuando se entra desde la tarjeta del carrusel.
+    if (widget.launchSimpleSelectionFromCard && simpleSelectionEnabled) {
+      return _buildMinigameScaffold(MinigameType.simpleSelection);
     }
 
-    final type = widget.actividadType!.toLowerCase().trim();
+    // Si se intentó abrir desde tarjeta pero no está habilitado, bloquear acceso.
+    if (widget.launchSimpleSelectionFromCard && !simpleSelectionEnabled) {
+      return _buildUnavailableActivityScreen();
+    }
+
+    if (type == null || type.isEmpty) {
+      return _buildUnavailableActivityScreen();
+    }
 
     // Manejo especial para niveles de tipo 'video': mostrar reproductor de video
     if (type == 'video') {
@@ -127,11 +130,13 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
       );
     }
 
-    // Convertir actividadType directamente desde Firestore a MinigameType
-    MinigameType minigameType;
+    // Para actividades no lanzadas desde tarjeta, se usa actividadType.
+    MinigameType? minigameType;
     switch (type) {
       case 'simple_selection':
-        minigameType = MinigameType.simpleSelection;
+        minigameType = simpleSelectionEnabled
+            ? MinigameType.simpleSelection
+            : null;
         break;
       case 'pictogram':
         minigameType = MinigameType.pictogram;
@@ -139,11 +144,18 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
       case 'audio':
         minigameType = MinigameType.audio;
         break;
-      // TODO: Agregar más casos cuando se implementen otros tipos
       default:
-        minigameType = MinigameType.simpleSelection; // Fallback por defecto
+        minigameType = null;
     }
-    
+
+    if (minigameType == null) {
+      return _buildUnavailableActivityScreen();
+    }
+
+    return _buildMinigameScaffold(minigameType);
+  }
+
+  Widget _buildMinigameScaffold(MinigameType minigameType) {
     return Scaffold(
       body: MinigamesWidget(
         key: _minigameKey,
@@ -153,6 +165,34 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           _handleMinigameComplete(context, success, attempts);
         },
       ),
+    );
+  }
+
+  Widget _buildUnavailableActivityScreen() {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline, size: 48, color: Colors.white70),
+              const SizedBox(height: 12),
+              const Text(
+                'Actividad no disponible.',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Volver'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: const Color(0xFF091F2C),
     );
   }
 
@@ -498,6 +538,20 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         {'imagePath': 'assets/images/MEH.png', 'label': 'Opción 3'},
       ],
     };
+  }
+
+  bool _isSimpleSelectionEnabled(Map<String, dynamic>? data) {
+    if (data == null || !data.containsKey('isSimpleSelectionEnabled')) {
+      return false;
+    }
+    final value = data['isSimpleSelectionEnabled'];
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 }
 
