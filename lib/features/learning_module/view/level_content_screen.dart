@@ -64,13 +64,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     return videoOk && pictogramOk && audioOk;
   }
   
-  // Verificar si NO hay actividadType (null, vacío, o cadena "null")
-  bool get _hasNoActividadType {
-    return widget.actividadType == null || 
-        widget.actividadType!.trim().isEmpty || 
-        widget.actividadType!.toLowerCase().trim() == 'null';
-  }
-  
   bool get _isSimpleSelectionEnabled {
     return _asBool(widget.minigameData?['isSimpleSelectionEnabled']);
   }
@@ -84,7 +77,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // Decisión de producto:
   // El botón principal "JUGAR" resuelve en runtime qué actividad abrir según
   // la tarjeta actualmente seleccionada en el carrusel. No dependemos del
-  // `actividadType` original del documento para esta navegación.
+  // `actividadType` ya que esta solo define la actividad inicial.
   bool get _canPlaySelectedContent {
     final selected = _selectedContent;
     if (selected == null) return false;

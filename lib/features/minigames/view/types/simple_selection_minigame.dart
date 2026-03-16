@@ -1,5 +1,9 @@
+import 'dart:async';
 import 'dart:math';
+import 'package:audio_session/audio_session.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Selección Simple
@@ -17,6 +21,8 @@ class SimpleSelectionMinigame extends MinigameBase {
       _SimpleSelectionMinigameState();
 }
 
+enum _InlineFeedbackType { none, correct, incorrect }
+
 class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   static const String _kQuestionPrefix =
       'Cual es la imagen correcta para el siguiente paso:';
@@ -33,6 +39,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   int _currentQuestionIndex = 0;
   int _totalAttempts = 0; // Intentos totales a través de todas las preguntas
   bool _isPreloadingImages = true;
+  _InlineFeedbackType _inlineFeedback = _InlineFeedbackType.none;
+
+  late ConfettiController _confettiController;
+  final AudioPlayer _celebrationPlayer = AudioPlayer();
 
   // Datos de la pregunta actual
   late String _question;
@@ -44,12 +54,24 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   @override
   void initState() {
     super.initState();
+    _initConfetti();
     _initializeGameData();
     _loadCurrentQuestion();
     // Precargar todas las imagenes de las 3 preguntas antes de habilitar el juego.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precacheAllQuestionImages();
     });
+  }
+
+  void _initConfetti() {
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    _celebrationPlayer.dispose();
+    super.dispose();
   }
 
   Future<void> _precacheAllQuestionImages() async {
@@ -145,6 +167,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     _attempts = 0;
     _selectedIndex = null;
     _isInteractionLocked = false;
+    _inlineFeedback = _InlineFeedbackType.none;
 
     // Cargar y mezclar opciones
     List<SelectionOption> loadedOptions = List.from(questionData.options);
@@ -296,19 +319,21 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   void _handleSelection(int index) {
     if (_isCompleted || _isInteractionLocked) return;
 
+    final isCorrect = index == _correctIndex;
+
     setState(() {
       _selectedIndex = index;
       _attempts++;
       _totalAttempts++;
       _isInteractionLocked = true;
+      _inlineFeedback = isCorrect
+          ? _InlineFeedbackType.correct
+          : _InlineFeedbackType.incorrect;
     });
 
-    // Verificar si la selección es correcta
-    final isCorrect = index == _correctIndex;
-
     if (isCorrect) {
-      // Selección correcta
-      _showFeedback(isCorrect: true);
+      // Selección correcta: el feedback principal se muestra inline
+      // entre la pregunta y las opciones (no en SnackBar).
 
       // Verificar si hay más preguntas
       if (_currentQuestionIndex < _questions.length - 1) {
@@ -323,14 +348,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         });
       } else {
         // Última pregunta completada - finalizar el juego
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          _completeGame(success: true);
-        });
+        _completeGame(success: true);
       }
     } else {
-      // Selección incorrecta
-      _showFeedback(isCorrect: false);
-
       // Verificar si se agotaron los intentos
       if (_attempts >= _maxAttempts) {
         _completeGame(success: false);
@@ -341,47 +361,12 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
             setState(() {
               _selectedIndex = null;
               _isInteractionLocked = false;
+              _inlineFeedback = _InlineFeedbackType.none;
             });
           }
         });
       }
     }
-  }
-
-  /// Muestra feedback visual al usuario
-  void _showFeedback({required bool isCorrect}) {
-    final message = isCorrect ? '¡Correcto!' : '¡Intenta de nuevo!';
-
-    final color = isCorrect ? const Color(0xFF05E995) : const Color(0xFFFF9800);
-    final icon = isCorrect ? Icons.check_circle : Icons.refresh;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(width: 12),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(bottom: 300, left: 20, right: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 8,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      ),
-    );
   }
 
   /// Completa el juego y llama al callback
@@ -391,15 +376,47 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       _isInteractionLocked = true;
     });
 
-    // Solo mostrar feedback si falló (porque si tuvo éxito ya se mostró en _handleSelection)
-    if (!success) {
-      _showFeedback(isCorrect: false);
+    if (success) {
+      _celebrateCompletion();
+    } else {
+      _inlineFeedback = _InlineFeedbackType.incorrect;
     }
 
-    // Llamar al callback después de un breve delay para que el usuario vea el feedback
+    // Mantener un pequeño delay para que se vea el feedback/celebración.
     Future.delayed(const Duration(milliseconds: 1500), () {
       widget.onComplete(success, _totalAttempts);
     });
+  }
+
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+    } catch (_) {}
+  }
+
+  void _celebrateCompletion() {
+    _confettiController.play();
+    _playCelebrationSound();
+  }
+
+  Future<void> _playCelebrationSound() async {
+    try {
+      await _configureAudioSession();
+      await _celebrationPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/celebration.mp3'),
+      );
+      await _celebrationPlayer.setVolume(1.0);
+      if (_celebrationPlayer.processingState == ProcessingState.loading) {
+        await _celebrationPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+          (state) => state.processingState != ProcessingState.loading,
+        );
+      }
+      await _celebrationPlayer.play();
+    } catch (_) {}
   }
 
   @override
@@ -414,16 +431,11 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
               colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
             ),
           ),
-          child: const SafeArea(
-            child: Center(
-              child: Text(
-                'Preparando actividad...',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+          child: SafeArea(
+            child: _SimpleSelectionLoadingSkeleton(
+              showQuestionProgress: _questions.length > 1,
+              crossAxisCount: _getOptionsCrossAxisCount(_options.length),
+              optionCount: max(2, _options.length),
             ),
           ),
         ),
@@ -431,45 +443,108 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     }
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Layout adaptable para evitar overflow vertical en pantallas bajas.
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 10,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   children: [
-                    if (_questions.length > 1)
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 360),
-                        child: _buildQuestionProgressInfo(),
-                      ),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: _buildAttemptsInfo(),
-                    ),
+                    _buildTopStatusLayout(),
+                    const SizedBox(height: 16),
+
+                    // Área de pregunta/instrucción
+                    _buildQuestionArea(),
+                    const SizedBox(height: 10),
+                    _buildInlineFeedbackLabel(),
+                    const SizedBox(height: 14),
+
+                    // Grid de opciones
+                    Expanded(child: _buildOptionsGrid()),
                   ],
                 ),
-                const SizedBox(height: 16),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: 3.14 / 2,
+              maxBlastForce: 5,
+              minBlastForce: 2,
+              emissionFrequency: 0.05,
+              numberOfParticles: 50,
+              gravity: 0.1,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.purple,
+                Colors.yellow,
+                Colors.red,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                // Área de pregunta/instrucción
-                _buildQuestionArea(),
-                const SizedBox(height: 24),
+  Widget _buildInlineFeedbackLabel() {
+    final isVisible = _inlineFeedback != _InlineFeedbackType.none;
+    final isCorrect = _inlineFeedback == _InlineFeedbackType.correct;
+    final backgroundColor = isCorrect
+        ? const Color(0xFF05E995)
+        : const Color(0xFFFF9800);
+    final shadowColor = isCorrect
+        ? const Color(0x6605E995)
+        : const Color(0x66FF9800);
+    final icon = isCorrect ? Icons.check_circle : Icons.refresh;
+    final label = isCorrect ? 'Correcto' : 'Intenta de nuevo';
 
-                // Grid de opciones
-                Expanded(child: _buildOptionsGrid()),
+    return SizedBox(
+      height: 48,
+      child: Center(
+        child: AnimatedOpacity(
+          opacity: isVisible ? 1 : 0,
+          duration: const Duration(milliseconds: 180),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 22),
+                SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -528,19 +603,21 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         border: Border.all(color: const Color(0x33FFFFFF), width: 1),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.flag, color: Color(0xFFFFD700), size: 22),
           const SizedBox(width: 8),
-          Text(
-            'Intentos: $_attempts / $_maxAttempts',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Expanded(
+            child: Text(
+              'Intentos: $_attempts / $_maxAttempts',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -560,18 +637,20 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.quiz, color: Color(0xFFFFD700), size: 20),
               const SizedBox(width: 8),
-              Text(
-                'Pregunta ${_currentQuestionIndex + 1} de ${_questions.length}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFFFD700),
+              Expanded(
+                child: Text(
+                  'Pregunta ${_currentQuestionIndex + 1} de ${_questions.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFFD700),
+                  ),
                 ),
               ),
             ],
@@ -604,17 +683,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   /// Construye el grid de opciones
   Widget _buildOptionsGrid() {
-    // Determinar número de columnas basado en cantidad de opciones
-    int crossAxisCount;
-    if (_options.length <= 2) {
-      crossAxisCount = 2;
-    } else if (_options.length <= 4) {
-      crossAxisCount = 2;
-    } else if (_options.length <= 6) {
-      crossAxisCount = 3;
-    } else {
-      crossAxisCount = 3;
-    }
+    final crossAxisCount = _getOptionsCrossAxisCount(_options.length);
 
     return Center(
       child: LayoutBuilder(
@@ -767,6 +836,38 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     }
     return const Color(0x66FFFFFF);
   }
+
+  Widget _buildTopStatusLayout() {
+    final showQuestionProgress = _questions.length > 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackVertically = showQuestionProgress && constraints.maxWidth < 560;
+        if (stackVertically) {
+          return Column(
+            children: [
+              _buildQuestionProgressInfo(),
+              const SizedBox(height: 10),
+              _buildAttemptsInfo(),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (showQuestionProgress) Expanded(child: _buildQuestionProgressInfo()),
+            if (showQuestionProgress) const SizedBox(width: 12),
+            Expanded(child: _buildAttemptsInfo()),
+          ],
+        );
+      },
+    );
+  }
+
+  int _getOptionsCrossAxisCount(int optionCount) {
+    if (optionCount <= 4) return 2;
+    return 3;
+  }
 }
 
 /// Clase para representar los datos de una pregunta
@@ -869,9 +970,7 @@ Widget _buildImageFromPath(String path) {
       },
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
+        return const _SimpleSelectionImageShimmer();
       },
     );
   }
@@ -889,6 +988,205 @@ Widget _buildImageFromPath(String path) {
       );
     },
   );
+}
+
+class _SimpleSelectionLoadingSkeleton extends StatelessWidget {
+  final bool showQuestionProgress;
+  final int crossAxisCount;
+  final int optionCount;
+
+  const _SimpleSelectionLoadingSkeleton({
+    required this.showQuestionProgress,
+    required this.crossAxisCount,
+    required this.optionCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackVertically = showQuestionProgress && constraints.maxWidth < 560;
+              if (stackVertically) {
+                return const Column(
+                  children: [
+                    _SimpleSelectionShimmer(
+                      child: _SimpleSelectionSkeletonBox(
+                        height: 44,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    _SimpleSelectionShimmer(
+                      child: _SimpleSelectionSkeletonBox(
+                        height: 44,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  if (showQuestionProgress)
+                    const Expanded(
+                      child: _SimpleSelectionShimmer(
+                        child: _SimpleSelectionSkeletonBox(
+                          height: 44,
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                        ),
+                      ),
+                    ),
+                  if (showQuestionProgress) const SizedBox(width: 12),
+                  const Expanded(
+                    child: _SimpleSelectionShimmer(
+                      child: _SimpleSelectionSkeletonBox(
+                        height: 44,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          const _SimpleSelectionShimmer(
+            child: _SimpleSelectionSkeletonBox(
+              height: 92,
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: GridView.count(
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: List.generate(
+                optionCount,
+                (_) => const _SimpleSelectionShimmer(
+                  child: _SimpleSelectionSkeletonBox(
+                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimpleSelectionImageShimmer extends StatelessWidget {
+  const _SimpleSelectionImageShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(4),
+      child: _SimpleSelectionShimmer(
+        child: _SimpleSelectionSkeletonBox(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+    );
+  }
+}
+
+class _SimpleSelectionShimmer extends StatefulWidget {
+  final Widget child;
+  const _SimpleSelectionShimmer({required this.child});
+
+  @override
+  State<_SimpleSelectionShimmer> createState() => _SimpleSelectionShimmerState();
+}
+
+class _SimpleSelectionShimmerState extends State<_SimpleSelectionShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: const [
+                Color(0xFF1E4D6B),
+                Color(0xFF2E7DAA),
+                Color(0xFF3A9AD9),
+                Color(0xFF2E7DAA),
+                Color(0xFF1E4D6B),
+              ],
+              stops: [0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _SimpleSelectionSkeletonBox extends StatelessWidget {
+  final double? height;
+  final BorderRadius borderRadius;
+
+  const _SimpleSelectionSkeletonBox({
+    this.height,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E4D6B),
+        borderRadius: borderRadius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Registrar este minijuego con el factory
