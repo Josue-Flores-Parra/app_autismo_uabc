@@ -799,7 +799,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           miniGameType: 'simple_selection',
           title: 'Seleccion simple',
           description: 'Elige la imagen correcta para cada paso',
-          imagePath: level.pictogramaUrl ?? '',
+          imagePath: 'assets/images/salute.png',
         ),
       );
     }

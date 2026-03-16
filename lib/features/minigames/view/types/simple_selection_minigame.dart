@@ -26,6 +26,9 @@ enum _InlineFeedbackType { none, correct, incorrect }
 class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   static const String _kQuestionPrefix =
       'Cual es la imagen correcta para el siguiente paso:';
+  static const Duration _kInlineFeedbackFadeDuration = Duration(
+    milliseconds: 240,
+  );
 
   int _attempts = 0;
   int? _selectedIndex;
@@ -339,12 +342,20 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       if (_currentQuestionIndex < _questions.length - 1) {
         // Avanzar a la siguiente pregunta
         Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
+          if (!mounted) return;
+
+          // Primero ocultar el feedback para evitar flicker al cambiar pregunta.
+          setState(() {
+            _inlineFeedback = _InlineFeedbackType.none;
+          });
+
+          Future.delayed(_kInlineFeedbackFadeDuration, () {
+            if (!mounted) return;
             setState(() {
               _currentQuestionIndex++;
               _loadCurrentQuestion();
             });
-          }
+          });
         });
       } else {
         // Última pregunta completada - finalizar el juego
@@ -502,24 +513,27 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   }
 
   Widget _buildInlineFeedbackLabel() {
-    final isVisible = _inlineFeedback != _InlineFeedbackType.none;
+    if (_inlineFeedback == _InlineFeedbackType.none) {
+      return const SizedBox(height: 48);
+    }
+
     final isCorrect = _inlineFeedback == _InlineFeedbackType.correct;
-    final backgroundColor = isCorrect
-        ? const Color(0xFF05E995)
-        : const Color(0xFFFF9800);
-    final shadowColor = isCorrect
-        ? const Color(0x6605E995)
-        : const Color(0x66FF9800);
+    final backgroundColor =
+        isCorrect ? const Color(0xFF05E995) : const Color(0xFFFF9800);
+    final shadowColor =
+        isCorrect ? const Color(0x6605E995) : const Color(0x66FF9800);
     final icon = isCorrect ? Icons.check_circle : Icons.refresh;
     final label = isCorrect ? 'Correcto' : 'Intenta de nuevo';
 
     return SizedBox(
       height: 48,
       child: Center(
-        child: AnimatedOpacity(
-          opacity: isVisible ? 1 : 0,
-          duration: const Duration(milliseconds: 180),
+        child: AnimatedSwitcher(
+          duration: _kInlineFeedbackFadeDuration,
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
           child: Container(
+            key: ValueKey<_InlineFeedbackType>(_inlineFeedback),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: backgroundColor,
