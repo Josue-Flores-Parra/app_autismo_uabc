@@ -136,31 +136,34 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
           children: [
             Expanded(
               flex: 3,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0x001A3D52), // Sin fondo blanco, transparente
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0x997BA5C9), width: 2),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x80000000),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: widget.imgPreview.isNotEmpty
-                      ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain, shimmerBaseColor: const Color(0xFF1A3D52))
-                      : const Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            size: 80,
-                            color: Color(0xFFCCCCCC),
+              child: _buildPreviewMediaWithTypeLabel(
+                label: 'PICTOGRAMA',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0x001A3D52), // Sin fondo blanco, transparente
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x80000000),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: widget.imgPreview.isNotEmpty
+                        ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain, shimmerBaseColor: const Color(0xFF1A3D52))
+                        : const Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              size: 80,
+                              color: Color(0xFFCCCCCC),
+                            ),
                           ),
-                        ),
+                  ),
                 ),
               ),
             ),
@@ -320,150 +323,153 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                 children: [
                   Expanded(
                     flex: 3,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final double videoAspectRatio =
-                            _viewModel.videoController.value.aspectRatio;
-                        final double availableWidth = constraints.maxWidth;
-                        final double videoHeight =
-                            availableWidth / videoAspectRatio;
-                        final double controlBarHeight = videoHeight * 0.15;
+                    child: _buildPreviewMediaWithTypeLabel(
+                      label: 'VIDEO',
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final double videoAspectRatio =
+                              _viewModel.videoController.value.aspectRatio;
+                          final double availableWidth = constraints.maxWidth;
+                          final double videoHeight =
+                              availableWidth / videoAspectRatio;
+                          final double controlBarHeight = videoHeight * 0.15;
 
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: AspectRatio(
-                            aspectRatio: videoAspectRatio,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                VideoPlayer(_viewModel.videoController),
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: AspectRatio(
+                              aspectRatio: videoAspectRatio,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  VideoPlayer(_viewModel.videoController),
 
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    onTap: _viewModel.togglePlayPause,
-                                    child: AnimatedOpacity(
-                                      opacity: _viewModel.showGiantIcon
-                                          ? 1.0
-                                          : 0.0,
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      child: SvgPicture.asset(
-                                        _viewModel
-                                                .videoController
-                                                .value
-                                                .isPlaying
-                                            ? 'assets/icons/pausebigbutton.svg'
-                                            : 'assets/icons/playbigbutton.svg',
-                                        width: 60.0,
-                                        height: 60.0,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                Positioned(
-                                  bottom: controlBarHeight + 10.0,
-                                  left: 0,
-                                  right: 0,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10.0,
-                                    ),
-                                    child: VideoProgressIndicator(
-                                      _viewModel.videoController,
-                                      allowScrubbing: true,
-                                      colors: const VideoProgressColors(
-                                        playedColor: Colors.white,
-                                        bufferedColor: Colors.white54,
-                                        backgroundColor: Colors.white24,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                Positioned(
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: Container(
-                                    height: controlBarHeight,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF5B8DB3),
-                                      border: Border(
-                                        top: BorderSide(
-                                          width: 3.0,
-                                          color: Colors.white,
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      onTap: _viewModel.togglePlayPause,
+                                      child: AnimatedOpacity(
+                                        opacity: _viewModel.showGiantIcon
+                                            ? 1.0
+                                            : 0.0,
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        child: SvgPicture.asset(
+                                          _viewModel
+                                                  .videoController
+                                                  .value
+                                                  .isPlaying
+                                              ? 'assets/icons/pausebigbutton.svg'
+                                              : 'assets/icons/playbigbutton.svg',
+                                          width: 60.0,
+                                          height: 60.0,
                                         ),
                                       ),
                                     ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceAround,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        GestureDetector(
-                                          onTap: _viewModel.togglePlayPause,
-                                          child: SvgPicture.asset(
-                                            _viewModel.videoController.value.isPlaying
-                                                ? 'assets/icons/pausebutton.svg'
-                                                : 'assets/icons/playbuttoncontroller.svg',
-                                            width: 28,
-                                            height: 28,
+                                  ),
+
+                                  Positioned(
+                                    bottom: controlBarHeight + 10.0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10.0,
+                                      ),
+                                      child: VideoProgressIndicator(
+                                        _viewModel.videoController,
+                                        allowScrubbing: true,
+                                        colors: const VideoProgressColors(
+                                          playedColor: Colors.white,
+                                          bufferedColor: Colors.white54,
+                                          backgroundColor: Colors.white24,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      height: controlBarHeight,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF5B8DB3),
+                                        border: Border(
+                                          top: BorderSide(
+                                            width: 3.0,
+                                            color: Colors.white,
                                           ),
                                         ),
-
-                                        Flexible(
-                                          child: Text(
-                                            '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceAround,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: _viewModel.togglePlayPause,
+                                            child: SvgPicture.asset(
+                                              _viewModel.videoController.value.isPlaying
+                                                  ? 'assets/icons/pausebutton.svg'
+                                                  : 'assets/icons/playbuttoncontroller.svg',
+                                              width: 28,
+                                              height: 28,
                                             ),
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
 
-                                        GestureDetector(
-                                          onTap: _viewModel.replay,
-                                          child: SvgPicture.asset(
-                                            'assets/icons/replay.svg',
-                                            width: 28,
-                                            height: 28,
-                                          ),
-                                        ),
-
-                                        GestureDetector(
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    _FullscreenVideoPlayer(
-                                                      viewModel: _viewModel,
-                                                      onClose: () =>
-                                                          Navigator.of(
-                                                            context,
-                                                          ).pop(),
-                                                    ),
+                                          Flexible(
+                                            child: Text(
+                                              '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
                                               ),
-                                            );
-                                          },
-                                          child: SvgPicture.asset(
-                                            'assets/icons/fullscreen.svg',
-                                            width: 28,
-                                            height: 28,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+
+                                          GestureDetector(
+                                            onTap: _viewModel.replay,
+                                            child: SvgPicture.asset(
+                                              'assets/icons/replay.svg',
+                                              width: 28,
+                                              height: 28,
+                                            ),
+                                          ),
+
+                                          GestureDetector(
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      _FullscreenVideoPlayer(
+                                                        viewModel: _viewModel,
+                                                        onClose: () =>
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop(),
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                            child: SvgPicture.asset(
+                                              'assets/icons/fullscreen.svg',
+                                              width: 28,
+                                              height: 28,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
 
@@ -719,35 +725,38 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
           children: [
             Expanded(
               flex: 3,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0x997BA5C9), width: 2),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x80000000),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: widget.imgPreview.isNotEmpty
-                      ? _buildImageFromUrl(
-                          widget.imgPreview,
-                          fit: BoxFit.contain,
-                          shimmerBaseColor: const Color(0xFF1A3D52),
-                        )
-                      : const Center(
-                          child: Icon(
-                            Icons.gamepad_rounded,
-                            size: 80,
-                            color: Color(0xFFCCCCCC),
+              child: _buildPreviewMediaWithTypeLabel(
+                label: 'MINIJUEGO',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFFFF),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x80000000),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: widget.imgPreview.isNotEmpty
+                        ? _buildImageFromUrl(
+                            widget.imgPreview,
+                            fit: BoxFit.contain,
+                            shimmerBaseColor: const Color(0xFF1A3D52),
+                          )
+                        : const Center(
+                            child: Icon(
+                              Icons.gamepad_rounded,
+                              size: 80,
+                              color: Color(0xFFCCCCCC),
+                            ),
                           ),
-                        ),
+                  ),
                 ),
               ),
             ),
@@ -895,27 +904,30 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
           children: [
             Expanded(
               flex: 3,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+              child: _buildPreviewMediaWithTypeLabel(
+                label: 'AUDIO',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: widget.imagePath != null && widget.imagePath!.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: _buildImageFromUrl(
+                            widget.imagePath!,
+                            fit: BoxFit.contain,
+                            shimmerBaseColor: const Color(0xFF1A3D52),
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.audiotrack,
+                            size: 80,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
-                child: widget.imagePath != null && widget.imagePath!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: _buildImageFromUrl(
-                          widget.imagePath!,
-                          fit: BoxFit.contain,
-                          shimmerBaseColor: const Color(0xFF1A3D52),
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(
-                          Icons.audiotrack,
-                          size: 80,
-                          color: Colors.white,
-                        ),
-                      ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1054,6 +1066,64 @@ Widget _buildImageFromUrl(
     width: width,
     fit: fit,
     errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+  );
+}
+
+/*
+* Helper para construir la etiqueta de tipo de preview (VIDEO, AUDIO, MINIJUEGO)
+* Se superpone sobre el contenido principal usando un Stack, con un diseño de etiqueta personalizada
+* Si [showLabel] es false, simplemente devuelve el child sin la etiqueta.
+* De esta manera, podemos modificar el texto dependinedo del tipo de PreviewCard que estemos construyendo,
+* pero reutilizar la misma función para colocar la etiqueta de forma consistente en todas las tarjetas.
+ */
+Widget _buildPreviewMediaWithTypeLabel({
+  required Widget child,
+  required String label,
+  bool showLabel = true,
+}) {
+  if (!showLabel) return child;
+
+  return Stack(
+    clipBehavior: Clip.none,
+    children: [
+      Positioned.fill(child: child),
+      Positioned(
+        top: -11,
+        left: 0,
+        right: 0,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: _buildPreviewTypeLabel(label),
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildPreviewTypeLabel(String text) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: const Color(0xFF2D5B7A),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: const Color(0xCCFFFFFF), width: 1.2),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x55000000),
+          blurRadius: 8,
+          offset: Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      ),
+    ),
   );
 }
 
