@@ -4,6 +4,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import '../../../../shared/services/tts_service.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Selección Simple
@@ -46,6 +47,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   late ConfettiController _confettiController;
   final AudioPlayer _celebrationPlayer = AudioPlayer();
+  final AudioPlayer _negativeBeepPlayer = AudioPlayer();
+  final TtsService _ttsService = TtsService();
+  bool _ttsReady = false;
 
   // Datos de la pregunta actual
   late String _question;
@@ -58,6 +62,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   void initState() {
     super.initState();
     _initConfetti();
+    _initTts();
     _initializeGameData();
     _loadCurrentQuestion();
     // Precargar todas las imagenes de las 3 preguntas antes de habilitar el juego.
@@ -72,9 +77,27 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   @override
   void dispose() {
+    _ttsService.dispose();
     _confettiController.dispose();
     _celebrationPlayer.dispose();
+    _negativeBeepPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    final ready = await _ttsService.initializeDefaultEsMx();
+    if (!mounted) return;
+    setState(() {
+      _ttsReady = ready;
+    });
+    if (_ttsReady && !_isPreloadingImages) {
+      _speakCurrentQuestion();
+    }
+  }
+
+  Future<void> _speakCurrentQuestion() async {
+    if (!_ttsReady) return;
+    await _ttsService.speak(_question);
   }
 
   Future<void> _precacheAllQuestionImages() async {
@@ -100,6 +123,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     setState(() {
       _isPreloadingImages = false;
     });
+    if (_ttsReady) {
+      _speakCurrentQuestion();
+    }
   }
 
   /// Inicializa los datos del juego desde minigameData
@@ -208,6 +234,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     );
     if (_correctIndex < 0) {
       _correctIndex = 0;
+    }
+
+    if (_ttsReady && !_isPreloadingImages) {
+      _speakCurrentQuestion();
     }
   }
 
@@ -386,11 +416,13 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       _isCompleted = true;
       _isInteractionLocked = true;
     });
+    _ttsService.stop();
 
     if (success) {
       _celebrateCompletion();
     } else {
       _inlineFeedback = _InlineFeedbackType.incorrect;
+      _playNegativeBeepSound();
     }
 
     // Mantener un pequeño delay para que se vea el feedback/celebración.
@@ -427,6 +459,24 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         );
       }
       await _celebrationPlayer.play();
+    } catch (_) {}
+  }
+
+  Future<void> _playNegativeBeepSound() async {
+    try {
+      await _configureAudioSession();
+      await _negativeBeepPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/negative_beeps.mp3'),
+      );
+      await _negativeBeepPlayer.setVolume(1.0);
+      if (_negativeBeepPlayer.processingState == ProcessingState.loading) {
+        await _negativeBeepPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+          (state) => state.processingState != ProcessingState.loading,
+        );
+      }
+      await _negativeBeepPlayer.play();
     } catch (_) {}
   }
 
@@ -601,6 +651,12 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                 color: Colors.white,
               ),
             ),
+          ),
+          IconButton(
+            onPressed: _ttsReady ? _speakCurrentQuestion : null,
+            icon: const Icon(Icons.volume_up_rounded),
+            color: Colors.white,
+            tooltip: 'Escuchar pregunta',
           ),
         ],
       ),

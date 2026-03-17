@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../minigames/minigame_core.dart';
 import '../../minigames/view/minigames_widget.dart';
 import '../../../data/services/firestore_services.dart';
+import '../../../shared/services/tts_service.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../../avatar/viewmodel/avatar_viewmodel.dart';
@@ -42,12 +43,40 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   late int _retriesLeft;
   Key _minigameKey = UniqueKey();
   final FirestoreService _firestoreService = FirestoreService();
+  final TtsService _ttsService = TtsService();
+  bool _ttsReady = false;
 
   @override
   void initState() {
     super.initState();
     _retriesLeft =
         2; // Número de veces que puede reintentar después del primer intento
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    final ready = await _ttsService.initializeDefaultEsMx();
+    if (!mounted) return;
+    setState(() {
+      _ttsReady = ready;
+    });
+  }
+
+  Future<void> _speakCompletionFeedback(bool success) async {
+    if (!_ttsReady) return;
+
+    final message = success
+        ? 'Nivel completado. Excelente trabajo.'
+        : _retriesLeft > 0
+        ? 'Buen intento. Puedes intentarlo de nuevo.'
+        : 'Buen intento. Has agotado tus reintentos.';
+    await _ttsService.speak(message);
+  }
+
+  @override
+  void dispose() {
+    _ttsService.dispose();
+    super.dispose();
   }
 
   /// Reinicia el minigame con opciones mezcladas y intentos reducidos
@@ -348,6 +377,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     if (success) {
       await _saveProgress(context, success, attempts);
     }
+
+    await _speakCompletionFeedback(success);
+
     // Mostrar resultado y navegar de regreso
     showDialog(
       context: context,
@@ -465,7 +497,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                     Text(
                       'Reintentos disponibles: $_retriesLeft',
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -480,6 +512,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           if (!success)
             TextButton(
               onPressed: () {
+                _ttsService.stop();
                 Navigator.of(context).pop(); // Cerrar diálogo
                 Navigator.of(context).pop(); // Volver al timeline
               },
@@ -490,6 +523,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
             ),
           ElevatedButton(
             onPressed: () {
+              _ttsService.stop();
               Navigator.of(context).pop(); // Cerrar diálogo
               if (success) {
                 Navigator.of(context).pop(); // Volver al timeline

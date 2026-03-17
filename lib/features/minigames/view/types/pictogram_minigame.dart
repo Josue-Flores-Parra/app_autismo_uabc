@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:confetti/confetti.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
+import '../../../../shared/services/tts_service.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Pictograma
@@ -32,7 +32,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   bool _imagesPrecached = false;
   int _imagesLoadedCount = 0;
   int _totalImagesCount = 0;
-  final FlutterTts _tts = FlutterTts();
+  final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
   bool _autoSpeakTriggered = false;
   late ConfettiController _confettiController;
@@ -57,7 +57,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
   @override
   void dispose() {
-    _tts.stop();
+    _ttsService.dispose();
     _pageController.dispose();
     _confettiController.dispose();
     _celebrationPlayer.dispose();
@@ -65,15 +65,9 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   }
 
   Future<void> _initTts() async {
-    try {
-      await _tts.setLanguage('es-MX');
-      await _tts.setSpeechRate(0.6);
-      await _tts.setVolume(1.0);
-      await _tts.setPitch(1.0);
-      setState(() => _ttsReady = true);
-    } catch (_) {
-      setState(() => _ttsReady = false);
-    }
+    final ready = await _ttsService.initializeDefaultEsMx();
+    if (!mounted) return;
+    setState(() => _ttsReady = ready);
   }
 
   Future<void> _speakCaption(int index) async {
@@ -81,8 +75,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     if (index < 0 || index >= _steps.length) return;
     final caption = _steps[index].caption;
     if (caption == null || caption.isEmpty) return;
-    await _tts.stop();
-    await _tts.speak(caption);
+    await _ttsService.speak(caption);
   }
 
   /// Precarga todas las imágenes del carrusel al inicializar el widget
@@ -658,26 +651,18 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   Future<void> _playCelebrationSound() async {
     try {
       await _configureAudioSession();
-      try {
-        await _celebrationPlayer.setAudioSource(
-          AudioSource.asset('assets/audio/celebration.mp3'),
+      await _celebrationPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/celebration.mp3'),
+      );
+      await _celebrationPlayer.setVolume(1.0);
+      if (_celebrationPlayer.processingState == ProcessingState.loading) {
+        await _celebrationPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+          (state) => state.processingState != ProcessingState.loading,
         );
-        await _celebrationPlayer.setVolume(1.0);
-        if (_celebrationPlayer.processingState == ProcessingState.loading) {
-          await _celebrationPlayer.playerStateStream
-              .timeout(const Duration(seconds: 3))
-              .firstWhere(
-            (state) => state.processingState != ProcessingState.loading,
-          );
-        }
-        await _celebrationPlayer.play();
-      } catch (e, stackTrace) {
-        if (_ttsReady) {
-          try {
-            await _tts.speak('¡Felicitaciones! ¡Nivel completado!');
-          } catch (_) {}
-        }
       }
+      await _celebrationPlayer.play();
     } catch (_) {}
   }
 
