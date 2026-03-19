@@ -26,7 +26,7 @@ enum _InlineFeedbackType { none, correct, incorrect }
 
 class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   static const String _kQuestionPrefix =
-      'Cual es la imagen correcta para el siguiente paso:';
+      'Cuál es la imagen correcta para el paso... ';
   static const Duration _kInlineFeedbackFadeDuration = Duration(
     milliseconds: 240,
   );
@@ -301,7 +301,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     for (final raw in rawSteps) {
       if (raw is! Map) continue;
       final step = Map<String, dynamic>.from(raw);
-
+      // TODO: remover if-null innecearios
       final imagePath = (step['url'] ??
               step['imagePath'] ??
               step['src'] ??
