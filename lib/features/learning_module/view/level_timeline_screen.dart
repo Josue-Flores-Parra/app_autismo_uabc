@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:appy/features/learning_module/model/levels_models.dart';
 import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel.dart';
 import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
-import 'package:appy/features/learning_module/view/level_play_screen.dart';
 import 'package:appy/features/learning_module/view/level_content_screen.dart';
 import 'package:appy/features/learning_module/model/content_card_model.dart';
 
@@ -36,6 +35,11 @@ class PathPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
 
+    // Dibujar líneas entre nodos con efecto de curva suave
+    // Usamos cubicTo para crear una curva entre cada par de nodos, y el color depende del estado del nodo inicial
+    // Si el nodo está completado, la línea se dibuja con el paint de completed, sino con el paint base.
+    // Esto crea un efecto visual donde las líneas hacia los nodos completados se ven más brillantes
+    // y resaltan, mientras que las líneas hacia los nodos bloqueados o en progreso se ven más tenues.
     for (int i = 0; i < nodePositions.length - 1; i++) {
       final startPoint = nodePositions[i];
       final endPoint = nodePositions[i + 1];
@@ -151,6 +155,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
   @override
   void dispose() {
+    // Liberar los pines del ImageCache al salir del timeline.
+    // Mientras la pantalla esté activa los pines mantienen las portadas en
+    // memoria; al hacer pop() se liberan para que el GC pueda recuperarlas.
+    context.read<LearningViewModel>().releasePinsForModule(widget.moduleId);
     _animationController?.dispose();
     _removeOverlay();
     super.dispose();
@@ -406,7 +414,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           (level) => level.id == step.levelId,
           orElse: () => throw Exception('Nivel no encontrado'),
         );
-        
+
         // Construir el contenido del carrusel desde el nivel completo
         final contents = _buildContentFromLevel(levelInfo);
         
@@ -508,7 +516,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
   Widget _buildStepTitle(String title) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      // Dimensiones ajustadas para el tamaño de fuente: vertical reducido para compensar el aumento del tamaño de fuente
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: const Color.fromARGB(216, 9, 31, 44),
         borderRadius: BorderRadius.circular(15),
@@ -517,7 +526,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 12,
+          fontSize: 18, // Tamaño de fuente mas grande para mejor legibilidad
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
@@ -526,6 +535,9 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
+  // Construye el contenido del popup al hacer tap en un nodo, mostrando la información del paso y el botón de JUGAR
+  // Al presionar JUGAR, primero cierra el popup, luego navega a la pantalla de preview del nivel, pasando
+  // toda la información necesaria para mostrar el carrusel y los datos del minijuego.
   Widget _buildPopupContent(BuildContext context, LevelStepInfo step, LevelTimelineViewModel viewModel) {
     return Material(
       color: Colors.transparent,
@@ -575,7 +587,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
@@ -613,7 +625,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     (level) => level.id == step.levelId,
                     orElse: () => throw Exception('Nivel no encontrado'),
                   );
-                  
+
                   // Construir el contenido del carrusel desde el nivel completo
                   final contents = _buildContentFromLevel(levelInfo);
                   
@@ -751,6 +763,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   /// Construye el contenido del carrusel desde un ModuleLevelInfo
   List<ContentCardData> _buildContentFromLevel(ModuleLevelInfo level) {
     final List<ContentCardData> contents = [];
+    final simpleSelectionEnabled =
+        _asBool(level.actividadData?['isSimpleSelectionEnabled']);
 
     // 1. PRIMERO: Si hay pictograma, agregar tarjeta de pictograma
     if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
@@ -773,6 +787,19 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           description: 'Video educativo',
           imagePath: level.pictogramaUrl ?? '',
           videoPath: level.videoUrl,
+        ),
+      );
+    }
+
+    // 2.5: Si el nivel habilita seleccion simple, agregar su tarjeta en el carrusel.
+    if (simpleSelectionEnabled) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.miniGame,
+          miniGameType: 'simple_selection',
+          title: 'Seleccion simple',
+          description: 'Elige la imagen correcta para cada paso',
+          imagePath: 'assets/images/salute.png',
         ),
       );
     }
@@ -806,6 +833,16 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     return contents;
   }
 
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
+  }
+
   /// Construye una imagen desde una URL, detectando automáticamente si es un asset local o URL externa
   /// Permite usar URLs tal cual están en la base de datos sin agregar prefijos automáticos
   Widget _buildImageFromUrl(
@@ -824,9 +861,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
         errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          // Mostrar skeleton animado mientras la imagen de portada carga desde Firestore
+          return _TimelineImageSkeleton(height: height, width: width);
         },
       );
     }
@@ -839,6 +875,101 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       width: width,
       fit: fit,
       errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Widgets de esqueleto para la imagen de portada del nivel en el popup
+// ---------------------------------------------------------------------------
+
+/// Shimmer animado específico para la imagen de portada del nivel.
+/// Barre un destello de izquierda a derecha mientras la imagen carga de Firestore.
+class _TimelineImageSkeleton extends StatefulWidget {
+  final double? height;
+  final double? width;
+
+  const _TimelineImageSkeleton({this.height, this.width});
+
+  @override
+  State<_TimelineImageSkeleton> createState() => _TimelineImageSkeletonState();
+}
+
+class _TimelineImageSkeletonState extends State<_TimelineImageSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ciclo de 1.4 segundos que se repite indefinidamente
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    // El destello viaja de izquierda (-2) a derecha (+2)
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: const [
+                Color(0xFF1E4D6B),
+                Color(0xFF2E7DAA),
+                Color(0xFF3A9AD9),
+                Color(0xFF2E7DAA),
+                Color(0xFF1E4D6B),
+              ],
+              stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      // Contenedor exterior que mantiene el mismo espacio reservado que la imagen real.
+      // El skeleton interior respeta la proporción 4:3 y queda centrado.
+      child: SizedBox(
+        height: widget.height,
+        width: widget.width,
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E4D6B),
+                borderRadius: BorderRadius.circular(18),
+                // Sombra que replica la profundidad de la imagen de portada real
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x80000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ class ContentCardData {
   final String imagePath;
   final String? videoPath;
   final String? audioPath;
+  final String? miniGameType;
 
   ContentCardData({
     required this.type,
@@ -15,5 +16,6 @@ class ContentCardData {
     required this.imagePath,
     this.videoPath,
     this.audioPath,
+    this.miniGameType,
   });
 }

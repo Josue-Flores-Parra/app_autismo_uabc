@@ -1,5 +1,10 @@
+import 'dart:async';
 import 'dart:math';
+import 'package:audio_session/audio_session.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import '../../../../shared/services/tts_service.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Selección Simple
@@ -17,7 +22,15 @@ class SimpleSelectionMinigame extends MinigameBase {
       _SimpleSelectionMinigameState();
 }
 
+enum _InlineFeedbackType { none, correct, incorrect }
+
 class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
+  static const String _kQuestionPrefix =
+      'Cuál es la imagen correcta para el paso... ';
+  static const Duration _kInlineFeedbackFadeDuration = Duration(
+    milliseconds: 240,
+  );
+
   int _attempts = 0;
   int? _selectedIndex;
   bool _isCompleted = false;
@@ -29,6 +42,14 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   late final List<QuestionData> _questions;
   int _currentQuestionIndex = 0;
   int _totalAttempts = 0; // Intentos totales a través de todas las preguntas
+  bool _isPreloadingImages = true;
+  _InlineFeedbackType _inlineFeedback = _InlineFeedbackType.none;
+
+  late ConfettiController _confettiController;
+  final AudioPlayer _celebrationPlayer = AudioPlayer();
+  final AudioPlayer _negativeBeepPlayer = AudioPlayer();
+  final TtsService _ttsService = TtsService();
+  bool _ttsReady = false;
 
   // Datos de la pregunta actual
   late String _question;
@@ -40,13 +61,83 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   @override
   void initState() {
     super.initState();
+    _initConfetti();
+    _initTts();
     _initializeGameData();
     _loadCurrentQuestion();
+    // Precargar todas las imagenes de las 3 preguntas antes de habilitar el juego.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precacheAllQuestionImages();
+    });
+  }
+
+  void _initConfetti() {
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+  }
+
+  @override
+  void dispose() {
+    _ttsService.dispose();
+    _confettiController.dispose();
+    _celebrationPlayer.dispose();
+    _negativeBeepPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    final ready = await _ttsService.initializeDefaultEsMx();
+    if (!mounted) return;
+    setState(() {
+      _ttsReady = ready;
+    });
+    if (_ttsReady && !_isPreloadingImages) {
+      _speakCurrentQuestion();
+    }
+  }
+
+  Future<void> _speakCurrentQuestion() async {
+    if (!_ttsReady) return;
+    await _ttsService.speak(_question);
+  }
+
+  Future<void> _precacheAllQuestionImages() async {
+    final uniquePaths = <String>{
+      for (final q in _questions)
+        for (final o in q.options)
+          if (o.imagePath.trim().isNotEmpty) o.imagePath.trim(),
+    };
+
+    final futures = uniquePaths.map((path) async {
+      try {
+        final provider = (path.startsWith('http://') || path.startsWith('https://'))
+            ? NetworkImage(path)
+            : AssetImage(path) as ImageProvider;
+        await precacheImage(provider, context);
+      } catch (_) {
+        // Ignorar errores individuales para no bloquear el minijuego completo.
+      }
+    }).toList();
+
+    await Future.wait(futures);
+    if (!mounted) return;
+    setState(() {
+      _isPreloadingImages = false;
+    });
+    if (_ttsReady) {
+      _speakCurrentQuestion();
+    }
   }
 
   /// Inicializa los datos del juego desde minigameData
   void _initializeGameData() {
     final data = widget.minigameData;
+
+    // Prioridad: generar preguntas dinámicamente desde actividadData.steps.
+    final generatedQuestions = _buildQuestionsFromSteps(data);
+    if (generatedQuestions.isNotEmpty) {
+      _questions = generatedQuestions;
+      return;
+    }
 
     // Verificar si hay múltiples preguntas (formato nuevo) o una sola (formato antiguo)
     if (data.containsKey('questions')) {
@@ -69,10 +160,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         questionsData = [];
       }
 
-      _questions = questionsData
-          .map((q) {
-            if (q is Map<String, dynamic>) {
-              return QuestionData.fromMap(q);
+      _questions = questionsData.map((q) {
+            if (q is Map) {
+              return QuestionData.fromMap(Map<String, dynamic>.from(q));
             }
             // Si no es un Map, intentar crear una pregunta por defecto
             return QuestionData(
@@ -81,8 +171,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
               maxAttempts: 3,
               options: [],
             );
-          })
-          .toList();
+          }).toList();
 
       // Limitar a máximo 3 preguntas
       if (_questions.length > 3) {
@@ -107,6 +196,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     _attempts = 0;
     _selectedIndex = null;
     _isInteractionLocked = false;
+    _inlineFeedback = _InlineFeedbackType.none;
 
     // Cargar y mezclar opciones
     List<SelectionOption> loadedOptions = List.from(questionData.options);
@@ -142,6 +232,101 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           option.imagePath == _correctOption.imagePath &&
           option.label == _correctOption.label,
     );
+    if (_correctIndex < 0) {
+      _correctIndex = 0;
+    }
+
+    if (_ttsReady && !_isPreloadingImages) {
+      _speakCurrentQuestion();
+    }
+  }
+
+  /// Genera exactamente 3 preguntas usando captions e imágenes de `steps`.
+  List<QuestionData> _buildQuestionsFromSteps(Map<String, dynamic> data) {
+    final steps = _parseStepsForSimpleSelection(data);
+    if (steps.length < 2) {
+      return [];
+    }
+
+    final random = Random();
+    final shuffledTargets = List<_SimpleSelectionStep>.from(steps)
+      ..shuffle(random);
+    final maxAttempts = _toInt(data['maxAttempts'], fallback: 3).clamp(1, 10);
+
+    final questions = <QuestionData>[];
+    for (int i = 0; i < 3; i++) {
+      final target = shuffledTargets[i % shuffledTargets.length];
+      final distractors = steps
+          .where((s) => s.imagePath != target.imagePath || s.caption != target.caption)
+          .toList()
+        ..shuffle(random);
+
+      final options = <SelectionOption>[
+        SelectionOption(imagePath: target.imagePath, label: target.caption),
+      ];
+
+      final distractorCount = (steps.length >= 4) ? 3 : (steps.length - 1);
+      options.addAll(
+        distractors.take(distractorCount).map(
+          (s) => SelectionOption(imagePath: s.imagePath, label: s.caption),
+        ),
+      );
+
+      options.shuffle(random);
+      final correctIndex = options.indexWhere(
+        (o) => o.imagePath == target.imagePath && o.label == target.caption,
+      );
+
+      questions.add(
+        QuestionData(
+          question: '$_kQuestionPrefix ${target.caption}',
+          correctIndex: correctIndex < 0 ? 0 : correctIndex,
+          maxAttempts: maxAttempts,
+          options: options,
+        ),
+      );
+    }
+
+    return questions;
+  }
+
+  /// Extrae steps válidos desde actividadData (`steps` o `pictogramSteps`).
+  List<_SimpleSelectionStep> _parseStepsForSimpleSelection(
+    Map<String, dynamic> data,
+  ) {
+    final rawSteps = data['steps'] ?? data['pictogramSteps'];
+    if (rawSteps is! List) return [];
+
+    final unique = <String, _SimpleSelectionStep>{};
+    for (final raw in rawSteps) {
+      if (raw is! Map) continue;
+      final step = Map<String, dynamic>.from(raw);
+      // TODO: remover if-null innecearios
+      final imagePath = (step['url'] ??
+              step['imagePath'] ??
+              step['src'] ??
+              step['pictogramaUrl'] ??
+              '')
+          .toString()
+          .trim();
+      final caption = (step['caption'] ?? step['label'] ?? step['text'] ?? '')
+          .toString()
+          .trim();
+
+      if (imagePath.isEmpty || caption.isEmpty) continue;
+      final key = '$imagePath|$caption';
+      unique[key] = _SimpleSelectionStep(imagePath: imagePath, caption: caption);
+    }
+
+    return unique.values.toList();
+  }
+
+  int _toInt(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
   }
 
   /// Opciones por defecto para propósitos de desarrollo/testing
@@ -167,41 +352,46 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   void _handleSelection(int index) {
     if (_isCompleted || _isInteractionLocked) return;
 
+    final isCorrect = index == _correctIndex;
+
     setState(() {
       _selectedIndex = index;
       _attempts++;
       _totalAttempts++;
       _isInteractionLocked = true;
+      _inlineFeedback = isCorrect
+          ? _InlineFeedbackType.correct
+          : _InlineFeedbackType.incorrect;
     });
 
-    // Verificar si la selección es correcta
-    final isCorrect = index == _correctIndex;
-
     if (isCorrect) {
-      // Selección correcta
-      _showFeedback(isCorrect: true);
+      // Selección correcta: el feedback principal se muestra inline
+      // entre la pregunta y las opciones (no en SnackBar).
 
       // Verificar si hay más preguntas
       if (_currentQuestionIndex < _questions.length - 1) {
         // Avanzar a la siguiente pregunta
         Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
+          if (!mounted) return;
+
+          // Primero ocultar el feedback para evitar flicker al cambiar pregunta.
+          setState(() {
+            _inlineFeedback = _InlineFeedbackType.none;
+          });
+
+          Future.delayed(_kInlineFeedbackFadeDuration, () {
+            if (!mounted) return;
             setState(() {
               _currentQuestionIndex++;
               _loadCurrentQuestion();
             });
-          }
+          });
         });
       } else {
         // Última pregunta completada - finalizar el juego
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          _completeGame(success: true);
-        });
+        _completeGame(success: true);
       }
     } else {
-      // Selección incorrecta
-      _showFeedback(isCorrect: false);
-
       // Verificar si se agotaron los intentos
       if (_attempts >= _maxAttempts) {
         _completeGame(success: false);
@@ -212,47 +402,12 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
             setState(() {
               _selectedIndex = null;
               _isInteractionLocked = false;
+              _inlineFeedback = _InlineFeedbackType.none;
             });
           }
         });
       }
     }
-  }
-
-  /// Muestra feedback visual al usuario
-  void _showFeedback({required bool isCorrect}) {
-    final message = isCorrect ? '¡Correcto!' : '¡Intenta de nuevo!';
-
-    final color = isCorrect ? const Color(0xFF05E995) : const Color(0xFFFF9800);
-    final icon = isCorrect ? Icons.check_circle : Icons.refresh;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(width: 12),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(bottom: 300, left: 20, right: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 8,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      ),
-    );
   }
 
   /// Completa el juego y llama al callback
@@ -261,125 +416,199 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       _isCompleted = true;
       _isInteractionLocked = true;
     });
+    _ttsService.stop();
 
-    // Solo mostrar feedback si falló (porque si tuvo éxito ya se mostró en _handleSelection)
-    if (!success) {
-      _showFeedback(isCorrect: false);
+    if (success) {
+      _celebrateCompletion();
+    } else {
+      _inlineFeedback = _InlineFeedbackType.incorrect;
+      _playNegativeBeepSound();
     }
 
-    // Llamar al callback después de un breve delay para que el usuario vea el feedback
+    // Mantener un pequeño delay para que se vea el feedback/celebración.
     Future.delayed(const Duration(milliseconds: 1500), () {
       widget.onComplete(success, _totalAttempts);
     });
   }
 
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+    } catch (_) {}
+  }
+
+  void _celebrateCompletion() {
+    _confettiController.play();
+    _playCelebrationSound();
+  }
+
+  Future<void> _playCelebrationSound() async {
+    try {
+      await _configureAudioSession();
+      await _celebrationPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/celebration.mp3'),
+      );
+      await _celebrationPlayer.setVolume(1.0);
+      if (_celebrationPlayer.processingState == ProcessingState.loading) {
+        await _celebrationPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+          (state) => state.processingState != ProcessingState.loading,
+        );
+      }
+      await _celebrationPlayer.play();
+    } catch (_) {}
+  }
+
+  Future<void> _playNegativeBeepSound() async {
+    try {
+      await _configureAudioSession();
+      await _negativeBeepPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/negative_beeps.mp3'),
+      );
+      await _negativeBeepPlayer.setVolume(1.0);
+      if (_negativeBeepPlayer.processingState == ProcessingState.loading) {
+        await _negativeBeepPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+          (state) => state.processingState != ProcessingState.loading,
+        );
+      }
+      await _negativeBeepPlayer.play();
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+    if (_isPreloadingImages) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+            ),
+          ),
+          child: SafeArea(
+            child: _SimpleSelectionLoadingSkeleton(
+              showQuestionProgress: _questions.length > 1,
+              crossAxisCount: _getOptionsCrossAxisCount(_options.length),
+              optionCount: max(2, _options.length),
+            ),
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Fila con indicador de progreso e intentos
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Indicador de progreso si hay múltiples preguntas
-                    if (_questions.length > 1) ...[
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color.fromARGB(150, 9, 31, 44),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0x33FFFFFF),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.quiz,
-                                    color: Color(0xFFFFD700),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Pregunta ${_currentQuestionIndex + 1} de ${_questions.length}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFFFD700),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              // Indicadores visuales de progreso
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(_questions.length, (
-                                  index,
-                                ) {
-                                  final isCompleted =
-                                      index < _currentQuestionIndex;
-                                  final isCurrent =
-                                      index == _currentQuestionIndex;
-                                  return Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    width: 30,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: isCompleted
-                                          ? const Color(0xFF05E995)
-                                          : isCurrent
-                                          ? const Color(0xFF00E5FF)
-                                          : Colors.white24,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
+      );
+    }
 
-                    // Información de intentos (siempre visible)
-                    Flexible(child: _buildAttemptsInfo()),
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildTopStatusLayout(),
+                    const SizedBox(height: 16),
+
+                    // Área de pregunta/instrucción
+                    _buildQuestionArea(),
+                    const SizedBox(height: 10),
+                    _buildInlineFeedbackLabel(),
+                    const SizedBox(height: 14),
+
+                    // Grid de opciones
+                    Expanded(child: _buildOptionsGrid()),
                   ],
                 ),
-                const SizedBox(height: 16),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: 3.14 / 2,
+              maxBlastForce: 5,
+              minBlastForce: 2,
+              emissionFrequency: 0.05,
+              numberOfParticles: 50,
+              gravity: 0.1,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.purple,
+                Colors.yellow,
+                Colors.red,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                // Área de pregunta/instrucción
-                _buildQuestionArea(),
-                const SizedBox(height: 24),
+  Widget _buildInlineFeedbackLabel() {
+    if (_inlineFeedback == _InlineFeedbackType.none) {
+      return const SizedBox(height: 48);
+    }
 
-                // Grid de opciones
-                Expanded(child: _buildOptionsGrid()),
+    final isCorrect = _inlineFeedback == _InlineFeedbackType.correct;
+    final backgroundColor =
+        isCorrect ? const Color(0xFF05E995) : const Color(0xFFFF9800);
+    final shadowColor =
+        isCorrect ? const Color(0x6605E995) : const Color(0x66FF9800);
+    final icon = isCorrect ? Icons.check_circle : Icons.refresh;
+    final label = isCorrect ? 'Correcto' : 'Intenta de nuevo';
+
+    return SizedBox(
+      height: 48,
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: _kInlineFeedbackFadeDuration,
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: Container(
+            key: ValueKey<_InlineFeedbackType>(_inlineFeedback),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 22),
+                SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -423,6 +652,12 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
               ),
             ),
           ),
+          IconButton(
+            onPressed: _ttsReady ? _speakCurrentQuestion : null,
+            icon: const Icon(Icons.volume_up_rounded),
+            color: Colors.white,
+            tooltip: 'Escuchar pregunta',
+          ),
         ],
       ),
     );
@@ -431,25 +666,85 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   /// Construye la información de intentos
   Widget _buildAttemptsInfo() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: const Color.fromARGB(216, 9, 31, 44),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0x33FFFFFF), width: 1),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.flag, color: Color(0xFFFFD700), size: 24),
+          const Icon(Icons.flag, color: Color(0xFFFFD700), size: 22),
           const SizedBox(width: 8),
-          Text(
-            'Intentos: $_attempts / $_maxAttempts',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Expanded(
+            child: Text(
+              'Intentos: $_attempts / $_maxAttempts',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionProgressInfo() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(150, 9, 31, 44),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x33FFFFFF), width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.quiz, color: Color(0xFFFFD700), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Pregunta ${_currentQuestionIndex + 1} de ${_questions.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFFD700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_questions.length, (index) {
+              final isCompleted = index < _currentQuestionIndex;
+              final isCurrent = index == _currentQuestionIndex;
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 28,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? const Color(0xFF05E995)
+                      : isCurrent
+                      ? const Color(0xFF00E5FF)
+                      : Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -458,17 +753,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
   /// Construye el grid de opciones
   Widget _buildOptionsGrid() {
-    // Determinar número de columnas basado en cantidad de opciones
-    int crossAxisCount;
-    if (_options.length <= 2) {
-      crossAxisCount = 2;
-    } else if (_options.length <= 4) {
-      crossAxisCount = 2;
-    } else if (_options.length <= 6) {
-      crossAxisCount = 3;
-    } else {
-      crossAxisCount = 3;
-    }
+    final crossAxisCount = _getOptionsCrossAxisCount(_options.length);
 
     return Center(
       child: LayoutBuilder(
@@ -566,33 +851,6 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
                 child: _buildImageFromPath(option.imagePath),
               ),
             ),
-
-            // Label (si existe)
-            if (option.label.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 12,
-                ),
-                decoration: const BoxDecoration(
-                  color: Color.fromARGB(100, 0, 0, 0),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Text(
-                  option.label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
           ],
         ),
       ),
@@ -648,6 +906,38 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     }
     return const Color(0x66FFFFFF);
   }
+
+  Widget _buildTopStatusLayout() {
+    final showQuestionProgress = _questions.length > 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackVertically = showQuestionProgress && constraints.maxWidth < 560;
+        if (stackVertically) {
+          return Column(
+            children: [
+              _buildQuestionProgressInfo(),
+              const SizedBox(height: 10),
+              _buildAttemptsInfo(),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (showQuestionProgress) Expanded(child: _buildQuestionProgressInfo()),
+            if (showQuestionProgress) const SizedBox(width: 12),
+            Expanded(child: _buildAttemptsInfo()),
+          ],
+        );
+      },
+    );
+  }
+
+  int _getOptionsCrossAxisCount(int optionCount) {
+    if (optionCount <= 4) return 2;
+    return 3;
+  }
 }
 
 /// Clase para representar los datos de una pregunta
@@ -693,11 +983,24 @@ class QuestionData {
 
     return QuestionData(
       question: map['question'] as String? ?? '¿Cuál es la imagen correcta?',
-      correctIndex: map['correctIndex'] as int? ?? 0,
-      maxAttempts: map['maxAttempts'] as int? ?? 3,
+      correctIndex: _parseInt(map['correctIndex'], 0),
+      maxAttempts: _parseInt(map['maxAttempts'], 3),
       options: options,
     );
   }
+
+  static int _parseInt(dynamic value, int fallback) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+}
+
+class _SimpleSelectionStep {
+  final String imagePath;
+  final String caption;
+
+  _SimpleSelectionStep({required this.imagePath, required this.caption});
 }
 
 /// Clase para representar una opción de selección
@@ -737,9 +1040,7 @@ Widget _buildImageFromPath(String path) {
       },
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
+        return const _SimpleSelectionImageShimmer();
       },
     );
   }
@@ -757,6 +1058,205 @@ Widget _buildImageFromPath(String path) {
       );
     },
   );
+}
+
+class _SimpleSelectionLoadingSkeleton extends StatelessWidget {
+  final bool showQuestionProgress;
+  final int crossAxisCount;
+  final int optionCount;
+
+  const _SimpleSelectionLoadingSkeleton({
+    required this.showQuestionProgress,
+    required this.crossAxisCount,
+    required this.optionCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackVertically = showQuestionProgress && constraints.maxWidth < 560;
+              if (stackVertically) {
+                return const Column(
+                  children: [
+                    _SimpleSelectionShimmer(
+                      child: _SimpleSelectionSkeletonBox(
+                        height: 44,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    _SimpleSelectionShimmer(
+                      child: _SimpleSelectionSkeletonBox(
+                        height: 44,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  if (showQuestionProgress)
+                    const Expanded(
+                      child: _SimpleSelectionShimmer(
+                        child: _SimpleSelectionSkeletonBox(
+                          height: 44,
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                        ),
+                      ),
+                    ),
+                  if (showQuestionProgress) const SizedBox(width: 12),
+                  const Expanded(
+                    child: _SimpleSelectionShimmer(
+                      child: _SimpleSelectionSkeletonBox(
+                        height: 44,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          const _SimpleSelectionShimmer(
+            child: _SimpleSelectionSkeletonBox(
+              height: 92,
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: GridView.count(
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: List.generate(
+                optionCount,
+                (_) => const _SimpleSelectionShimmer(
+                  child: _SimpleSelectionSkeletonBox(
+                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimpleSelectionImageShimmer extends StatelessWidget {
+  const _SimpleSelectionImageShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(4),
+      child: _SimpleSelectionShimmer(
+        child: _SimpleSelectionSkeletonBox(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+    );
+  }
+}
+
+class _SimpleSelectionShimmer extends StatefulWidget {
+  final Widget child;
+  const _SimpleSelectionShimmer({required this.child});
+
+  @override
+  State<_SimpleSelectionShimmer> createState() => _SimpleSelectionShimmerState();
+}
+
+class _SimpleSelectionShimmerState extends State<_SimpleSelectionShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: const [
+                Color(0xFF1E4D6B),
+                Color(0xFF2E7DAA),
+                Color(0xFF3A9AD9),
+                Color(0xFF2E7DAA),
+                Color(0xFF1E4D6B),
+              ],
+              stops: [0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _SimpleSelectionSkeletonBox extends StatelessWidget {
+  final double? height;
+  final BorderRadius borderRadius;
+
+  const _SimpleSelectionSkeletonBox({
+    this.height,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E4D6B),
+        borderRadius: borderRadius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Registrar este minijuego con el factory

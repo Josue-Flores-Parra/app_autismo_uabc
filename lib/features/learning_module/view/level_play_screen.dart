@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../minigames/minigame_core.dart';
 import '../../minigames/view/minigames_widget.dart';
 import '../../../data/services/firestore_services.dart';
+import '../../../shared/services/tts_service.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../../avatar/viewmodel/avatar_viewmodel.dart';
@@ -20,6 +21,8 @@ class LevelPlayScreen extends StatefulWidget {
   final String? moduleId;
   /// URL del video (desde Firebase Storage o Firestore) para niveles de tipo 'video'
   final String? videoUrl;
+  // Permite abrir seleccion simple de forma explicita al tocar la tarjeta del carrusel.
+  final bool launchSimpleSelectionFromCard;
 
   const LevelPlayScreen({
     super.key,
@@ -29,6 +32,7 @@ class LevelPlayScreen extends StatefulWidget {
     this.levelId,
     this.moduleId,
     this.videoUrl,
+    this.launchSimpleSelectionFromCard = false,
   });
 
   @override
@@ -39,12 +43,40 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   late int _retriesLeft;
   Key _minigameKey = UniqueKey();
   final FirestoreService _firestoreService = FirestoreService();
+  final TtsService _ttsService = TtsService();
+  bool _ttsReady = false;
 
   @override
   void initState() {
     super.initState();
     _retriesLeft =
         2; // Número de veces que puede reintentar después del primer intento
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    final ready = await _ttsService.initializeDefaultEsMx();
+    if (!mounted) return;
+    setState(() {
+      _ttsReady = ready;
+    });
+  }
+
+  Future<void> _speakCompletionFeedback(bool success) async {
+    if (!_ttsReady) return;
+
+    final message = success
+        ? 'Nivel completado. Excelente trabajo.'
+        : _retriesLeft > 0
+        ? 'Buen intento. Puedes intentarlo de nuevo.'
+        : 'Buen intento. Has agotado tus reintentos.';
+    await _ttsService.speak(message);
+  }
+
+  @override
+  void dispose() {
+    _ttsService.dispose();
+    super.dispose();
   }
 
   /// Reinicia el minigame con opciones mezcladas y intentos reducidos
@@ -59,22 +91,22 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Si no hay actividadType, no deberíamos estar aquí (debería mostrar "COMPLETAR" en lugar de "JUGAR")
-    // Pero por seguridad, si llegamos aquí sin actividadType, volvemos atrás
-    if (widget.actividadType == null || widget.actividadType!.trim().isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      });
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    final type = widget.actividadType?.toLowerCase().trim();
+    final simpleSelectionEnabled = _isSimpleSelectionEnabled(widget.minigameData);
+
+    // Seleccion simple solo inicia cuando se entra desde la tarjeta del carrusel.
+    if (widget.launchSimpleSelectionFromCard && simpleSelectionEnabled) {
+      return _buildMinigameScaffold(MinigameType.simpleSelection);
     }
 
-    final type = widget.actividadType!.toLowerCase().trim();
+    // Si se intentó abrir desde tarjeta pero no está habilitado, bloquear acceso.
+    if (widget.launchSimpleSelectionFromCard && !simpleSelectionEnabled) {
+      return _buildUnavailableActivityScreen();
+    }
+
+    if (type == null || type.isEmpty) {
+      return _buildUnavailableActivityScreen();
+    }
 
     // Manejo especial para niveles de tipo 'video': mostrar reproductor de video
     if (type == 'video') {
@@ -127,11 +159,13 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
       );
     }
 
-    // Convertir actividadType directamente desde Firestore a MinigameType
-    MinigameType minigameType;
+    // Para actividades no lanzadas desde tarjeta, se usa actividadType.
+    MinigameType? minigameType;
     switch (type) {
       case 'simple_selection':
-        minigameType = MinigameType.simpleSelection;
+        minigameType = simpleSelectionEnabled
+            ? MinigameType.simpleSelection
+            : null;
         break;
       case 'pictogram':
         minigameType = MinigameType.pictogram;
@@ -139,11 +173,18 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
       case 'audio':
         minigameType = MinigameType.audio;
         break;
-      // TODO: Agregar más casos cuando se implementen otros tipos
       default:
-        minigameType = MinigameType.simpleSelection; // Fallback por defecto
+        minigameType = null;
     }
-    
+
+    if (minigameType == null) {
+      return _buildUnavailableActivityScreen();
+    }
+
+    return _buildMinigameScaffold(minigameType);
+  }
+
+  Widget _buildMinigameScaffold(MinigameType minigameType) {
     return Scaffold(
       body: MinigamesWidget(
         key: _minigameKey,
@@ -153,6 +194,34 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           _handleMinigameComplete(context, success, attempts);
         },
       ),
+    );
+  }
+
+  Widget _buildUnavailableActivityScreen() {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline, size: 48, color: Colors.white70),
+              const SizedBox(height: 12),
+              const Text(
+                'Actividad no disponible.',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Volver'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: const Color(0xFF091F2C),
     );
   }
 
@@ -263,12 +332,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
             },
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF5B8DB3),
-                  strokeWidth: 2,
-                ),
-              );
+              // Skeleton con el mismo color de fondo que el diálogo (azul oscuro),
+              // necesario porque el PNG tiene fondo transparente
+              return const _PlayScreenShimmer(baseColor: Color(0xFF1A3D52));
             },
           ),
         ),
@@ -311,6 +377,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     if (success) {
       await _saveProgress(context, success, attempts);
     }
+
+    await _speakCompletionFeedback(success);
+
     // Mostrar resultado y navegar de regreso
     showDialog(
       context: context,
@@ -428,7 +497,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                     Text(
                       'Reintentos disponibles: $_retriesLeft',
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -443,6 +512,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           if (!success)
             TextButton(
               onPressed: () {
+                _ttsService.stop();
                 Navigator.of(context).pop(); // Cerrar diálogo
                 Navigator.of(context).pop(); // Volver al timeline
               },
@@ -453,6 +523,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
             ),
           ElevatedButton(
             onPressed: () {
+              _ttsService.stop();
               Navigator.of(context).pop(); // Cerrar diálogo
               if (success) {
                 Navigator.of(context).pop(); // Volver al timeline
@@ -501,6 +572,20 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         {'imagePath': 'assets/images/MEH.png', 'label': 'Opción 3'},
       ],
     };
+  }
+
+  bool _isSimpleSelectionEnabled(Map<String, dynamic>? data) {
+    if (data == null || !data.containsKey('isSimpleSelectionEnabled')) {
+      return false;
+    }
+    final value = data['isSimpleSelectionEnabled'];
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 }
 
@@ -633,9 +718,8 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                 Expanded(
                   child: !ready
                       ? (snapshot.connectionState != ConnectionState.done
-                          ? const Center(
-                              child: CircularProgressIndicator(color: Colors.white),
-                            )
+                          // Skeleton sobre fondo negro mientras el video inicializa
+                          ? const _PlayScreenShimmer(baseColor: Colors.black)
                           : Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
@@ -687,6 +771,11 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                                             fit: BoxFit.cover,
                                             errorBuilder: (_, __, ___) =>
                                                 Container(color: Colors.black),
+                                            // Skeleton sobre fondo negro mientras carga la imagen de portada
+                                            loadingBuilder: (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return const _PlayScreenShimmer(baseColor: Colors.black);
+                                            },
                                           )
                                         : Container(color: Colors.black),
                                   ),
@@ -827,3 +916,89 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shimmer reutilizable para estados de carga en esta pantalla
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Skeleton con shimmer animado para estados de carga de imagen.
+/// Recibe [baseColor] como color de fondo opaco del skeleton box,
+/// de forma que el ShaderMask siempre tenga superficie sobre la que pintar.
+class _PlayScreenShimmer extends StatefulWidget {
+  /// Color base del skeleton box. Debe coincidir con el fondo del contenedor
+  /// para que el resultado se vea como parte natural del layout.
+  final Color baseColor;
+
+  const _PlayScreenShimmer({required this.baseColor});
+
+  @override
+  State<_PlayScreenShimmer> createState() => _PlayScreenShimmerState();
+}
+
+class _PlayScreenShimmerState extends State<_PlayScreenShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ciclo de 1.4 segundos que se repite indefinidamente
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    // El destello viaja de izquierda (-2) a derecha (+2)
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            // El gradiente usa variantes más claras del baseColor para el destello
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                widget.baseColor,
+                widget.baseColor.withAlpha(180),
+                widget.baseColor.withAlpha(120),
+                widget.baseColor.withAlpha(180),
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      // Skeleton box opaco: ocupa todo el espacio del widget padre
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: widget.baseColor,
+          boxShadow: [
+            BoxShadow(
+              color: widget.baseColor.withAlpha(100),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

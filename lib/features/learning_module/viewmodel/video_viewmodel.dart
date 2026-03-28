@@ -7,9 +7,18 @@ import '../data/video_controller_manager.dart';
 class VideoViewModel extends ChangeNotifier {
   late VideoPlayerController _videoController;
   late Future<void> _initializeVideoFuture;
-  bool _isExternalController = false;
+
+  // Ruta del video gestionado por el manager (null si es controlador externo)
+  String? _managedVideoPath;
+
   bool _showGiantIcon = false;
   Timer? _hideIconTimer;
+
+  // Bandera para evitar llamar a notifyListeners() después de dispose()
+  bool _isDisposed = false;
+
+  // Referencia al listener para poder removerlo limpiamente en dispose()
+  VoidCallback? _controllerListener;
 
   VideoPlayerController get videoController => _videoController;
   Future<void> get initializeVideoFuture => _initializeVideoFuture;
@@ -17,37 +26,46 @@ class VideoViewModel extends ChangeNotifier {
 
   void initialize(String videoPath, VideoPlayerController? externalController) {
     if (externalController != null) {
+      // Controlador externo — no somos responsables de su ciclo de vida
       _videoController = externalController;
-      _isExternalController = true;
+      _managedVideoPath = null;
       _initializeVideoFuture = Future.value();
     } else {
-      _videoController = VideoControllerManager().getOrCreateController(
-        videoPath,
-      );
-      _isExternalController = true;
+      // Obtener o crear un controlador compartido vía el manager (ref-counted)
+      final manager = VideoControllerManager();
+      _videoController = manager.getOrCreateController(videoPath);
+      _managedVideoPath = videoPath;
+
       if (_videoController.value.isInitialized) {
+        // Ya inicializado por otra referencia — reutilizar directamente
         _initializeVideoFuture = Future.value();
-        // setLooping a false para evitar el trigger a notifyListeners() durante la construcción del widget
+        // Asegurar loop desactivado sin carrera con otros ViewModels
         Future.microtask(() {
-          _videoController.setLooping(false);
+          if (!_isDisposed) _videoController.setLooping(false);
         });
       } else {
+        // Primera vez que se inicializa este controlador
         _initializeVideoFuture = _videoController.initialize().then((_) {
-          // Desactivar loop por defecto - el video solo se reproduce cuando el usuario lo inicia
-          _videoController.setLooping(false);
+          if (!_isDisposed) _videoController.setLooping(false);
         });
       }
     }
 
-    // Referir el listener para evitar setState() durante la construcción del widget
+    // Registrar listener con guarda de disposed para evitar el crash
+    // "VideoViewModel was used after being disposed"
+    _controllerListener = () {
+      if (!_isDisposed) notifyListeners();
+    };
+    // Diferir con microtask para no disparar setState() durante build()
     Future.microtask(() {
-      _videoController.addListener(() {
-        notifyListeners();
-      });
+      if (!_isDisposed) {
+        _videoController.addListener(_controllerListener!);
+      }
     });
   }
 
   void togglePlayPause() {
+    if (_isDisposed) return;
     if (_videoController.value.isPlaying) {
       _videoController.pause();
     } else {
@@ -57,21 +75,31 @@ class VideoViewModel extends ChangeNotifier {
   }
 
   void replay() {
+    if (_isDisposed) return;
     _videoController.seekTo(Duration.zero);
-    // Asegurarse de que el loop esté desactivado para que solo se reproduzca una vez
     _videoController.setLooping(false);
     _videoController.play();
     _showTemporaryIcon();
   }
 
+  void pause() {
+    if (_isDisposed) return;
+    if (_videoController.value.isPlaying) {
+      _videoController.pause();
+    }
+  }
+
   void _showTemporaryIcon() {
+    if (_isDisposed) return;
     _showGiantIcon = true;
     notifyListeners();
 
     _hideIconTimer?.cancel();
     _hideIconTimer = Timer(const Duration(seconds: 2), () {
-      _showGiantIcon = false;
-      notifyListeners();
+      if (!_isDisposed) {
+        _showGiantIcon = false;
+        notifyListeners();
+      }
     });
   }
 
@@ -97,10 +125,25 @@ class VideoViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    if (!_isExternalController) {
-      _videoController.dispose();
-    }
+    _isDisposed = true;
     _hideIconTimer?.cancel();
+
+    // Remover el listener antes de liberar el controlador para evitar
+    // que eventos posteriores lleguen a un ViewModel ya destruido
+    if (_controllerListener != null) {
+      try {
+        _videoController.removeListener(_controllerListener!);
+      } catch (_) {}
+      _controllerListener = null;
+    }
+
+    // Liberar la referencia en el manager — solo dispone el controlador
+    // subyacente cuando el conteo de referencias llega a cero
+    if (_managedVideoPath != null) {
+      VideoControllerManager().releaseController(_managedVideoPath!);
+      _managedVideoPath = null;
+    }
+
     super.dispose();
   }
 }
