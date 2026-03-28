@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'barrel_preview_selector.dart';
 import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
 import '../model/content_card_model.dart';
@@ -44,10 +43,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   int _selectedCarouselIndex = 0;
-
-  // Selector de prototipo para iterar UX sin tocar la navegación principal.
-  // DEBUG
-  static const bool _useRadialFocusPrototype = true;
 
   // Rastrear condiciones para habilitar el botón "COMPLETAR"
   bool _videoCompleted = false;
@@ -356,16 +351,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         _selectedCarouselIndex = index;
       });
     }
-    // DEBUG: Alternar entre prototipos de carrusel para iterar UX sin afectar la navegación principal.
-    if (_useRadialFocusPrototype) {
-      return RadialFocusPreviewSelector(
-        contents: widget.contents,
-        initialIndex: _selectedCarouselIndex,
-        onIndexChanged: onIndexChanged,
-      );
-    }
-
-    return BarrelPreviewSelector(
+    return RadialFocusPreviewSelector(
       contents: widget.contents,
       initialIndex: _selectedCarouselIndex,
       onIndexChanged: onIndexChanged,

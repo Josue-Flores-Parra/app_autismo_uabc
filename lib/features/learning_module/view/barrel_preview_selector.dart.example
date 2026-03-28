@@ -4,6 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../model/content_card_model.dart';
 
+/*
+  * Este widget ha sido marcado como .example ya que se 
+  * Prefirio la alternativa (radial_focus_preview_selector) tras la retroalimentacion
+  * Sin embargo, se indico que se guardara para futuro, pero como 
+  * no queremos que se agregue al compilar la app, se dejo como ejemplo.
+ */
+
 class BarrelPreviewSelector extends StatefulWidget {
   final List<ContentCardData> contents;
   final int initialIndex;

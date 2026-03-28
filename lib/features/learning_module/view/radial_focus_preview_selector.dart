@@ -23,8 +23,18 @@ class RadialFocusPreviewSelector extends StatefulWidget {
 
 class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     with SingleTickerProviderStateMixin {
+  // Se usa un ancla muy alta para iniciar lejos de cero y permitir avanzar/retroceder
+  // muchas veces sin "sentir" los limites de un indice finito.
+  //
+  // Diseno: el carrusel debe comportarse como rueda continua (infinita), aunque
+  // el dataset sea finito. Esto simplifica la UX (sin topes) y evita estados
+  // especiales al cruzar el primer/ultimo elemento.
   static const int _virtualAnchor = 10000;
-  static const double _dragSensitivity = 0.62;
+
+  // Ajusta cuanto gira la rueda por cada delta angular del dedo.
+  // Valor < 1 amortigua el gesto para mejorar control fino en pantallas pequenas.
+  // Valor > 1 se siente mas "nervioso" y puede generar saltos involuntarios.
+  static const double _dragSensitivity = 0.60;
 
   late int _virtualIndex;
   late final AnimationController _snapController;
@@ -37,6 +47,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   int get _length => widget.contents.length;
 
   double get _stepAngle {
+    // Cada item ocupa una porcion uniforme de la circunferencia.
+    // Caso especial de 2 items: forzamos pi para ubicarlos en extremos opuestos
+    // y evitar geometria rara en la rueda.
     if (_length <= 1) return 1;
     if (_length == 2) return math.pi;
     return (2 * math.pi) / _length;
@@ -44,12 +57,15 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
 
   int _logicalFromVirtual(int virtualIndex) {
     if (_length == 0) return 0;
+    // Convierte el indice virtual (puede crecer/disminuir sin limite) al rango real [0, _length).
     final mod = virtualIndex % _length;
     return mod < 0 ? mod + _length : mod;
   }
 
   int _normalizeInitialIndex(int index) {
     if (_length == 0) return 0;
+    // Permite recibir indices fuera de rango y normalizarlos sin fallar.
+    // Diseno defensivo: evita acoplar el widget a validaciones externas.
     final mod = index % _length;
     return mod < 0 ? mod + _length : mod;
   }
@@ -64,6 +80,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     final initial = _normalizeInitialIndex(widget.initialIndex);
     _virtualIndex = _virtualAnchor + initial;
 
+    // Se anima solo el acumulador de arrastre (no el indice logico directamente)
+    // para mantener continuidad visual durante el snap sin disparar cambios de
+    // contenido intermedios.
     _snapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 180),
@@ -86,6 +105,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     }
 
     if (oldWidget.contents != widget.contents && _selectedLogicalIndex >= _length) {
+      // Si cambia la fuente de datos y el indice actual queda invalido,
+      // volvemos a inicio para garantizar estado consistente y notificacion unica.
       _virtualIndex = _virtualAnchor;
       widget.onIndexChanged?.call(0);
     }
@@ -103,10 +124,15 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
 
     final local = box.globalToLocal(globalPosition);
     final center = box.size.center(Offset.zero);
+
+    // Decidimos medir en coordenadas angulares respecto al centro del widget
+    // (no por desplazamiento X/Y) para que el gesto sea radial y consistente,
+    // incluso si el usuario arrastra en diagonales.
     return math.atan2(local.dy - center.dy, local.dx - center.dx);
   }
 
   double _normalizeDelta(double delta) {
+    // Mantiene el delta angular en [-pi, pi] para evitar saltos al cruzar el corte circular.
     while (delta > math.pi) {
       delta -= 2 * math.pi;
     }
@@ -118,6 +144,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
 
   void _onPanStart(DragStartDetails details) {
     _snapController.stop();
+    // Al iniciar un nuevo gesto, cancelamos cualquier snap en progreso para no
+    // mezclar dos fuentes de movimiento (animacion + dedo) sobre el mismo estado.
     _lastPointerAngle = _pointerAngle(details.globalPosition);
     if (!_isDragging) {
       setState(() {
@@ -138,12 +166,18 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     final delta = _normalizeDelta(currentAngle - _lastPointerAngle!);
     _lastPointerAngle = currentAngle;
 
+    // Acumula giro continuo y lo convierte en pasos discretos por item.
+    // Diseno: separar acumulador continuo + indice discreto evita jitter visual
+    // y notificaciones excesivas al ViewModel.
     _dragAccumulator += delta * _dragSensitivity;
     final steps = (_dragAccumulator / _stepAngle).truncate();
 
     if (steps != 0) {
       _virtualIndex -= steps;
       _dragAccumulator -= steps * _stepAngle;
+
+      // Solo notificamos cuando hay cambio real de item enfocado, no por cada
+      // frame del gesto. Esto reduce recomposiciones aguas arriba.
       widget.onIndexChanged?.call(_selectedLogicalIndex);
     }
 
@@ -159,6 +193,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       return;
     }
 
+    // Al soltar, cierra el arrastre hacia el item mas cercano para dejar el foco alineado.
+    // Diseno UX: siempre terminar en "estado estable" (item centrado) mejora
+    // legibilidad y evita focos intermedios ambiguos.
     final snapSteps = _dragPhase.round();
     final targetAccumulator = snapSteps * _stepAngle;
 
@@ -169,6 +206,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
           _dragAccumulator = 0;
           _isDragging = false;
         });
+        // Mantener callback tambien en el camino "sin animacion" para que
+        // ambos flujos (con/sin tween) tengan la misma semantica externa.
         widget.onIndexChanged?.call(_selectedLogicalIndex);
       } else {
         setState(() {
@@ -184,6 +223,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       end: targetAccumulator,
     ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic));
 
+    // easeOutCubic prioriza respuesta rapida inicial y frenado suave al final,
+    // percepcion alineada con controles tactiles "fisicos".
     _snapController
       ..stop()
       ..reset();
@@ -236,10 +277,16 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                   constraints.maxHeight * 0.42,
                 );
 
+                // El centro visual se desplaza hacia arriba para dejar espacio
+                // al label/titulo debajo sin recortar la orbita inferior.
+
                 final nodeSize = math.min(
                   constraints.maxWidth * 0.74,
                   constraints.maxHeight * 0.78,
                 );
+
+                // nodeSize se deriva de ambos ejes para conservar proporcion
+                // circular y evitar que el widget "rompa" en layouts extremos.
 
                 // Trayectoria radial: el nodo seleccionado se mantiene fijo en el punto
                 // superior de la circunferencia y los demas entran/salen desde abajo.
@@ -251,6 +298,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                   nodeSize * 0.72,
                   constraints.maxHeight * 0.52,
                 );
+
+                // Se usa orbita eliptica (X != Y) para reforzar sensacion de profundidad
+                // y reducir solapamiento vertical de nodos en pantallas bajas.
                 final orbitCenter = Offset(
                   selectorCenter.dx,
                   selectorCenter.dy + orbitRadiusY,
@@ -263,6 +313,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                   final logical = _logicalFromVirtual(_virtualIndex + offset);
                   final angle = (-math.pi / 2) + ((offset + _dragPhase) * _stepAngle);
                   final topness = ((-math.sin(angle) + 1) / 2).clamp(0.0, 1.0);
+
+                  // topness modela "cercania" al frente: 1 arriba (foco), 0 abajo (fondo).
+                  // Sobre esa variable se mapean opacidad y blur para dar lectura espacial.
                   final opacity = 0.16 + (topness * 0.48);
                   final blurSigma = 0.2 + ((1 - topness) * 2.2) + (_isDragging ? 0.25 : 0.0);
                   final center = Offset(
@@ -281,6 +334,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                   );
                 }
 
+                // Ordena por profundidad para que los nodos del fondo se dibujen primero.
                 radialNodes.sort((a, b) => a.depth.compareTo(b.depth));
 
                 return Stack(
@@ -297,9 +351,13 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                         top: radialNode.center.dy - (nodeSize / 2),
                         child: Opacity(
                           opacity: radialNode.opacity,
+                          
+                          // Para acercar la experiencia a preview_cards, cada nodo puede
+                          // renderizar miniatura cuando el contenido lo permite.
                           child: _RadialNode(
                             size: nodeSize,
                             blurSigma: radialNode.blurSigma,
+                            content: widget.contents[radialNode.logicalIndex],
                             icon: _iconForType(widget.contents[radialNode.logicalIndex].type),
                           ),
                         ),
@@ -307,6 +365,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                     Positioned(
                       left: selectorCenter.dx - 36,
                       top: selectorCenter.dy - (nodeSize / 2) - 38,
+                      // Hint fuera del area central para no competir con el foco visual.
                       child: _ScrollHint(isDragging: _isDragging),
                     ),
                   ],
@@ -365,6 +424,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   }
 
   Widget _buildTypeLabel(String text) {
+    // Chip compacto para reforzar el tipo de contenido sin ocupar altura extra.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -404,6 +464,9 @@ class _SelectorRing extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+
+        // El anillo es un "target" visual: da contexto de foco sin usar sombra
+        // pesada sobre el item principal para no contaminar contraste del icono.
         border: Border.all(color: const Color(0xFF9EDFFF), width: 3),
         boxShadow: const [
           BoxShadow(
@@ -425,13 +488,19 @@ class _SelectorRing extends StatelessWidget {
 class _RadialNode extends StatelessWidget {
   final double size;
   final double blurSigma;
+  final ContentCardData content;
   final IconData icon;
 
   const _RadialNode({
     required this.size,
     required this.blurSigma,
+    required this.content,
     required this.icon,
   });
+
+  bool get _shouldShowPictogramImage {
+    return content.type == ContentType.pictogram && content.imagePath.trim().isNotEmpty;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -449,6 +518,9 @@ class _RadialNode extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+
+                // Gradiente frio para mantener coherencia visual con la identidad
+                // del modulo y diferenciar nodos "pasivos" del contenido central.
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -459,13 +531,134 @@ class _RadialNode extends StatelessWidget {
             ),
           ),
           Center(
-            child: Icon(
-              icon,
-              size: size * 0.4,
-              color: const Color(0xE6FFFFFF),
+            child: SizedBox(
+              width: size * 0.72,
+              height: size * 0.72,
+              child: _shouldShowPictogramImage
+                  ? ClipOval(
+                      child: _buildNodeImage(
+                        content.imagePath,
+                        fit: BoxFit.cover,
+                        shimmerBaseColor: const Color(0xFF2E5574),
+                        fallback: Icon(
+                          icon,
+                          size: size * 0.4,
+                          color: const Color(0xE6FFFFFF),
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      icon,
+                      size: size * 0.4,
+                      color: const Color(0xE6FFFFFF),
+                    ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+Widget _buildNodeImage(
+  String url, {
+  BoxFit fit = BoxFit.cover,
+  Color shimmerBaseColor = const Color(0xFF2E5574),
+  required Widget fallback,
+}) {
+  // Mismo criterio que preview_cards: http/https es red, el resto se interpreta como asset.
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return Image.network(
+      url,
+      fit: fit,
+      errorBuilder: (_, __, ___) => Center(child: fallback),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return _RadialNodeShimmer(baseColor: shimmerBaseColor);
+      },
+    );
+  }
+
+  return Image.asset(
+    url,
+    fit: fit,
+    errorBuilder: (_, __, ___) => Center(child: fallback),
+  );
+}
+
+class _RadialNodeShimmer extends StatefulWidget {
+  final Color baseColor;
+
+  const _RadialNodeShimmer({required this.baseColor});
+
+  @override
+  State<_RadialNodeShimmer> createState() => _RadialNodeShimmerState();
+}
+
+class _RadialNodeShimmerState extends State<_RadialNodeShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final r = (widget.baseColor.r * 255.0).clamp(0, 255).round();
+        final g = (widget.baseColor.g * 255.0).clamp(0, 255).round();
+        final b = (widget.baseColor.b * 255.0).clamp(0, 255).round();
+        final brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+        final highlightColor = brightness > 0.5
+            ? Color.fromARGB(255, (r * 0.85).round(), (g * 0.85).round(), (b * 0.85).round())
+            : Color.fromARGB(
+                255,
+                (r + (255 - r) ~/ 2).clamp(0, 255),
+                (g + (255 - g) ~/ 2).clamp(0, 255),
+                (b + (255 - b) ~/ 2).clamp(0, 255),
+              );
+
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                widget.baseColor,
+                widget.baseColor,
+                highlightColor,
+                widget.baseColor,
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: widget.baseColor,
       ),
     );
   }
@@ -495,6 +688,9 @@ class _ScrollHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final opacity = isDragging ? 0.22 : 0.78;
+
+    // El hint se atenúa durante el gesto para no distraer cuando el usuario
+    // ya entendio la interaccion y esta ejecutando una accion activa.
 
     return IgnorePointer(
       child: AnimatedOpacity(
