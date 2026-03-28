@@ -19,6 +19,8 @@ class LevelContentPreviewScreen extends StatefulWidget {
   final String? levelId;
   final String? moduleId;
   final String? levelTitle;
+  /// URL del video para niveles de tipo 'video' (desde Firebase Storage)
+  final String? videoUrl;
 
   const LevelContentPreviewScreen({
     super.key,
@@ -30,6 +32,7 @@ class LevelContentPreviewScreen extends StatefulWidget {
     this.levelId,
     this.moduleId,
     this.levelTitle,
+    this.videoUrl,
   });
 
   @override
@@ -130,8 +133,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
                   const SizedBox(height: 20),
                   
-                  // Botón "JUGAR" si hay actividadType (minijuego interactivo)
-                  if (_hasValidActividadType && widget.minigameData != null)
+                  // Botón "JUGAR" si hay actividadType (minijuego interactivo o video)
+                  // Para video: siempre mostrar si actividadType es 'video' y hay videoUrl
+                  // Para otros tipos: mostrar solo si hay minigameData
+                  if (_hasValidActividadType &&
+                      (widget.actividadType!.toLowerCase().trim() == 'video'
+                          ? (widget.videoUrl != null && widget.videoUrl!.isNotEmpty)
+                          : widget.minigameData != null))
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
@@ -141,10 +149,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                             MaterialPageRoute(
                               builder: (context) => LevelPlayScreen(
                                 levelTitle: widget.levelTitle ?? widget.levelName,
-                                minigameData: widget.minigameData!,
+                                minigameData: widget.minigameData,
                                 actividadType: widget.actividadType!,
                                 levelId: widget.levelId ?? '',
                                 moduleId: widget.moduleId ?? '',
+                                videoUrl: widget.videoUrl,
                               ),
                             ),
                           );
@@ -154,10 +163,18 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                             await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
                           }
                         },
-                        icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
-                        label: const Text(
-                          'JUGAR',
-                          style: TextStyle(
+                        icon: Icon(
+                          widget.actividadType!.toLowerCase().trim() == 'video'
+                              ? Icons.play_circle_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                        label: Text(
+                          widget.actividadType!.toLowerCase().trim() == 'video'
+                              ? 'VER VIDEO'
+                              : 'JUGAR',
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -165,7 +182,9 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00E5FF),
+                          backgroundColor: widget.actividadType!.toLowerCase().trim() == 'video'
+                              ? const Color(0xFF5A97B8)
+                              : const Color(0xFF00E5FF),
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 10,

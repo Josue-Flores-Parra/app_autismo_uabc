@@ -75,7 +75,11 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
               Positioned.fill(
                 child: Opacity(
                   opacity: 0.2,
-                  child: Image.asset(widget.bgLevelImg!, fit: BoxFit.cover),
+                  child: widget.bgLevelImg!.startsWith('http')
+                      ? Image.network(widget.bgLevelImg!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink())
+                      : Image.asset(widget.bgLevelImg!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink()),
                 ),
               ),
 

@@ -68,7 +68,9 @@ class LevelTimelineViewModel extends ChangeNotifier {
             previewTitle: titleWithPrefix,
             whatState: level.estado,
             stars: level.estrellas,
-            posibleImagePreview: level.pictogramaUrl,
+            posibleImagePreview: (level.actividadData?['pictogramaUrl'] as String?)?.isNotEmpty == true
+                ? level.actividadData!['pictogramaUrl'] as String
+                : level.pictogramaUrl,
             minigameData: level.actividadData,
             actividadType: level.actividadType,
             levelId: level.id,

@@ -27,8 +27,10 @@ class VideoViewModel extends ChangeNotifier {
       _isExternalController = true;
       if (_videoController.value.isInitialized) {
         _initializeVideoFuture = Future.value();
-        // Asegurarse de que el loop esté desactivado (no reproducir automáticamente)
-        _videoController.setLooping(false);
+        // setLooping a false para evitar el trigger a notifyListeners() durante la construcción del widget
+        Future.microtask(() {
+          _videoController.setLooping(false);
+        });
       } else {
         _initializeVideoFuture = _videoController.initialize().then((_) {
           // Desactivar loop por defecto - el video solo se reproduce cuando el usuario lo inicia
@@ -37,8 +39,11 @@ class VideoViewModel extends ChangeNotifier {
       }
     }
 
-    _videoController.addListener(() {
-      notifyListeners();
+    // Referir el listener para evitar setState() durante la construcción del widget
+    Future.microtask(() {
+      _videoController.addListener(() {
+        notifyListeners();
+      });
     });
   }
 

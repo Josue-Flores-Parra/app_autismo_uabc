@@ -248,7 +248,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.addListener(() {
       if (mounted) setState(() {});
     });
-    
+
     // Verificar periódicamente si el video se completó
     _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (!mounted || _hasNotifiedCompletion) return;
@@ -403,50 +403,39 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                       crossAxisAlignment:
                                           CrossAxisAlignment.center,
                                       children: [
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: SvgPicture.asset(
-                                            _viewModel
-                                                    .videoController
-                                                    .value
-                                                    .isPlaying
+                                        GestureDetector(
+                                          onTap: _viewModel.togglePlayPause,
+                                          child: SvgPicture.asset(
+                                            _viewModel.videoController.value.isPlaying
                                                 ? 'assets/icons/pausebutton.svg'
                                                 : 'assets/icons/playbuttoncontroller.svg',
-                                            width: 30,
-                                            height: 30,
-                                          ),
-                                          onPressed: _viewModel.togglePlayPause,
-                                        ),
-
-                                        Text(
-                                          '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
+                                            width: 28,
+                                            height: 28,
                                           ),
                                         ),
 
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: SvgPicture.asset(
+                                        Flexible(
+                                          child: Text(
+                                            '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+
+                                        GestureDetector(
+                                          onTap: _viewModel.replay,
+                                          child: SvgPicture.asset(
                                             'assets/icons/replay.svg',
-                                            width: 30,
-                                            height: 30,
+                                            width: 28,
+                                            height: 28,
                                           ),
-                                          onPressed: _viewModel.replay,
                                         ),
 
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: SvgPicture.asset(
-                                            'assets/icons/fullscreen.svg',
-                                            width: 30,
-                                            height: 30,
-                                          ),
-                                          onPressed: () {
+                                        GestureDetector(
+                                          onTap: () {
                                             Navigator.of(context).push(
                                               MaterialPageRoute(
                                                 builder: (context) =>
@@ -460,6 +449,11 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                               ),
                                             );
                                           },
+                                          child: SvgPicture.asset(
+                                            'assets/icons/fullscreen.svg',
+                                            width: 28,
+                                            height: 28,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -512,6 +506,17 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
         }
       },
     );
+  }
+
+  @override
+  void deactivate() {
+    // Pausar cada que la tarjeta se desactiva del viewport (deslizar en el carrusel) para evitar que el video siga sonando en segundo plano
+    try {
+      if (_viewModel.videoController.value.isPlaying) {
+        _viewModel.videoController.pause();
+      }
+    } catch (_) {}
+    super.deactivate();
   }
 
   @override
