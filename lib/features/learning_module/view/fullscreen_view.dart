@@ -177,16 +177,31 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
       controller: _pageController,
       physics: const BouncingScrollPhysics(),
       itemCount: widget.contents.length,
+      onPageChanged: (index) {
+        // En fullscreen usamos la misma politica que en preview:
+        // la pagina visible define que card de video esta activa.
+        if (!mounted) return;
+        setState(() {
+          _currentPage = index;
+        });
+      },
       itemBuilder: (context, index) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildFullscreenCard(widget.contents[index]),
+          child: _buildFullscreenCard(
+            widget.contents[index],
+            // Sincroniza foco visual con foco de reproduccion para pausar
+            // automaticamente videos de paginas adyacentes.
+            isActive: _currentPage == index,
+          ),
         );
       },
     );
   }
 
-  Widget _buildFullscreenCard(ContentCardData data) {
+  // isActive se pasa a cada card para mantener una regla consistente:
+  // una sola pagina puede reproducir media a la vez.
+  Widget _buildFullscreenCard(ContentCardData data, {required bool isActive}) {
     switch (data.type) {
       case ContentType.pictogram:
         return PictogramPreviewCard(
@@ -202,6 +217,7 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
           videoTitle: data.title,
           videoDesc: data.description,
           isPreview: false, // Modo fullscreen
+          isActive: isActive,
           onVideoCompleted: widget.onVideoCompleted,
         );
       case ContentType.audio:

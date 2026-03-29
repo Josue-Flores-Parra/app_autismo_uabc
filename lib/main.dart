@@ -67,9 +67,6 @@ class MyApp extends StatelessWidget {
         'Gafas', // Desbloqueado por defecto
       },
     );
-
-    const String moduleId = 'Higiene_01';
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsViewModel()),
@@ -118,12 +115,6 @@ class MyApp extends StatelessWidget {
                 );
               },
               home: const LoginScreen(),
-              // home: const ModuleListScreen(),
-              // home: LevelTimelineScreen(
-              //   moduleId: moduleId,
-              //   backgroundImagePath:
-              //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-              // ),
             ),
           );
         },

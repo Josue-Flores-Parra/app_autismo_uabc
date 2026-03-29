@@ -220,6 +220,9 @@ class VideoPreviewCard extends StatefulWidget {
   final String videoTitle;
   final String? videoDesc;
   final bool isPreview;
+  // Solo la tarjeta activa debe poder mantener reproduccion.
+  // Este flag lo define la pantalla contenedora (carrusel/pageview).
+  final bool isActive;
   final VideoPlayerController? externalController;
   final VoidCallback? onVideoCompleted; // Callback cuando el video se completa
 
@@ -229,6 +232,7 @@ class VideoPreviewCard extends StatefulWidget {
     required this.videoTitle,
     this.videoDesc,
     this.isPreview = true,
+    this.isActive = true,
     this.externalController,
     this.onVideoCompleted,
   });
@@ -242,6 +246,17 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
   late VideoViewModel _viewModel;
   bool _hasNotifiedCompletion = false;
   Timer? _completionCheckTimer;
+
+  void _pauseIfPlaying() {
+    // Helper defensivo para unificar pausado y evitar excepciones si el
+    // controller aun no termino de inicializar o ya fue descartado.
+    try {
+      final controller = _viewModel.videoController;
+      if (controller.value.isInitialized && controller.value.isPlaying) {
+        controller.pause();
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -304,6 +319,18 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
         // Error al verificar, continuar
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant VideoPreviewCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // En carruseles con keepAlive, la tarjeta puede salir de foco sin deactivarse.
+    // Decision de diseno: el pausado por perdida de foco debe depender del estado
+    // isActive y no del ciclo de vida del widget, porque keepAlive evita dispose.
+    if (oldWidget.isActive && !widget.isActive) {
+      _pauseIfPlaying();
+    }
   }
 
   @override
@@ -538,12 +565,9 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void deactivate() {
-    // Pausar cada que la tarjeta se desactiva del viewport (deslizar en el carrusel) para evitar que el video siga sonando en segundo plano
-    try {
-      if (_viewModel.videoController.value.isPlaying) {
-        _viewModel.videoController.pause();
-      }
-    } catch (_) {}
+    // Red de seguridad adicional: en rutas donde Flutter si desactive la tarjeta,
+    // tambien detenemos audio/video para evitar reproduccion en segundo plano.
+    _pauseIfPlaying();
     super.deactivate();
   }
 
@@ -555,6 +579,8 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
   }
 
   @override
+  // Se conserva keepAlive para no reconstruir controllers al deslizar,
+  // por eso el control de reproduccion se resuelve con isActive.
   bool get wantKeepAlive => true;
 }
 

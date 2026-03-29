@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'preview_cards.dart';
 import 'fullscreen_view.dart';
 import 'level_play_screen.dart';
 import '../model/content_card_model.dart';
-import '../../../data/services/firestore_services.dart';
 import '../viewmodel/learning_viewmodel.dart';
-import '../../avatar/viewmodel/avatar_viewmodel.dart';
+import '../../../shared/services/level_completion_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -50,6 +48,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   bool _videoCompleted = false;
   bool _pictogramViewed = false;
   bool _audioCompleted = false;
+  bool _isCompletingObservationLevel = false;
   
   // Verificar qué tipos de contenido hay
   bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
@@ -207,11 +206,20 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                               ),
                             ),
                           );
+                          if (!context.mounted) return;
+
                           // Recargar datos después de regresar
-                          if (context.mounted && widget.moduleId != null) {
+                          if (widget.moduleId != null) {
                             final learningViewModel = context.read<LearningViewModel>();
                             await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
                           }
+                          if (!context.mounted || _isCompletingObservationLevel || !_canComplete) {
+                            return;
+                          }
+
+                          _isCompletingObservationLevel = true;
+                          await _handleCompleteObservationLevel(context);
+                          _isCompletingObservationLevel = false;
                         },
                         icon: Icon(
                           _selectedActivityType == 'video'
@@ -355,6 +363,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       physics: const BouncingScrollPhysics(),
       itemCount: widget.contents.length,
       onPageChanged: (index) {
+        // Fuente central del foco visual en el carrusel.
+        // Este indice se propaga a las cards para controlar reproduccion activa.
         setState(() {
           _selectedCarouselIndex = index;
         });
@@ -386,13 +396,24 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         onTap: () => _navigateToFullscreen(index),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-          child: _buildCardContent(widget.contents[index], isPreview: true),
+          child: _buildCardContent(
+            widget.contents[index],
+            isPreview: true,
+            // Solo la card enfocada puede seguir reproduciendo video.
+            // Las cards kept-alive fuera de foco se autopausan via isActive=false.
+            isActive: _selectedCarouselIndex == index,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCardContent(ContentCardData data, {required bool isPreview}) {
+  Widget _buildCardContent(
+    ContentCardData data, {
+    required bool isPreview,
+    // Parametro transversal para controlar ownership de reproduccion de media.
+    bool isActive = true,
+  }) {
     switch (data.type) {
       case ContentType.pictogram:
         return PictogramPreviewCard(
@@ -414,6 +435,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           videoTitle: data.title,
           videoDesc: data.description,
           isPreview: isPreview,
+          isActive: isActive,
           onVideoCompleted: () {
             if (mounted) {
               setState(() {
@@ -484,95 +506,50 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   /// Guarda el progreso para niveles de solo observación (sin minijuego)
   /// Otorga 2 estrellas y 20 monedas por completar el nivel
   Future<void> _handleCompleteObservationLevel(BuildContext context) async {
-    if (widget.levelId == null || widget.moduleId == null) {
-      return;
-    }
+    final result = await LevelCompletionService.completeObservationLevel(
+      context: context,
+      moduleId: widget.moduleId,
+      levelId: widget.levelId,
+    );
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (!context.mounted) return;
 
-    try {
-      final firestoreService = FirestoreService();
-      
-      // Para niveles de solo observación, otorgamos 2 estrellas
-      final stars = 2;
-      final coins = 20; // 20 monedas por 2 estrellas
-      
-      final progressData = {
-        'status': 'completed',
-        'estrellas': stars,
-        'attempts': 0, // No hay intentos en niveles de observación
-        'completedAt': DateTime.now().toIso8601String(),
-        'updatedAt': DateTime.now().toIso8601String(),
-        'type': 'observation', // Marcar como nivel de observación
-      };
-
-      await firestoreService.updateUserLevelProgress(
-        user.uid,
-        widget.moduleId!,
-        widget.levelId!,
-        progressData,
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al guardar el progreso'),
+          backgroundColor: Colors.red,
+        ),
       );
-
-      // Otorgar monedas
-      if (context.mounted) {
-        try {
-          final avatarViewModel = context.read<AvatarViewModel>();
-          await avatarViewModel.agregarMonedas(coins);
-        } catch (e) {
-          // Error al agregar monedas, pero no bloqueamos la UI
-        }
-      }
-
-      // Limpiar caché del módulo para forzar recarga
-      if (context.mounted) {
-        final learningViewModel = context.read<LearningViewModel>();
-        await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
-      }
-
-      // Mostrar mensaje de éxito
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '¡Nivel completado! +$stars +$coins',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF05E995),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        
-        // Cerrar la pantalla después de un breve delay
-        Future.delayed(const Duration(seconds: 1), () {
-          if (context.mounted) {
-            Navigator.of(context).pop();
-          }
-        });
-      }
-    } catch (e) {
-      // Error al guardar, mostrar mensaje
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al guardar el progreso'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '¡Nivel completado! +${result.stars} +${result.coins}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF05E995),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 
   /// Helper function para construir imágenes desde URLs
