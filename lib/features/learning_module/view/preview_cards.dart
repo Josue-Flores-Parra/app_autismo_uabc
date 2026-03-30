@@ -771,85 +771,95 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
 
     return BasePreviewCard(
       isPreview: widget.isPreview,
-      typeOfPreviewCard: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildPreviewMediaWithTypeLabel(
-                label: 'MINIJUEGO',
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0x997BA5C9), width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x80000000),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: widget.imgPreview.isNotEmpty
-                        ? _buildImageFromUrl(
-                            widget.imgPreview,
-                            fit: BoxFit.contain,
-                            shimmerBaseColor: const Color(0xFF1A3D52),
-                          )
-                        : const Center(
-                            child: Icon(
-                              Icons.gamepad_rounded,
-                              size: 80,
-                              color: Color(0xFFCCCCCC),
-                            ),
+      typeOfPreviewCard: LayoutBuilder(
+        builder: (context, constraints) {
+          // En la transicion de orientacion puede alcanzar constraints minimos
+          // (ej. altura=8). Saltamos ese frame para evitar warning de overflow.
+          if (constraints.maxHeight < 120) {
+            return const SizedBox.expand();
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildPreviewMediaWithTypeLabel(
+                    label: 'MINIJUEGO',
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x80000000),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                            offset: Offset(0, 10),
                           ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: widget.imgPreview.isNotEmpty
+                            ? _buildImageFromUrl(
+                                widget.imgPreview,
+                                fit: BoxFit.contain,
+                                shimmerBaseColor: const Color(0xFF1A3D52),
+                              )
+                            : const Center(
+                                child: Icon(
+                                  Icons.gamepad_rounded,
+                                  size: 80,
+                                  color: Color(0xFFCCCCCC),
+                                ),
+                              ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            Text(
-              widget.gameTitle,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 0.5,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            const SizedBox(height: 8),
-
-            if (widget.gameDesc != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  widget.gameDesc!,
+                Text(
+                  widget.gameTitle,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xE6FFFFFF),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
 
-            const SizedBox(height: 8),
-          ],
-        ),
+                const SizedBox(height: 8),
+
+                if (widget.gameDesc != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      widget.gameDesc!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xE6FFFFFF),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
