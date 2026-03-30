@@ -120,7 +120,12 @@ class VideoViewModel extends ChangeNotifier {
 
   void exitFullscreenMode() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    // Evita choque de orientacion en iOS durante el pop de fullscreen.
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   @override
