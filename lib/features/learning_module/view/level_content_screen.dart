@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'preview_cards.dart';
-import 'fullscreen_view.dart';
+import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
@@ -41,9 +40,8 @@ class LevelContentPreviewScreen extends StatefulWidget {
 class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  late PageController _pageController;
   int _selectedCarouselIndex = 0;
-  
+
   // Rastrear condiciones para habilitar el botón "COMPLETAR"
   bool _videoCompleted = false;
   bool _pictogramViewed = false;
@@ -132,15 +130,12 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _pageController = PageController(viewportFraction: 0.75, initialPage: 0);
-
     _animController.forward();
   }
 
   @override
   void dispose() {
     _animController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -358,148 +353,16 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }
 
   Widget _buildCarousel() {
-    return PageView.builder(
-      controller: _pageController,
-      physics: const BouncingScrollPhysics(),
-      itemCount: widget.contents.length,
-      onPageChanged: (index) {
-        // Fuente central del foco visual en el carrusel.
-        // Este indice se propaga a las cards para controlar reproduccion activa.
-        setState(() {
-          _selectedCarouselIndex = index;
-        });
-      },
-      itemBuilder: (context, index) {
-        return _buildCarouselItem(index);
-      },
-    );
-  }
-
-  Widget _buildCarouselItem(int index) {
-    return AnimatedBuilder(
-      animation: _pageController,
-      builder: (context, child) {
-        double value = 1.0;
-        if (_pageController.position.haveDimensions) {
-          value = _pageController.page! - index;
-          value = (1 - (value.abs() * 0.2)).clamp(0.85, 1.0);
-        }
-
-        return Center(
-          child: SizedBox(
-            height: Curves.easeOut.transform(value) * 500,
-            child: child,
-          ),
-        );
-      },
-      child: GestureDetector(
-        onTap: () => _navigateToFullscreen(index),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-          child: _buildCardContent(
-            widget.contents[index],
-            isPreview: true,
-            // Solo la card enfocada puede seguir reproduciendo video.
-            // Las cards kept-alive fuera de foco se autopausan via isActive=false.
-            isActive: _selectedCarouselIndex == index,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardContent(
-    ContentCardData data, {
-    required bool isPreview,
-    // Parametro transversal para controlar ownership de reproduccion de media.
-    bool isActive = true,
-  }) {
-    switch (data.type) {
-      case ContentType.pictogram:
-        return PictogramPreviewCard(
-          imgPreview: data.imagePath,
-          pictogramTitle: data.title,
-          pictogramDesc: data.description ?? '',
-          isPreview: isPreview,
-          onPictogramViewed: () {
-            if (mounted) {
-              setState(() {
-                _pictogramViewed = true;
-              });
-            }
-          },
-        );
-      case ContentType.video:
-        return VideoPreviewCard(
-          videoPath: data.videoPath!,
-          videoTitle: data.title,
-          videoDesc: data.description,
-          isPreview: isPreview,
-          isActive: isActive,
-          onVideoCompleted: () {
-            if (mounted) {
-              setState(() {
-                _videoCompleted = true;
-              });
-            }
-          },
-        );
-      case ContentType.audio:
-        return AudioPreviewCard(
-          audioPath: data.audioPath!,
-          audioTitle: data.title,
-          audioDesc: data.description,
-          isPreview: isPreview,
-          imagePath: data.imagePath.isNotEmpty ? data.imagePath : null,
-          onAudioCompleted: () {
-            if (mounted) {
-              setState(() {
-                _audioCompleted = true;
-              });
-            }
-          },
-        );
-      case ContentType.miniGame:
-        return MiniGamePreviewCard(
-          gameTitle: data.title,
-          imgPreview: data.imagePath,
-          gameDesc: data.description,
-          isPreview: isPreview,
-        );
+    void onIndexChanged(int index) {
+      if (_selectedCarouselIndex == index) return;
+      setState(() {
+        _selectedCarouselIndex = index;
+      });
     }
-  }
-
-  void _navigateToFullscreen(int initialIndex) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => FullScreenContentView(
-          contents: widget.contents,
-          initialIndex: initialIndex,
-          levelName: widget.levelName,
-          bgLevelImg: widget.bgLevelImg,
-          onVideoCompleted: () {
-            if (mounted) {
-              setState(() {
-                _videoCompleted = true;
-              });
-            }
-          },
-          onPictogramViewed: () {
-            if (mounted) {
-              setState(() {
-                _pictogramViewed = true;
-              });
-            }
-          },
-          onAudioCompleted: () {
-            if (mounted) {
-              setState(() {
-                _audioCompleted = true;
-              });
-            }
-          },
-        ),
-      ),
+    return RadialFocusPreviewSelector(
+      contents: widget.contents,
+      initialIndex: _selectedCarouselIndex,
+      onIndexChanged: onIndexChanged,
     );
   }
 

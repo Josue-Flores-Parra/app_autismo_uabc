@@ -27,25 +27,37 @@ class FullScreenContentView extends StatefulWidget {
 }
 
 class _FullScreenContentViewState extends State<FullScreenContentView> {
+  static const int _virtualAnchor = 10000;
+
   late PageController _pageController;
-  int _currentPage = 0;
+  late int _activeLogicalPage;
+
+  int get _contentLength => widget.contents.length;
+
+  int _logicalFromVirtual(int virtualIndex) {
+    if (_contentLength == 0) return 0;
+    final mod = virtualIndex % _contentLength;
+    return mod < 0 ? mod + _contentLength : mod;
+  }
+
+  int _normalizedInitialIndex() {
+    if (_contentLength == 0) return 0;
+    final mod = widget.initialIndex % _contentLength;
+    return mod < 0 ? mod + _contentLength : mod;
+  }
 
   @override
   void initState() {
     super.initState();
-    _currentPage = widget.initialIndex;
+
+    final initialLogical = _normalizedInitialIndex();
+    final initialVirtualPage = _virtualAnchor + initialLogical;
+    _activeLogicalPage = initialLogical;
+
     _pageController = PageController(
-      initialPage: widget.initialIndex,
+      initialPage: initialVirtualPage,
       viewportFraction: 1.0, // Fullscreen
     );
-
-    _pageController.addListener(() {
-      if (_pageController.page != null) {
-        setState(() {
-          _currentPage = _pageController.page!.round();
-        });
-      }
-    });
   }
 
   @override
@@ -94,11 +106,6 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
 
                   // PageView con las cards en fullscreen
                   Expanded(child: _buildPageView()),
-
-                  const SizedBox(height: 10),
-
-                  // Indicadores de página actual
-                  _buildPageIndicators(),
 
                   const SizedBox(height: 20),
                 ],
@@ -173,26 +180,26 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
   }
 
   Widget _buildPageView() {
+    if (_contentLength == 0) {
+      return const SizedBox.shrink();
+    }
+
     return PageView.builder(
       controller: _pageController,
       physics: const BouncingScrollPhysics(),
-      itemCount: widget.contents.length,
-      onPageChanged: (index) {
-        // En fullscreen usamos la misma politica que en preview:
-        // la pagina visible define que card de video esta activa.
+      onPageChanged: (virtualIndex) {
         if (!mounted) return;
         setState(() {
-          _currentPage = index;
+          _activeLogicalPage = _logicalFromVirtual(virtualIndex);
         });
       },
-      itemBuilder: (context, index) {
+      itemBuilder: (context, virtualIndex) {
+        final logicalIndex = _logicalFromVirtual(virtualIndex);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _buildFullscreenCard(
-            widget.contents[index],
-            // Sincroniza foco visual con foco de reproduccion para pausar
-            // automaticamente videos de paginas adyacentes.
-            isActive: _currentPage == index,
+            widget.contents[logicalIndex],
+            isActive: _activeLogicalPage == logicalIndex,
           ),
         );
       },
@@ -239,46 +246,4 @@ class _FullScreenContentViewState extends State<FullScreenContentView> {
     }
   }
 
-  Widget _buildPageIndicators() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0x33000000),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(
-          widget.contents.length,
-          (index) => _buildIndicator(index),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIndicator(int index) {
-    bool isActive = index == _currentPage;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: isActive ? 32 : 10,
-      height: 10,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(5),
-        color: isActive ? const Color(0xFF5A97B8) : const Color(0x66FFFFFF),
-        boxShadow: isActive
-            ? const [
-                BoxShadow(
-                  color: Color(0x665A97B8),
-                  blurRadius: 10,
-                  offset: Offset(0, 0),
-                  spreadRadius: 2,
-                ),
-              ]
-            : null,
-      ),
-    );
-  }
 }
