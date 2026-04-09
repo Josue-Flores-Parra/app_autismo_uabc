@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
+import 'popup_preview.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
+import '../data/video_controller_manager.dart';
 import '../../../shared/services/level_completion_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
@@ -41,6 +43,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   int _selectedCarouselIndex = 0;
+  // Cache en memoria por pantalla: retenemos los videos que el usuario ya
+  // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
+  // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
+  final Set<String> _retainedPreloadedVideoPaths = <String>{};
 
   // Rastrear condiciones para habilitar el botón "COMPLETAR"
   bool _videoCompleted = false;
@@ -113,6 +119,45 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     }
   }
 
+  String get _selectedLaunchLabel {
+    return _selectedActivityType == 'video' ? 'VER VIDEO' : 'JUGAR';
+  }
+
+  String? get _selectedPreviewImageUrl {
+    final selected = _selectedContent;
+    if (selected == null) return null;
+
+    if (selected.imagePath.trim().isNotEmpty) {
+      return selected.imagePath;
+    }
+
+    final minigameImage = widget.minigameData?['pictogramaUrl'] as String?;
+    return minigameImage;
+  }
+
+  String? get _selectedVideoPreviewPath {
+    final selected = _selectedContent;
+    if (selected == null || selected.type != ContentType.video) return null;
+
+    final fromCard = selected.videoPath;
+    if (fromCard != null && fromCard.isNotEmpty) return fromCard;
+
+    final fromVideoUrl = widget.videoUrl;
+    if (fromVideoUrl != null && fromVideoUrl.isNotEmpty) return fromVideoUrl;
+
+    final fromMinigameVideo = widget.minigameData?['videoUrl'] as String?;
+    if (fromMinigameVideo != null && fromMinigameVideo.isNotEmpty) {
+      return fromMinigameVideo;
+    }
+
+    final fromMinigameUrl = widget.minigameData?['url'] as String?;
+    if (fromMinigameUrl != null && fromMinigameUrl.isNotEmpty) {
+      return fromMinigameUrl;
+    }
+
+    return null;
+  }
+
   bool _asBool(dynamic value) {
     if (value is bool) return value;
     if (value is num) return value != 0;
@@ -131,12 +176,46 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       duration: const Duration(milliseconds: 400),
     );
     _animController.forward();
+    _preloadSelectedVideoInBackground();
   }
 
   @override
   void dispose() {
+    _releaseRetainedPreloadedVideos();
     _animController.dispose();
     super.dispose();
+  }
+
+  void _releaseRetainedPreloadedVideos() {
+    if (_retainedPreloadedVideoPaths.isEmpty) return;
+
+    final manager = VideoControllerManager();
+    // Liberación simétrica: cada retain realizado con getOrCreateController
+    // se devuelve aquí con releaseController.
+    for (final path in _retainedPreloadedVideoPaths) {
+      manager.releaseController(path);
+    }
+    _retainedPreloadedVideoPaths.clear();
+  }
+
+  void _preloadSelectedVideoInBackground() {
+    final selectedPath = _selectedVideoPreviewPath;
+    if (selectedPath == null || selectedPath.isEmpty) return;
+
+    // Si ya fue retenido antes en esta pantalla, no duplicamos referencias.
+    if (_retainedPreloadedVideoPaths.contains(selectedPath)) return;
+
+    final manager = VideoControllerManager();
+
+    // Retener + inicializar en segundo plano:
+    // - Retener evita que cerrar popup/desenfocar nodo destruya el controller.
+    // - Inicializar por adelantado reduce tiempo de espera al abrir preview.
+    manager.getOrCreateController(selectedPath);
+    _retainedPreloadedVideoPaths.add(selectedPath);
+
+    manager.initializeController(selectedPath).catchError((_) {
+      // La UI del popup ya tiene fallback de error; no interrumpimos el flujo.
+    });
   }
 
   @override
@@ -183,9 +262,33 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
                         onPressed: () async {
+                          final selected = _selectedContent;
                           final activityType = _selectedActivityType;
-                          if (activityType == null) return;
+                          if (activityType == null || selected == null) return;
 
+                          final shouldLaunch = await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: true,
+                            barrierColor: Colors.transparent,
+                            // Flujo en dos pasos:
+                            // 1) Mostrar popup de vista previa (sin iniciar actividad)
+                            // 2) Iniciar actividad solo si usuario confirma con botón dinámico
+                            builder: (dialogContext) => PopupPreview(
+                              content: selected,
+                              launchLabel: _selectedLaunchLabel,
+                              canLaunch: _canPlaySelectedContent,
+                              previewImageUrl: _selectedPreviewImageUrl,
+                              videoPreviewPath: _selectedVideoPreviewPath,
+                              onLaunch: () => Navigator.of(dialogContext).pop(true),
+                            ),
+                          );
+
+                          if (shouldLaunch != true || !context.mounted) {
+                            return;
+                          }
+
+                          // La actividad real inicia únicamente después de la
+                          // confirmación del popup (no al abrir la vista previa).
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -217,16 +320,12 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           _isCompletingObservationLevel = false;
                         },
                         icon: Icon(
-                          _selectedActivityType == 'video'
-                              ? Icons.play_circle_rounded
-                              : Icons.play_arrow_rounded,
+                          Icons.visibility_rounded,
                           color: Colors.white,
                           size: 32,
                         ),
-                        label: Text(
-                          _selectedActivityType == 'video'
-                              ? 'VER VIDEO'
-                              : 'JUGAR',
+                        label: const Text(
+                          'VISTA PREVIA',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -235,13 +334,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _selectedActivityType == 'video'
-                              ? const Color(0xFF5A97B8)
-                              : const Color(0xFF00E5FF),
+                          backgroundColor: const Color(0xFF5A97B8),
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 10,
-                          shadowColor: const Color.fromARGB(204, 0, 229, 255),
+                          shadowColor: const Color.fromARGB(204, 90, 151, 184),
                         ),
                       ),
                     ),
@@ -358,6 +455,9 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       setState(() {
         _selectedCarouselIndex = index;
       });
+      // Al cambiar de nodo, precargamos el video seleccionado (si aplica)
+      // para mantener respuesta fluida del popup de preview.
+      _preloadSelectedVideoInBackground();
     }
     return RadialFocusPreviewSelector(
       contents: widget.contents,

@@ -70,6 +70,14 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     return mod < 0 ? mod + _length : mod;
   }
 
+  int _alignedAnchor() {
+    if (_length <= 0) return _virtualAnchor;
+    // Garantiza que logicalFromVirtual(anchor) == 0 para cualquier length.
+    // Sin esta alineación, un anchor fijo (ej. 10000) puede caer en módulo
+    // distinto de 0 y provocar desfase entre nodo visible y contenido seleccionado.
+    return _virtualAnchor - (_virtualAnchor % _length);
+  }
+
   int get _selectedLogicalIndex => _logicalFromVirtual(_virtualIndex);
 
   double get _dragPhase => _dragAccumulator / _stepAngle;
@@ -78,7 +86,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   void initState() {
     super.initState();
     final initial = _normalizeInitialIndex(widget.initialIndex);
-    _virtualIndex = _virtualAnchor + initial;
+    // Arrancamos desde anchor alineado + initial para que el primer frame ya
+    // esté sincronizado con el índice que espera la pantalla contenedora.
+    _virtualIndex = _alignedAnchor() + initial;
 
     // Se anima solo el acumulador de arrastre (no el indice logico directamente)
     // para mantener continuidad visual durante el snap sin disparar cambios de
@@ -107,7 +117,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     if (oldWidget.contents != widget.contents && _selectedLogicalIndex >= _length) {
       // Si cambia la fuente de datos y el indice actual queda invalido,
       // volvemos a inicio para garantizar estado consistente y notificacion unica.
-      _virtualIndex = _virtualAnchor;
+      // También usamos anchor alineado para no reintroducir el desfase inicial.
+      _virtualIndex = _alignedAnchor();
       widget.onIndexChanged?.call(0);
     }
   }

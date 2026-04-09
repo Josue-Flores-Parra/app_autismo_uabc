@@ -44,8 +44,10 @@ class VideoViewModel extends ChangeNotifier {
           if (!_isDisposed) _videoController.setLooping(false);
         });
       } else {
-        // Primera vez que se inicializa este controlador
-        _initializeVideoFuture = _videoController.initialize().then((_) {
+        // Inicialización compartida para evitar carreras entre:
+        // - precarga en background desde el carrusel
+        // - apertura inmediata de la tarjeta/popup de video
+        _initializeVideoFuture = manager.initializeController(videoPath).then((_) {
           if (!_isDisposed) _videoController.setLooping(false);
         });
       }
@@ -91,6 +93,7 @@ class VideoViewModel extends ChangeNotifier {
 
   void _showTemporaryIcon() {
     if (_isDisposed) return;
+    // Feedback visual corto al usuario (play/pause) sin ensuciar la UI permanente.
     _showGiantIcon = true;
     notifyListeners();
 
