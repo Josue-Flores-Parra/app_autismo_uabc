@@ -11,6 +11,8 @@ class RadialFocusPreviewSelector extends StatefulWidget {
   final int initialIndex;
   final ValueChanged<int>? onIndexChanged;
   final ValueChanged<int>? onFocusedNodePressed;
+  final ValueChanged<bool>? onDragStateChanged;
+  final bool showInlineScrollHint;
 
   const RadialFocusPreviewSelector({
     super.key,
@@ -18,6 +20,8 @@ class RadialFocusPreviewSelector extends StatefulWidget {
     this.initialIndex = 0,
     this.onIndexChanged,
     this.onFocusedNodePressed,
+    this.onDragStateChanged,
+    this.showInlineScrollHint = false,
   });
 
   @override
@@ -46,6 +50,14 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   double? _lastPointerAngle;
   double _dragAccumulator = 0;
   bool _isDragging = false;
+
+  void _setDragging(bool value) {
+    if (_isDragging == value) return;
+    setState(() {
+      _isDragging = value;
+    });
+    widget.onDragStateChanged?.call(value);
+  }
 
   int get _length => widget.contents.length;
 
@@ -163,11 +175,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     // Al iniciar un nuevo gesto, cancelamos cualquier snap en progreso para no
     // mezclar dos fuentes de movimiento (animacion + dedo) sobre el mismo estado.
     _lastPointerAngle = _pointerAngle(details.globalPosition);
-    if (!_isDragging) {
-      setState(() {
-        _isDragging = true;
-      });
-    }
+    _setDragging(true);
   }
   // Durante el arrastre, acumulamos el delta angular y lo convertimos en pasos discretos para cambiar el item seleccionado.
   void _onPanUpdate(DragUpdateDetails details) {
@@ -206,8 +214,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     if (_length <= 1) {
       setState(() {
         _dragAccumulator = 0;
-        _isDragging = false;
       });
+      _setDragging(false);
       return;
     }
 
@@ -222,16 +230,16 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
         setState(() {
           _virtualIndex -= snapSteps;
           _dragAccumulator = 0;
-          _isDragging = false;
         });
+        _setDragging(false);
         // Mantener callback tambien en el camino "sin animacion" para que
         // ambos flujos (con/sin tween) tengan la misma semantica externa.
         widget.onIndexChanged?.call(_selectedLogicalIndex);
       } else {
         setState(() {
           _dragAccumulator = 0;
-          _isDragging = false;
         });
+        _setDragging(false);
       }
       return;
     }
@@ -251,8 +259,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       setState(() {
         _virtualIndex -= snapSteps;
         _dragAccumulator = 0;
-        _isDragging = false;
       });
+      _setDragging(false);
       if (snapSteps != 0) {
         widget.onIndexChanged?.call(_selectedLogicalIndex);
       }
@@ -261,7 +269,6 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
 
   void _onPanEnd(DragEndDetails _) {
     _lastPointerAngle = null;
-    _isDragging = false;
     _animateSnapToNearest();
   }
 
@@ -281,7 +288,6 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       onPanEnd: _onPanEnd,
       onPanCancel: () {
         _lastPointerAngle = null;
-        _isDragging = false;
         _animateSnapToNearest();
       },
       child: Column(
@@ -397,12 +403,6 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                         child: SizedBox(width: nodeSize, height: nodeSize),
                       ),
                     ),
-                    Positioned(
-                      left: selectorCenter.dx - 36,
-                      top: selectorCenter.dy - (nodeSize / 2) - 56,
-                      // Hint fuera del area central para no competir con el foco visual.
-                      child: _ScrollHint(isDragging: _isDragging),
-                    ),
                   ],
                 );
               },
@@ -410,6 +410,11 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
           ),
           const SizedBox(height: 18),
           _buildTypeLabel(selectedTypeLabel),
+          if (widget.showInlineScrollHint) ...[
+            // Hint opcional en flujo normal para layouts que lo necesiten inline.
+            const SizedBox(height: 8),
+            RadialScrollHint(isDragging: _isDragging),
+          ],
           const SizedBox(height: 10),
           if ((selected.description ?? '').isNotEmpty)
             Padding(
@@ -777,10 +782,10 @@ class _RadialNodeLayout {
 }
 
 // Widget de hint para indicar al usuario que el carrusel es deslizable. Se muestra de forma persistente pero se atenúa durante el gesto para no competir con el foco visual una vez que el usuario ha comprendido la interacción.
-class _ScrollHint extends StatelessWidget {
+class RadialScrollHint extends StatelessWidget {
   final bool isDragging;
 
-  const _ScrollHint({required this.isDragging});
+  const RadialScrollHint({super.key, required this.isDragging});
 
   @override
   Widget build(BuildContext context) {

@@ -43,6 +43,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   int _selectedCarouselIndex = 0;
+  bool _isCarouselDragging = false; // Flag necesario en radial_focus_preview_selector para controlar hints de scroll
   // Cache en memoria por pantalla: retenemos los videos que el usuario ya
   // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
@@ -306,7 +307,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                 children: [
                   _buildHeader(),
 
-                  const SizedBox(height: 20),
+                  // Hint anclado al flujo de la pantalla (debajo del label superior)
+                  // para evitar desalineaciones por escalas/densidades distintas.
+                  RadialScrollHint(isDragging: _isCarouselDragging),
+
+                  const SizedBox(height: 12),
 
                   Expanded(
                     child: FadeTransition(
@@ -470,6 +475,12 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       initialIndex: _selectedCarouselIndex,
       onIndexChanged: onIndexChanged,
       onFocusedNodePressed: _onFocusedNodePressed,
+      onDragStateChanged: (isDragging) {
+        if (_isCarouselDragging == isDragging) return;
+        setState(() {
+          _isCarouselDragging = isDragging;
+        });
+      },
     );
   }
 
