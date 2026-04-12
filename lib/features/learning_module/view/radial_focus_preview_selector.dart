@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../model/content_card_model.dart';
 
@@ -9,12 +10,14 @@ class RadialFocusPreviewSelector extends StatefulWidget {
   final List<ContentCardData> contents;
   final int initialIndex;
   final ValueChanged<int>? onIndexChanged;
+  final ValueChanged<int>? onFocusedNodePressed;
 
   const RadialFocusPreviewSelector({
     super.key,
     required this.contents,
     this.initialIndex = 0,
     this.onIndexChanged,
+    this.onFocusedNodePressed,
   });
 
   @override
@@ -109,7 +112,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   void didUpdateWidget(covariant RadialFocusPreviewSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (_length == 0) {
+    if (_length == 0) { // Si el widget se actualiza a un estado sin contenido, reseteamos el indice virtual para evitar inconsistencias.
       _virtualIndex = _virtualAnchor;
       return;
     }
@@ -129,6 +132,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     super.dispose();
   }
 
+  // Convierte la posición global del puntero en un ángulo relativo al centro del widget.
   double _pointerAngle(Offset globalPosition) {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return 0;
@@ -153,6 +157,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     return delta;
   }
 
+  // Al iniciar un gesto, detenemos cualquier animación de snap en curso para que el control vuelva inmediatamente al usuario.
   void _onPanStart(DragStartDetails details) {
     _snapController.stop();
     // Al iniciar un nuevo gesto, cancelamos cualquier snap en progreso para no
@@ -164,7 +169,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       });
     }
   }
-
+  // Durante el arrastre, acumulamos el delta angular y lo convertimos en pasos discretos para cambiar el item seleccionado.
   void _onPanUpdate(DragUpdateDetails details) {
     if (_length <= 1) return;
 
@@ -195,7 +200,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     setState(() {});
   }
 
+  // Al finalizar el gesto, animamos el snap hacia el item más cercano para garantizar que siempre terminamos con un item perfectamente centrado, evitando estados intermedios ambiguos.
   void _animateSnapToNearest() {
+    // Si no hay contenido o solo hay uno, no tiene sentido animar el snap ni cambiar el estado de arrastre.
     if (_length <= 1) {
       setState(() {
         _dragAccumulator = 0;
@@ -369,13 +376,30 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                             size: nodeSize,
                             blurSigma: radialNode.blurSigma,
                             content: widget.contents[radialNode.logicalIndex],
-                            icon: _iconForType(widget.contents[radialNode.logicalIndex].type),
+                            activityAssetPath: _activityAssetForContent(
+                              widget.contents[radialNode.logicalIndex],
+                            ),
+                            fallbackIcon: _fallbackIconForType(
+                              widget.contents[radialNode.logicalIndex].type,
+                            ),
                           ),
                         ),
                       ),
                     Positioned(
+                      left: selectorCenter.dx - (nodeSize / 2),
+                      top: selectorCenter.dy - (nodeSize / 2),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () {
+                          if (_isDragging) return;
+                          widget.onFocusedNodePressed?.call(_selectedLogicalIndex);
+                        },
+                        child: SizedBox(width: nodeSize, height: nodeSize),
+                      ),
+                    ),
+                    Positioned(
                       left: selectorCenter.dx - 36,
-                      top: selectorCenter.dy - (nodeSize / 2) - 38,
+                      top: selectorCenter.dy - (nodeSize / 2) - 56,
                       // Hint fuera del area central para no competir con el foco visual.
                       child: _ScrollHint(isDragging: _isDragging),
                     ),
@@ -408,7 +432,26 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     );
   }
 
-  IconData _iconForType(ContentType type) {
+  // Mapea tipos de contenido a iconos específicos para el carrusel radial
+  String? _activityAssetForContent(ContentCardData content) {
+    // Iconos temporales de actividades en carrusel radial.
+    // Pictograma usa PNG temporal, video/minijuego se mantienen en SVG.
+    if (content.type == ContentType.pictogram) {
+      return 'assets/icons/minigame_pictogram.png';
+    }
+
+    if (content.type == ContentType.video) {
+      return 'assets/icons/minigame_video.svg';
+    }
+
+    if (content.type == ContentType.miniGame && content.miniGameType == 'simple_selection') {
+      return 'assets/icons/minigame_simple_selection.svg';
+    }
+
+    return null;
+  }
+
+  IconData _fallbackIconForType(ContentType type) {
     switch (type) {
       case ContentType.pictogram:
         return Icons.image_outlined;
@@ -500,17 +543,25 @@ class _RadialNode extends StatelessWidget {
   final double size;
   final double blurSigma;
   final ContentCardData content;
-  final IconData icon;
+  final String? activityAssetPath;
+  final IconData fallbackIcon;
 
   const _RadialNode({
     required this.size,
     required this.blurSigma,
     required this.content,
-    required this.icon,
+    required this.activityAssetPath,
+    required this.fallbackIcon,
   });
 
+  // Solo mostramos la imagen para nodos de tipo pictograma, esto porque se obtiene el preview desde Firebase,
+  // Para los demas tipo de actividades usamos los iconos personalizados en assets/
   bool get _shouldShowPictogramImage {
-    return content.type == ContentType.pictogram && content.imagePath.trim().isNotEmpty;
+    // Si existe icono dedicado para el tipo, priorizamos ese asset para mantener
+    // consistencia visual del carrusel.
+    return content.type == ContentType.pictogram &&
+        activityAssetPath == null &&
+        content.imagePath.trim().isNotEmpty;
   }
 
   @override
@@ -545,32 +596,66 @@ class _RadialNode extends StatelessWidget {
             child: SizedBox(
               width: size * 0.72,
               height: size * 0.72,
-              child: _shouldShowPictogramImage
+              child: _shouldShowPictogramImage // Checar si la actividad es pictograma para mostrar su preview, si no, se usara el icono personalizado
                   ? ClipOval(
                       child: _buildNodeImage(
                         content.imagePath,
                         fit: BoxFit.cover,
                         shimmerBaseColor: const Color(0xFF2E5574),
                         fallback: Icon(
-                          icon,
+                          fallbackIcon,
                           size: size * 0.4,
                           color: const Color(0xE6FFFFFF),
                         ),
                       ),
                     )
-                  : Icon(
-                      icon,
-                      size: size * 0.4,
-                      color: const Color(0xE6FFFFFF),
-                    ),
+                  : _buildActivityIcon(),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildActivityIcon() {
+    if (activityAssetPath == null) {
+      return Icon(
+        fallbackIcon,
+        size: size * 0.4,
+        color: const Color(0xE6FFFFFF),
+      );
+    }
+
+    // revisamos si no es SVG para ajustar el widget de carga, ya que SvgPicture no soporta errorBuilder como Image.asset.
+    if (!activityAssetPath!.toLowerCase().endsWith('.svg')) {
+      return Image.asset(
+        activityAssetPath!,
+        width: size * 0.42,
+        height: size * 0.42,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Icon(
+          fallbackIcon,
+          size: size * 0.4,
+          color: const Color(0xE6FFFFFF),
+        ),
+      );
+    }
+
+    return SvgPicture.asset(
+      activityAssetPath!,
+      width: size * 0.42,
+      height: size * 0.42,
+      fit: BoxFit.contain,
+      placeholderBuilder: (_) => Icon(
+        fallbackIcon,
+        size: size * 0.4,
+        color: const Color(0xE6FFFFFF),
+      ),
+    );
+  }
 }
 
+// Construye el widget de imagen para un nodo, con soporte para carga remota y placeholder.
 Widget _buildNodeImage(
   String url, {
   BoxFit fit = BoxFit.cover,
@@ -691,6 +776,7 @@ class _RadialNodeLayout {
   });
 }
 
+// Widget de hint para indicar al usuario que el carrusel es deslizable. Se muestra de forma persistente pero se atenúa durante el gesto para no competir con el foco visual una vez que el usuario ha comprendido la interacción.
 class _ScrollHint extends StatelessWidget {
   final bool isDragging;
 

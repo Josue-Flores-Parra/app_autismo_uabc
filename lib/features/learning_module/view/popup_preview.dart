@@ -38,6 +38,9 @@ class PopupPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final maxPopupHeight = (screenSize.height - 48).clamp(280.0, screenSize.height);
+
     return Material(
       type: MaterialType.transparency,
       child: Stack(
@@ -46,15 +49,18 @@ class PopupPreview extends StatelessWidget {
             child: BackdropFilter(
               // UX: en lugar de oscurecer el fondo, desenfocamos para
               // dirigir la atención al popup sin "apagar" el contexto visual.
-              filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-              child: Container(color: Colors.white.withAlpha(6)),
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(color: Colors.white.withAlpha(10)),
             ),
           ),
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
+                constraints: BoxConstraints(
+                  maxWidth: 500,
+                  maxHeight: maxPopupHeight,
+                ),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -62,89 +68,130 @@ class PopupPreview extends StatelessWidget {
                     // de foco la produce el blur del fondo + bordes/sombra.
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
+                    border: Border.all(color: const Color(0x8CFFFFFF), width: 1.4),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0xAA000000),
-                        blurRadius: 24,
-                        offset: Offset(0, 12),
+                        color: Color(0x4D000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white70),
-                          onPressed: () => Navigator.of(context).pop(false),
-                        ),
-                      ),
-                      SizedBox(
-                        height: content.type == ContentType.video ? 380 : 320,
-                        child: _buildPopupPreviewBody(),
-                      ),
-                      if (content.type != ContentType.video) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          content.title,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: canLaunch ? onLaunch : null,
-                          icon: Icon(
-                            content.type == ContentType.video
-                                ? Icons.play_circle_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          label: Text(
-                            launchLabel,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.2,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isVideo = content.type == ContentType.video;
+                      final minPreviewHeight = isVideo ? 170.0 : 140.0;
+                      final maxPreviewHeight = isVideo ? 380.0 : 320.0;
+
+                      // Reservar espacio para controles para que el preview se ajuste
+                      // y no desborde en frames transitorios tras rotacion.
+                      final controlsHeight =
+                          56.0 + // boton cerrar
+                          16.0 + // separador principal
+                          56.0 + // boton de accion
+                          (!canLaunch ? 24.0 : 0.0) +
+                          (!isVideo ? 64.0 : 0.0);
+
+                      final availablePreviewHeight =
+                          (constraints.maxHeight - controlsHeight)
+                              .clamp(minPreviewHeight, maxPreviewHeight);
+
+                      return SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0x66000000),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0x55FFFFFF), width: 1),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                onPressed: () => Navigator.of(context).pop(false),
+                              ),
                             ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: content.type == ContentType.video
-                                ? const Color(0xFF5A97B8)
-                                : const Color(0xFF00E5FF),
-                            disabledBackgroundColor: const Color(0x553A5160),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                          SizedBox(
+                            height: availablePreviewHeight,
+                            child: _buildPopupPreviewBody(),
+                          ),
+                          if (!isVideo) ...[
+                            const SizedBox(height: 16),
+                            Text(
+                              content.title,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            elevation: 10,
-                            shadowColor: const Color.fromARGB(204, 0, 229, 255),
+                          ],
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: canLaunch ? onLaunch : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: content.type == ContentType.video
+                                    ? const Color(0xFF5A97B8)
+                                    : const Color(0xFF00E5FF),
+                                disabledBackgroundColor: const Color(0x553A5160),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 10,
+                                shadowColor: const Color.fromARGB(204, 0, 229, 255),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    content.type == ContentType.video
+                                        ? Icons.play_circle_rounded
+                                        : Icons.play_arrow_rounded,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      launchLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
+                          if (!canLaunch)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                'Actividad no disponible para este contenido.',
+                                style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 13),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      if (!canLaunch)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Actividad no disponible para este contenido.',
-                            style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 13),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),

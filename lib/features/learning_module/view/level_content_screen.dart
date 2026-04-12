@@ -218,6 +218,68 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     });
   }
 
+  Future<void> _openSelectedPreviewFlow() async {
+    final selected = _selectedContent;
+    final activityType = _selectedActivityType;
+    if (activityType == null || selected == null || !_canPlaySelectedContent) return;
+
+    final shouldLaunch = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.transparent,
+      // Flujo en dos pasos:
+      // 1) Mostrar popup de vista previa (sin iniciar actividad)
+      // 2) Iniciar actividad solo si usuario confirma con botón dinámico
+      builder: (dialogContext) => PopupPreview(
+        content: selected,
+        launchLabel: _selectedLaunchLabel,
+        canLaunch: _canPlaySelectedContent,
+        previewImageUrl: _selectedPreviewImageUrl,
+        videoPreviewPath: _selectedVideoPreviewPath,
+        onLaunch: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+
+    if (shouldLaunch != true || !mounted) {
+      return;
+    }
+
+    // La actividad real inicia únicamente después de la
+    // confirmación del popup (no al abrir la vista previa).
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LevelPlayScreen(
+          levelTitle: widget.levelTitle ?? widget.levelName,
+          minigameData: widget.minigameData,
+          actividadType: activityType,
+          levelId: widget.levelId ?? '',
+          moduleId: widget.moduleId ?? '',
+          videoUrl: widget.videoUrl,
+          launchSimpleSelectionFromCard: activityType == 'simple_selection',
+        ),
+      ),
+    );
+    if (!mounted) return;
+
+    // Recargar datos después de regresar
+    if (widget.moduleId != null) {
+      final learningViewModel = context.read<LearningViewModel>();
+      await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
+    }
+    if (!mounted || _isCompletingObservationLevel || !_canComplete) {
+      return;
+    }
+
+    _isCompletingObservationLevel = true;
+    await _handleCompleteObservationLevel(context);
+    _isCompletingObservationLevel = false;
+  }
+
+  void _onFocusedNodePressed(int _) {
+    _openSelectedPreviewFlow();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -254,71 +316,14 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                   ),
 
                   const SizedBox(height: 20),
-                  
+
                   // El botón usa la tarjeta seleccionada para decidir qué actividad abrir.
                   // Así el usuario controla la actividad desde el carrusel + botón principal.
                   if (_canPlaySelectedContent)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final selected = _selectedContent;
-                          final activityType = _selectedActivityType;
-                          if (activityType == null || selected == null) return;
-
-                          final shouldLaunch = await showDialog<bool>(
-                            context: context,
-                            barrierDismissible: true,
-                            barrierColor: Colors.transparent,
-                            // Flujo en dos pasos:
-                            // 1) Mostrar popup de vista previa (sin iniciar actividad)
-                            // 2) Iniciar actividad solo si usuario confirma con botón dinámico
-                            builder: (dialogContext) => PopupPreview(
-                              content: selected,
-                              launchLabel: _selectedLaunchLabel,
-                              canLaunch: _canPlaySelectedContent,
-                              previewImageUrl: _selectedPreviewImageUrl,
-                              videoPreviewPath: _selectedVideoPreviewPath,
-                              onLaunch: () => Navigator.of(dialogContext).pop(true),
-                            ),
-                          );
-
-                          if (shouldLaunch != true || !context.mounted) {
-                            return;
-                          }
-
-                          // La actividad real inicia únicamente después de la
-                          // confirmación del popup (no al abrir la vista previa).
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => LevelPlayScreen(
-                                levelTitle: widget.levelTitle ?? widget.levelName,
-                                minigameData: widget.minigameData,
-                                actividadType: activityType,
-                                levelId: widget.levelId ?? '',
-                                moduleId: widget.moduleId ?? '',
-                                videoUrl: widget.videoUrl,
-                                launchSimpleSelectionFromCard:
-                                    activityType == 'simple_selection',
-                              ),
-                            ),
-                          );
-                          if (!context.mounted) return;
-
-                          // Recargar datos después de regresar
-                          if (widget.moduleId != null) {
-                            final learningViewModel = context.read<LearningViewModel>();
-                            await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
-                          }
-                          if (!context.mounted || _isCompletingObservationLevel || !_canComplete) {
-                            return;
-                          }
-
-                          _isCompletingObservationLevel = true;
-                          await _handleCompleteObservationLevel(context);
-                          _isCompletingObservationLevel = false;
-                        },
+                        onPressed: _openSelectedPreviewFlow,
                         icon: Icon(
                           Icons.visibility_rounded,
                           color: Colors.white,
@@ -334,11 +339,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5A97B8),
+                          backgroundColor: const Color(0xFF92C5BC),
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 10,
-                          shadowColor: const Color.fromARGB(204, 90, 151, 184),
+                          shadowColor: const Color.fromARGB(180, 170, 163, 163),
                         ),
                       ),
                     ),
@@ -449,6 +454,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     );
   }
 
+  // Construye el carrusel de tarjetas de contenido usando el nuevo widget radial personalizado.
   Widget _buildCarousel() {
     void onIndexChanged(int index) {
       if (_selectedCarouselIndex == index) return;
@@ -463,6 +469,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       contents: widget.contents,
       initialIndex: _selectedCarouselIndex,
       onIndexChanged: onIndexChanged,
+      onFocusedNodePressed: _onFocusedNodePressed,
     );
   }
 

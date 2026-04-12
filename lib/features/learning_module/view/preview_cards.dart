@@ -1078,7 +1078,7 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                         color: Colors.white,
                       ),
                       onPressed: () {
-                        _viewModel.togglePlayPause();
+                          _viewModel.togglePlayPause();
                       },
                     ),
                   ],
