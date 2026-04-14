@@ -246,7 +246,14 @@ class PopupPreview extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
-                    child: _buildPreviewImage(),
+                    child: Center(
+                      // TODO: resize la imagen para no tener que escalarla con BoxFit.contain
+                      child: FractionallySizedBox(
+                        widthFactor: 0.78, // escala para el resize
+                        heightFactor: 0.78,
+                        child: _buildPreviewImage(),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -258,7 +265,11 @@ class PopupPreview extends StatelessWidget {
   }
 
   Widget _buildPreviewImage() {
-    final source = (previewImageUrl ?? content.imagePath).trim();
+    // Para minijuegos usamos siempre la miniatura local dedicada.
+    // Evita depender de miniGameType exacto y de rutas dinámicas inconsistentes.
+    final source = (content.type == ContentType.miniGame)
+        ? 'assets/imgs/simple_selection_preview.png'
+        : (previewImageUrl ?? content.imagePath).trim();
     if (source.isEmpty) {
       // Fallback explícito para recursos ausentes o no mapeados.
       return _buildPlaceholder();

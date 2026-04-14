@@ -804,19 +804,11 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(18),
-                        child: widget.imgPreview.isNotEmpty
-                            ? _buildImageFromUrl(
-                                widget.imgPreview,
-                                fit: BoxFit.contain,
-                                shimmerBaseColor: const Color(0xFF1A3D52),
-                              )
-                            : const Center(
-                                child: Icon(
-                                  Icons.gamepad_rounded,
-                                  size: 80,
-                                  color: Color(0xFFCCCCCC),
-                                ),
-                              ),
+                        child: _buildImageFromUrl(
+                          'assets/imgs/simple_selection_preview.png',
+                          fit: BoxFit.contain,
+                          shimmerBaseColor: const Color(0xFF1A3D52),
+                        ),
                       ),
                     ),
                   ),

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../model/content_card_model.dart';
 
@@ -440,17 +439,17 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   // Mapea tipos de contenido a iconos específicos para el carrusel radial
   String? _activityAssetForContent(ContentCardData content) {
     // Iconos temporales de actividades en carrusel radial.
-    // Pictograma usa PNG temporal, video/minijuego se mantienen en SVG.
+    // Todos los iconos usan PNG locales.
     if (content.type == ContentType.pictogram) {
       return 'assets/icons/minigame_pictogram.png';
     }
 
     if (content.type == ContentType.video) {
-      return 'assets/icons/minigame_video.svg';
+      return 'assets/icons/minigame_video.png';
     }
 
     if (content.type == ContentType.miniGame && content.miniGameType == 'simple_selection') {
-      return 'assets/icons/minigame_simple_selection.svg';
+      return 'assets/icons/minigame_simple_selection.png';
     }
 
     return null;
@@ -631,27 +630,12 @@ class _RadialNode extends StatelessWidget {
       );
     }
 
-    // revisamos si no es SVG para ajustar el widget de carga, ya que SvgPicture no soporta errorBuilder como Image.asset.
-    if (!activityAssetPath!.toLowerCase().endsWith('.svg')) {
-      return Image.asset(
-        activityAssetPath!,
-        width: size * 0.42,
-        height: size * 0.42,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(
-          fallbackIcon,
-          size: size * 0.4,
-          color: const Color(0xE6FFFFFF),
-        ),
-      );
-    }
-
-    return SvgPicture.asset(
+    return Image.asset(
       activityAssetPath!,
       width: size * 0.42,
       height: size * 0.42,
       fit: BoxFit.contain,
-      placeholderBuilder: (_) => Icon(
+      errorBuilder: (_, __, ___) => Icon(
         fallbackIcon,
         size: size * 0.4,
         color: const Color(0xE6FFFFFF),
