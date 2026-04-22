@@ -54,8 +54,8 @@ class MyApp extends StatelessWidget {
     final skinsDisponibles = AvatarRepository.obtenerSkinsDisponibles();
 
     // Crear el estado inicial del avatar
-    final estadoInicial = AvatarEstado(
-      nombre: 'MRBEAST',
+    final estadoInicial = AvatarEstado( // Definir estado inicial con valores por defecto
+      nombre: 'nombre',
       felicidad: 64,
       energia: 92,
       skinActual: skinsDisponibles.first,
