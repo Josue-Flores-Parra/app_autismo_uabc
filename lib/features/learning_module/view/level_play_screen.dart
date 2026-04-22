@@ -608,8 +608,28 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
     } catch (_) {}
   }
 
+  Future<void> _pauseBeforeExit() async {
+    // Al salir del contexto de esta pantalla, detenemos reproduccion para
+    // evitar que el audio/video continue en segundo plano.
+    try {
+      if (_viewModel.videoController.value.isInitialized &&
+          _viewModel.videoController.value.isPlaying) {
+        await _viewModel.videoController.pause();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _pauseAndPop() async {
+    // Si el usuario intenta salir con el botón de back, nos aseguramos de pausar el video antes de cerrar la pantalla.
+    await _pauseBeforeExit();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   void dispose() {
+    // Guard defensivo para cierres no interceptados (replace/remove route).
+    _viewModel.pause();
     _viewModel.removeListener(_onVideoUpdate);
     _viewModel.dispose();
     _celebrationHelper.dispose();
@@ -618,10 +638,16 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: FutureBuilder<void>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // Si la ruta ya se está cerrando, no interferir.
+        _pauseAndPop(); // Intercepción manual de back button para asegurar que el video se pausa antes de salir.
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: FutureBuilder<void>(
           future: _viewModel.initializeVideoFuture,
           builder: (context, snapshot) {
             final ready = snapshot.connectionState == ConnectionState.done &&
@@ -645,7 +671,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.of(context).pop(),
+                         onPressed: _pauseAndPop,
                       ),
                       Expanded(
                         child: Text(
@@ -897,6 +923,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
               ],
             );
           },
+          ),
         ),
       ),
     );

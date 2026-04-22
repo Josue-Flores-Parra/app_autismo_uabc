@@ -46,7 +46,6 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   late final AnimationController _snapController;
   Animation<double>? _snapAnimation;
 
-  double? _lastPointerAngle;
   double _dragAccumulator = 0;
   bool _isDragging = false;
 
@@ -143,56 +142,25 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     super.dispose();
   }
 
-  // Convierte la posición global del puntero en un ángulo relativo al centro del widget.
-  double _pointerAngle(Offset globalPosition) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return 0;
-
-    final local = box.globalToLocal(globalPosition);
-    final center = box.size.center(Offset.zero);
-
-    // Decidimos medir en coordenadas angulares respecto al centro del widget
-    // (no por desplazamiento X/Y) para que el gesto sea radial y consistente,
-    // incluso si el usuario arrastra en diagonales.
-    return math.atan2(local.dy - center.dy, local.dx - center.dx);
-  }
-
-  double _normalizeDelta(double delta) {
-    // Mantiene el delta angular en [-pi, pi] para evitar saltos al cruzar el corte circular.
-    while (delta > math.pi) {
-      delta -= 2 * math.pi;
-    }
-    while (delta < -math.pi) {
-      delta += 2 * math.pi;
-    }
-    return delta;
-  }
-
   // Al iniciar un gesto, detenemos cualquier animación de snap en curso para que el control vuelva inmediatamente al usuario.
   void _onPanStart(DragStartDetails details) {
     _snapController.stop();
     // Al iniciar un nuevo gesto, cancelamos cualquier snap en progreso para no
     // mezclar dos fuentes de movimiento (animacion + dedo) sobre el mismo estado.
-    _lastPointerAngle = _pointerAngle(details.globalPosition);
     _setDragging(true);
   }
   // Durante el arrastre, acumulamos el delta angular y lo convertimos en pasos discretos para cambiar el item seleccionado.
   void _onPanUpdate(DragUpdateDetails details) {
     if (_length <= 1) return;
 
-    final currentAngle = _pointerAngle(details.globalPosition);
-    if (_lastPointerAngle == null) {
-      _lastPointerAngle = currentAngle;
-      return;
-    }
+    // UX: el carrusel debe responder al gesto horizontal real (izquierda/derecha),
+    // evitando ambiguedad radial en diagonales.
+    final horizontalDelta = details.delta.dx;
 
-    final delta = _normalizeDelta(currentAngle - _lastPointerAngle!);
-    _lastPointerAngle = currentAngle;
-
-    // Acumula giro continuo y lo convierte en pasos discretos por item.
+    // Acumula desplazamiento horizontal y lo convierte en pasos discretos por item.
     // Diseno: separar acumulador continuo + indice discreto evita jitter visual
     // y notificaciones excesivas al ViewModel.
-    _dragAccumulator += delta * _dragSensitivity;
+    _dragAccumulator += (horizontalDelta / 140.0) * _stepAngle * _dragSensitivity;
     final steps = (_dragAccumulator / _stepAngle).truncate();
 
     if (steps != 0) {
@@ -266,8 +234,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     });
   }
 
+  // Si el gesto se cancela abruptamente (ej. por una interrupción del sistema)
+  // también animamos el snap para evitar quedar en un estado intermedio.
   void _onPanEnd(DragEndDetails _) {
-    _lastPointerAngle = null;
     _animateSnapToNearest();
   }
 
@@ -286,7 +255,6 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       onPanUpdate: _onPanUpdate,
       onPanEnd: _onPanEnd,
       onPanCancel: () {
-        _lastPointerAngle = null;
         _animateSnapToNearest();
       },
       child: Column(

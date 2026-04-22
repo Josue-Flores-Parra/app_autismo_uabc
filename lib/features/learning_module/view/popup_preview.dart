@@ -247,9 +247,8 @@ class PopupPreview extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
                     child: Center(
-                      // TODO: resize la imagen para no tener que escalarla con BoxFit.contain
                       child: FractionallySizedBox(
-                        widthFactor: 0.78, // escala para el resize
+                        widthFactor: 0.78, // escala ligeramente menor para que quede centrado dentro del marco decorativo
                         heightFactor: 0.78,
                         child: _buildPreviewImage(),
                       ),
