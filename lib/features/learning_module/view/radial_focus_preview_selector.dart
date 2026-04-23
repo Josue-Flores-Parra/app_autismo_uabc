@@ -40,7 +40,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   // Ajusta cuanto gira la rueda por cada delta angular del dedo.
   // Valor < 1 amortigua el gesto para mejorar control fino en pantallas pequenas.
   // Valor > 1 se siente mas "nervioso" y puede generar saltos involuntarios.
-  static const double _dragSensitivity = 0.60;
+  static const double _dragSensitivity = 0.62;
 
   late int _virtualIndex;
   late final AnimationController _snapController;
@@ -78,7 +78,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   int _normalizeInitialIndex(int index) {
     if (_length == 0) return 0;
     // Permite recibir indices fuera de rango y normalizarlos sin fallar.
-    // Diseno defensivo: evita acoplar el widget a validaciones externas.
+    // Diseño defensivo: evita acoplar el widget a validaciones externas.
     final mod = index % _length;
     return mod < 0 ? mod + _length : mod;
   }
