@@ -164,6 +164,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
       case 'audio':
         minigameType = MinigameType.audio;
         break;
+      case 'puzzle':
+        minigameType = MinigameType.puzzle;
+        break;
       default:
         minigameType = null;
     }

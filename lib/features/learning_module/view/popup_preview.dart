@@ -32,6 +32,9 @@ class PopupPreview extends StatelessWidget {
       case ContentType.audio:
         return 'AUDIO';
       case ContentType.miniGame:
+        if (content.miniGameType == 'puzzle') {
+          return 'ROMPECABEZAS';
+        }
         return 'MINIJUEGO';
     }
   }
@@ -267,7 +270,9 @@ class PopupPreview extends StatelessWidget {
     // Para minijuegos usamos siempre la miniatura local dedicada.
     // Evita depender de miniGameType exacto y de rutas dinámicas inconsistentes.
     final source = (content.type == ContentType.miniGame)
-        ? 'assets/imgs/simple_selection_preview.png'
+        ? (content.miniGameType == 'simple_selection'
+            ? 'assets/imgs/simple_selection_preview.png'
+            : (previewImageUrl ?? content.imagePath).trim())
         : (previewImageUrl ?? content.imagePath).trim();
     if (source.isEmpty) {
       // Fallback explícito para recursos ausentes o no mapeados.
@@ -355,4 +360,3 @@ class _PopupMediaWithTypeLabel extends StatelessWidget {
     );
   }
 }
-

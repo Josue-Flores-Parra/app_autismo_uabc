@@ -247,7 +247,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     }
 
     final selected = widget.contents[_selectedLogicalIndex];
-    final selectedTypeLabel = _typeLabelFor(selected.type);
+    final selectedTypeLabel = _typeLabelFor(selected);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -436,8 +436,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     }
   }
 
-  String _typeLabelFor(ContentType type) {
-    switch (type) {
+  String _typeLabelFor(ContentCardData content) {
+    switch (content.type) {
       case ContentType.pictogram:
         return 'PICTOGRAMA';
       case ContentType.video:
@@ -445,6 +445,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       case ContentType.audio:
         return 'AUDIO';
       case ContentType.miniGame:
+        if (content.miniGameType == 'puzzle') {
+          return 'ROMPECABEZAS';
+        }
         return 'MINIJUEGO';
     }
   }

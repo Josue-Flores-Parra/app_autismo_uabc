@@ -100,6 +100,9 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         if (selected.miniGameType == 'simple_selection') {
           return _isSimpleSelectionEnabled && widget.minigameData != null;
         }
+        if (selected.miniGameType == 'puzzle') {
+          return true;
+        }
         return false;
     }
   }
