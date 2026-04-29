@@ -20,6 +20,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   static const double _minTraySize = 0.14;
   static const double _maxTraySize = 0.5;
   static const double _initialTraySize = 0.18;
+  static const double _trayHeaderHeight = 78;
 
   late final String _imagePath;
   late final int _maxAttempts;
@@ -29,7 +30,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final math.Random _random = math.Random();
   final Set<int> _lockedPieces = <int>{};
   final Map<int, bool> _feedbackSlots = <int, bool>{};
-  final DraggableScrollableController _trayController = DraggableScrollableController();
+  final DraggableScrollableController _trayController =
+      DraggableScrollableController();
 
   int _attempts = 0;
   bool _isCompleted = false;
@@ -46,10 +48,9 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     _imagePath = _resolveImagePath(widget.minigameData);
     _maxAttempts = _resolveMaxAttempts(widget.minigameData);
     _gridSlots = List<int?>.filled(_gridSize * _gridSize, null);
-    _trayPieces = Set<int>.from(List<int>.generate(
-      _gridSize * _gridSize,
-      (index) => index,
-    ));
+    _trayPieces = Set<int>.from(
+      List<int>.generate(_gridSize * _gridSize, (index) => index),
+    );
     _syncTrayOrder(shuffle: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precachePuzzleImage();
@@ -89,7 +90,9 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   }
 
   String _resolveImagePath(Map<String, dynamic> data) {
-    final candidate = (data['imageUrl'] ?? data['imagePath'])?.toString().trim();
+    final candidate = (data['imageUrl'] ?? data['imagePath'])
+        ?.toString()
+        .trim();
     if (candidate != null && candidate.isNotEmpty) {
       return candidate;
     }
@@ -152,7 +155,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
           width: imageSize,
           height: imageSize,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0x332C5F7A)),
+          errorBuilder: (_, __, ___) =>
+              const ColoredBox(color: Color(0x332C5F7A)),
         ),
       ),
     );
@@ -207,10 +211,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
           ),
         ),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.35,
-        child: piece,
-      ),
+      childWhenDragging: Opacity(opacity: 0.35, child: piece),
       onDragStarted: () {
         if (fromSlot == null) {
           _closeTray();
@@ -414,7 +415,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
             itemBuilder: (context, index) {
               final pieceId = _gridSlots[index];
               final feedback = _feedbackSlots[index];
-              final isLocked = pieceId != null && _lockedPieces.contains(pieceId);
+              final isLocked =
+                  pieceId != null && _lockedPieces.contains(pieceId);
 
               return DragTarget<_PuzzleDragData>(
                 onWillAccept: (data) {
@@ -427,11 +429,17 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                 builder: (context, candidateData, rejectedData) {
                   final highlight = candidateData.isNotEmpty;
                   final borderColor = feedback == null
-                      ? (highlight ? const Color(0xFF00E5FF) : const Color(0x66FFFFFF))
-                      : (feedback ? const Color(0xFF05E995) : const Color(0xFFFF5252));
+                      ? (highlight
+                            ? const Color(0xFF00E5FF)
+                            : const Color(0x66FFFFFF))
+                      : (feedback
+                            ? const Color(0xFF05E995)
+                            : const Color(0xFFFF5252));
                   final glowColor = feedback == null
                       ? Colors.transparent
-                      : (feedback ? const Color(0xFF05E995) : const Color(0xFFFF5252));
+                      : (feedback
+                            ? const Color(0xFF05E995)
+                            : const Color(0xFFFF5252));
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -451,15 +459,15 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                     child: pieceId == null
                         ? const SizedBox.shrink()
                         : (isLocked
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(7),
-                                child: _buildPieceImage(pieceId, slotSize),
-                              )
-                            : _buildDraggablePiece(
-                                pieceId,
-                                fromSlot: index,
-                                size: slotSize,
-                              )),
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(7),
+                                  child: _buildPieceImage(pieceId, slotSize),
+                                )
+                              : _buildDraggablePiece(
+                                  pieceId,
+                                  fromSlot: index,
+                                  size: slotSize,
+                                )),
                   );
                 },
               );
@@ -481,7 +489,10 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _checkPuzzle,
-                  icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                  icon: const Icon(
+                    Icons.check_circle_outline,
+                    color: Colors.white,
+                  ),
                   label: const Text(
                     'COMPROBAR',
                     style: TextStyle(
@@ -506,6 +517,51 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  Widget _buildTrayHeader(double screenHeight) {
+    return GestureDetector(
+      onTap: _toggleTray,
+      onVerticalDragUpdate: (details) =>
+          _handleTrayDragUpdate(details, screenHeight),
+      onVerticalDragEnd: (_) => _handleTrayDragEnd(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: _trayHeaderHeight,
+        padding: const EdgeInsets.only(top: 6, bottom: 12),
+        color: const Color(0xFF1A3D52),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0x66FFFFFF),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 6),
+            AnimatedRotation(
+              turns: _isTrayOpen ? 0.5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(
+                Icons.keyboard_arrow_up_rounded,
+                color: Colors.white70,
+                size: 26,
+              ),
+            ),
+            const Text(
+              'Piezas',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTray() {
     final trayBorderColor = _isTrayHovering
         ? const Color(0xFF00E5FF)
@@ -526,6 +582,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
         snap: true,
         snapSizes: const [_minTraySize, _maxTraySize],
         builder: (context, scrollController) {
+          final screenHeight = MediaQuery.sizeOf(context).height;
           return DragTarget<_PuzzleDragData>(
             onWillAccept: (data) {
               if (_isChecking || data == null) return false;
@@ -551,85 +608,98 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
               });
             },
             builder: (context, candidateData, rejectedData) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A3D52),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border.all(color: trayBorderColor, width: 1.4),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x99000000),
-                      blurRadius: 18,
-                      offset: Offset(0, -4),
-                    ),
-                  ],
+              return ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
                 ),
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  children: [
-                    GestureDetector(
-                      onTap: _toggleTray,
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: const Color(0x66FFFFFF),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          AnimatedRotation(
-                            turns: _isTrayOpen ? 0.5 : 0,
-                            duration: const Duration(milliseconds: 200),
-                            child: const Icon(
-                              Icons.keyboard_arrow_up_rounded,
-                              color: Colors.white70,
-                              size: 26,
-                            ),
-                          ),
-                          const Text(
-                            'Piezas',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A3D52),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
                     ),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: _gridSize,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
+                    border: Border.all(color: trayBorderColor, width: 1.4),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x99000000),
+                        blurRadius: 18,
+                        offset: Offset(0, -4),
                       ),
-                      itemCount: _trayOrder.length,
-                      itemBuilder: (context, index) {
-                        final pieceId = _trayOrder[index];
-                        return _buildDraggablePiece(pieceId, size: 64);
-                      },
-                    ),
-                    if (_trayOrder.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 12),
-                        child: Text(
-                          'No hay piezas disponibles.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0x99FFFFFF),
-                            fontSize: 13,
+                    ],
+                  ),
+                  child: NotificationListener<ScrollUpdateNotification>(
+                    onNotification: (notification) {
+                      if (!_isTrayOpen &&
+                          scrollController.hasClients &&
+                          scrollController.offset > 0) {
+                        scrollController.jumpTo(0);
+                      }
+                      return false;
+                    },
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              top: _trayHeaderHeight,
+                            ),
+                            child: CustomScrollView(
+                              controller: scrollController,
+                              physics: const ClampingScrollPhysics(),
+                              slivers: [
+                                SliverPadding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  sliver: SliverGrid(
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: _gridSize,
+                                          mainAxisSpacing: 8,
+                                          crossAxisSpacing: 8,
+                                        ),
+                                    delegate: SliverChildBuilderDelegate((
+                                      context,
+                                      index,
+                                    ) {
+                                      final pieceId = _trayOrder[index];
+                                      return _buildDraggablePiece(
+                                        pieceId,
+                                        size: 64,
+                                      );
+                                    }, childCount: _trayOrder.length),
+                                  ),
+                                ),
+                                if (_trayOrder.isEmpty)
+                                  const SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(top: 12),
+                                      child: Text(
+                                        'No hay piezas disponibles.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Color(0x99FFFFFF),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                const SliverToBoxAdapter(
+                                  child: SizedBox(height: 12),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    const SizedBox(height: 12),
-                  ],
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          child: _buildTrayHeader(screenHeight),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -667,20 +737,48 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                 const SizedBox(height: 72),
               ],
             ),
+            if (_isTrayOpen)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _toggleTray,
+                ),
+              ),
             Positioned(
               left: 20,
               right: 20,
               bottom: trayOffset,
               child: _buildCheckButton(),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: _buildTray(),
-            ),
+            Align(alignment: Alignment.bottomCenter, child: _buildTray()),
           ],
         ),
       ),
     );
+  }
+
+  void _snapTrayToClosest() {
+    final target = _isTrayOpen ? _maxTraySize : _minTraySize;
+    _trayController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _handleTrayDragUpdate(DragUpdateDetails details, double screenHeight) {
+    if (_isChecking) return;
+    final delta = details.primaryDelta ?? 0;
+    final nextExtent = (_trayExtent - (delta / screenHeight)).clamp(
+      _minTraySize,
+      _maxTraySize,
+    );
+    _trayController.jumpTo(nextExtent);
+  }
+
+  void _handleTrayDragEnd() {
+    if (_isChecking) return;
+    _snapTrayToClosest();
   }
 }
 
@@ -688,19 +786,13 @@ class _PuzzleDragData {
   final int pieceId;
   final int? fromSlot;
 
-  const _PuzzleDragData({
-    required this.pieceId,
-    required this.fromSlot,
-  });
+  const _PuzzleDragData({required this.pieceId, required this.fromSlot});
 }
 
 void registerPuzzleMinigame() {
   MinigameFactory.register(
     MinigameType.puzzle,
-    ({required onComplete, required minigameData}) => PuzzleMinigame(
-      onComplete: onComplete,
-      minigameData: minigameData,
-    ),
+    ({required onComplete, required minigameData}) =>
+        PuzzleMinigame(onComplete: onComplete, minigameData: minigameData),
   );
 }
-
