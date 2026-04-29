@@ -445,9 +445,6 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       case ContentType.audio:
         return 'AUDIO';
       case ContentType.miniGame:
-        if (content.miniGameType == 'puzzle') {
-          return 'ROMPECABEZAS';
-        }
         return 'MINIJUEGO';
     }
   }

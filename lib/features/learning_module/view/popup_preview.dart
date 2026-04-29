@@ -32,9 +32,6 @@ class PopupPreview extends StatelessWidget {
       case ContentType.audio:
         return 'AUDIO';
       case ContentType.miniGame:
-        if (content.miniGameType == 'puzzle') {
-          return 'ROMPECABEZAS';
-        }
         return 'MINIJUEGO';
     }
   }
