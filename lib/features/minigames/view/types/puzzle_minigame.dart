@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../minigame_core.dart';
+import '../../../../shared/services/celebration_helper.dart';
 
 class PuzzleMinigame extends MinigameBase {
   const PuzzleMinigame({
@@ -10,6 +11,7 @@ class PuzzleMinigame extends MinigameBase {
     required super.minigameData,
   });
 
+  // Crea el estado del minijuego de rompecabezas.
   @override
   State<PuzzleMinigame> createState() => _PuzzleMinigameState();
 }
@@ -17,6 +19,7 @@ class PuzzleMinigame extends MinigameBase {
 class _PuzzleMinigameState extends State<PuzzleMinigame> {
   static const int _gridSize = 5;
   static const Duration _feedbackDuration = Duration(seconds: 3);
+  static const Duration _celebrationDuration = Duration(seconds: 3);
   static const double _minTraySize = 0.14;
   static const double _maxTraySize = 0.5;
   static const double _initialTraySize = 0.18;
@@ -30,8 +33,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final math.Random _random = math.Random();
   final Set<int> _lockedPieces = <int>{};
   final Map<int, bool> _feedbackSlots = <int, bool>{};
-  final DraggableScrollableController _trayController =
-      DraggableScrollableController();
+  final DraggableScrollableController _trayController = DraggableScrollableController();
+  final CelebrationHelper _celebrationHelper = CelebrationHelper(duration: _celebrationDuration);
 
   int _attempts = 0;
   bool _isCompleted = false;
@@ -42,6 +45,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   bool get _isTrayOpen => _trayExtent >= ((_minTraySize + _maxTraySize) / 2);
   bool get _isGridFull => _gridSlots.every((slot) => slot != null);
 
+  // Inicializa datos, piezas y precarga la imagen.
   @override
   void initState() {
     super.initState();
@@ -57,6 +61,14 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     });
   }
 
+  // Libera recursos del efecto de celebración.
+  @override
+  void dispose() {
+    _celebrationHelper.dispose();
+    super.dispose();
+  }
+
+  // Sincroniza el orden visual de las piezas en la bandeja.
   void _syncTrayOrder({bool shuffle = false}) {
     _trayOrder
       ..clear()
@@ -66,11 +78,13 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     }
   }
 
+  // Quita una pieza de la bandeja.
   void _removeFromTray(int pieceId) {
     _trayPieces.remove(pieceId);
     _trayOrder.remove(pieceId);
   }
 
+  // Agrega una pieza a la bandeja (opcionalmente mezclando el orden).
   void _addToTray(int pieceId, {bool shuffle = false}) {
     final added = _trayPieces.add(pieceId);
     if (added) {
@@ -81,6 +95,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     }
   }
 
+  // Precarga la imagen para evitar parpadeos al renderizar piezas.
   Future<void> _precachePuzzleImage() async {
     try {
       await precacheImage(AssetImage(_imagePath), context);
@@ -89,6 +104,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     }
   }
 
+  // Resuelve la ruta/URL de la imagen del rompecabezas.
   String _resolveImagePath(Map<String, dynamic> data) {
     final candidate = (data['imageUrl'] ?? data['imagePath'])
         ?.toString()
@@ -99,6 +115,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return 'assets/images/DORMIR.jpg';
   }
 
+  // Resuelve el número máximo de intentos permitido.
   int _resolveMaxAttempts(Map<String, dynamic> data) {
     final value = data['maxAttempts'];
     if (value is int) return value;
@@ -107,6 +124,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return 999;
   }
 
+  // Alterna la bandeja entre abierta y cerrada.
   void _toggleTray() {
     if (_isChecking) return;
     final target = _isTrayOpen ? _minTraySize : _maxTraySize;
@@ -117,6 +135,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Cierra la bandeja si está abierta.
   void _closeTray() {
     if (!_isTrayOpen) return;
     _trayController.animateTo(
@@ -126,6 +145,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Obtiene el ImageProvider según sea asset o URL remota.
   ImageProvider _imageProvider() {
     if (_imagePath.startsWith('http://') || _imagePath.startsWith('https://')) {
       return NetworkImage(_imagePath);
@@ -133,6 +153,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return AssetImage(_imagePath);
   }
 
+  // Calcula la alineación del fragmento según su índice.
   Alignment _alignmentForPiece(int pieceId) {
     final row = pieceId ~/ _gridSize;
     final col = pieceId % _gridSize;
@@ -142,6 +163,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return Alignment(dx, dy);
   }
 
+  // Construye el fragmento visual recortado de la imagen.
   Widget _buildPieceImage(int pieceId, double pieceSize) {
     final imageSize = pieceSize * _gridSize;
 
@@ -162,6 +184,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Crea una pieza draggable desde bandeja o cuadrícula.
   Widget _buildDraggablePiece(int pieceId, {int? fromSlot, double size = 56}) {
     final piece = SizedBox(
       width: size,
@@ -213,6 +236,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: piece),
       onDragStarted: () {
+        // Si la pieza viene de la cuadrícula, se libera el espacio para permitir que otros la ocupen visualmente.
         if (fromSlot == null) {
           _closeTray();
         }
@@ -221,11 +245,13 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Maneja cuando una pieza se suelta en una celda de la cuadrícula.
   void _handleGridAccept(int slotIndex, _PuzzleDragData data) {
-    if (_isChecking) return;
-    if (_gridSlots[slotIndex] != null) return;
+    if (_isChecking) return; // No permitir mover piezas durante la validación.
+    if (_gridSlots[slotIndex] != null) return; // Protección extra, aunque DragTarget ya lo previene.
 
     setState(() {
+      // Si la pieza viene de otra celda, se libera esa celda. Si viene de la bandeja, se elimina de la bandeja.
       if (data.fromSlot != null) {
         _gridSlots[data.fromSlot!] = null;
       } else {
@@ -237,9 +263,11 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     });
   }
 
+  // Maneja cuando una pieza se devuelve a la bandeja.
   void _handleTrayAccept(_PuzzleDragData data) {
-    if (_isChecking) return;
+    if (_isChecking) return; // No permitir devolver piezas durante la validación.
     setState(() {
+      // Si la pieza viene de una celda, se libera esa celda. Si viene de la bandeja, no hay nada que liberar.
       if (data.fromSlot != null) {
         _gridSlots[data.fromSlot!] = null;
       }
@@ -248,14 +276,17 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     });
   }
 
+  // Valida el tablero, muestra feedback y procesa el resultado.
   Future<void> _checkPuzzle() async {
     if (_isChecking || _isCompleted || !_isGridFull) return;
 
     final correctSlots = <int>{};
     final incorrectSlots = <int>{};
+    // Comparar cada celda con su pieza correcta (que coincide con el índice).
     for (int i = 0; i < _gridSlots.length; i++) {
       final pieceId = _gridSlots[i];
       if (pieceId == null) continue;
+      // La pieza se agrega a las correctas o incorrectas según si su ID coincide con el índice de la celda.
       if (pieceId == i) {
         correctSlots.add(i);
       } else {
@@ -266,6 +297,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     setState(() {
       _attempts++;
       _isChecking = true;
+      // Actualizar el feedback para cada celda: verde para correcto, rojo para incorrecto.
       _feedbackSlots
         ..clear()
         ..addEntries(correctSlots.map((slot) => MapEntry(slot, true)))
@@ -277,25 +309,31 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
         }
       }
     });
-
+    // Si no hay celdas incorrectas, el rompecabezas está completo.
     if (incorrectSlots.isEmpty) {
       setState(() {
         _isCompleted = true;
         _isChecking = false;
         _feedbackSlots.clear();
       });
+      // Reproducir celebración, esperar su duración y luego llamar al callback de finalización con éxito.
+      await _celebrationHelper.playCelebration();
+      await Future<void>.delayed(_celebrationDuration);
+      if (!mounted) return;
       widget.onComplete(true, _attempts);
       return;
     }
-
+    // Si hay celdas incorrectas, se muestra el feedback durante un tiempo y luego se devuelven las piezas incorrectas a la bandeja, limpiando el feedback.
+    // Si se alcanzó el número máximo de intentos, se marca como completado sin éxito.
     await Future<void>.delayed(_feedbackDuration);
     if (!mounted) return;
-
+    // Después de mostrar el feedback, las piezas incorrectas se devuelven a la bandeja y se limpian los estados de feedback.
+    // Si se alcanzó el número máximo de intentos, se marca como completado sin éxito.
     setState(() {
       for (final slot in incorrectSlots) {
         final pieceId = _gridSlots[slot];
         if (pieceId != null) {
-          _addToTray(pieceId, shuffle: false);
+          _addToTray(pieceId, shuffle: false); // Devolver a bandeja sin mezclar para que el jugador pueda encontrarla fácilmente.
         }
         _gridSlots[slot] = null;
       }
@@ -312,6 +350,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     }
   }
 
+  // Construye el encabezado con título e instrucción.
   Widget _buildTopBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -360,17 +399,32 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Rompecabezas',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 0.8,
-                height: 1.2,
-              ),
+          Expanded(
+            child: Column(
+              children: const [
+                Text(
+                  'Rompecabezas',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 0.8,
+                    height: 1.2,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Arrastra las piezas para completar la imagen.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xCCFFFFFF),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 52),
@@ -379,22 +433,12 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Mantiene compatibilidad; la instrucción ya está en el encabezado.
   Widget _buildInstruction() {
-    return const Padding(
-      padding: EdgeInsets.only(left: 16, right: 16, bottom: 8),
-      child: Text(
-        'Arrastra las piezas para completar la imagen.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Color(0xCCFFFFFF),
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
-        ),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 
+  // Construye la cuadrícula del rompecabezas con drag targets.
   Widget _buildGrid(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -478,6 +522,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Construye el botón para comprobar el resultado.
   Widget _buildCheckButton() {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
@@ -517,6 +562,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Construye el encabezado de la bandeja con arrastre.
   Widget _buildTrayHeader(double screenHeight) {
     return GestureDetector(
       onTap: _toggleTray,
@@ -562,6 +608,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Construye la bandeja inferior con piezas disponibles.
   Widget _buildTray() {
     final trayBorderColor = _isTrayHovering
         ? const Color(0xFF00E5FF)
@@ -709,6 +756,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Renderiza la pantalla completa del minijuego.
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
@@ -722,19 +770,28 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
             Column(
               children: [
                 _buildTopBar(),
-                _buildInstruction(),
                 Expanded(
                   child: IgnorePointer(
                     ignoring: _isChecking,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildGrid(context),
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final topPadding = constraints.maxHeight * 0.08;
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            top: topPadding,
+                          ),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: _buildGrid(context),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
-                const SizedBox(height: 72),
+                SizedBox(height: screenHeight * _minTraySize),
               ],
             ),
             if (_isTrayOpen)
@@ -750,13 +807,20 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
               bottom: trayOffset,
               child: _buildCheckButton(),
             ),
-            Align(alignment: Alignment.bottomCenter, child: _buildTray()),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: _buildTray(),
+            ),
+            CelebrationHelper.buildTopConfettiOverlay(
+              controller: _celebrationHelper.confettiController,
+            ),
           ],
         ),
       ),
     );
   }
 
+  // Ajusta la bandeja al ancla más cercana.
   void _snapTrayToClosest() {
     final target = _isTrayOpen ? _maxTraySize : _minTraySize;
     _trayController.animateTo(
@@ -766,6 +830,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
+  // Actualiza el tamaño de la bandeja durante el arrastre.
   void _handleTrayDragUpdate(DragUpdateDetails details, double screenHeight) {
     if (_isChecking) return;
     final delta = details.primaryDelta ?? 0;
@@ -776,6 +841,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     _trayController.jumpTo(nextExtent);
   }
 
+  // Finaliza el arrastre y aplica el snap.
   void _handleTrayDragEnd() {
     if (_isChecking) return;
     _snapTrayToClosest();
@@ -786,9 +852,11 @@ class _PuzzleDragData {
   final int pieceId;
   final int? fromSlot;
 
+  // Datos del drag: pieza y origen en la cuadrícula.
   const _PuzzleDragData({required this.pieceId, required this.fromSlot});
 }
 
+// Registra el minijuego de rompecabezas en el factory.
 void registerPuzzleMinigame() {
   MinigameFactory.register(
     MinigameType.puzzle,
