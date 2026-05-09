@@ -18,6 +18,7 @@ class PuzzleMinigame extends MinigameBase {
 
 class _PuzzleMinigameState extends State<PuzzleMinigame> {
   static const int _gridSize = 5;
+  static const double _knobRatio = 0.15;
   static const Duration _feedbackDuration = Duration(seconds: 3);
   static const Duration _celebrationDuration = Duration(seconds: 3);
   static const double _minTraySize = 0.14;
@@ -29,6 +30,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   late final int _maxAttempts;
   late List<int?> _gridSlots;
   late Set<int> _trayPieces;
+  late List<_JigsawShape> _pieceShapes;
   final List<int> _trayOrder = <int>[];
   final math.Random _random = math.Random();
   final Set<int> _lockedPieces = <int>{};
@@ -55,6 +57,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     _trayPieces = Set<int>.from(
       List<int>.generate(_gridSize * _gridSize, (index) => index),
     );
+    _pieceShapes = _buildPieceShapes();
     _syncTrayOrder(shuffle: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precachePuzzleImage();
@@ -153,25 +156,31 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return AssetImage(_imagePath);
   }
 
-  // Calcula la alineación del fragmento según su índice.
-  Alignment _alignmentForPiece(int pieceId) {
-    final row = pieceId ~/ _gridSize;
-    final col = pieceId % _gridSize;
-    final step = 2 / (_gridSize - 1);
+  //TODO: verificar la alineacion de las imagenes para cada pieza, puede que haya que ajustar el calculo para que se alineen correctamente con las pestañas/encajes.
+  Alignment _alignmentForPiece(int pieceId, double baseSize) {
+    // Convierte la posición de la pieza en la cuadrícula al espacio de alineación del OverflowBox.
+    final row = pieceId ~/ _gridSize; // División entera para obtener la fila.
+    final col = pieceId % _gridSize; // Módulo para obtener la columna.
+    final step = 2 / (_gridSize - 1); // El espacio entre piezas en el rango de -1 a 1.
     final dx = -1 + (col * step);
     final dy = -1 + (row * step);
     return Alignment(dx, dy);
   }
 
   // Construye el fragmento visual recortado de la imagen.
-  Widget _buildPieceImage(int pieceId, double pieceSize) {
-    final imageSize = pieceSize * _gridSize;
+  Widget _buildPieceImage(int pieceId, double baseSize) {
+    // Tamaño total de la imagen del rompecabezas según el tamaño base de una pieza.
+    final imageSize = baseSize * _gridSize;
+    // Tamaño expandido para incluir las pestañas/encajes alrededor de la celda base.
+    final pieceExtent = baseSize * (1 + (_knobRatio * 2));
 
-    return ClipRect(
+    return SizedBox(
+      width: pieceExtent,
+      height: pieceExtent,
       child: OverflowBox(
         maxWidth: imageSize,
         maxHeight: imageSize,
-        alignment: _alignmentForPiece(pieceId),
+        alignment: _alignmentForPiece(pieceId, baseSize),
         child: Image(
           image: _imageProvider(),
           width: imageSize,
@@ -184,54 +193,62 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     );
   }
 
-  // Crea una pieza draggable desde bandeja o cuadrícula.
-  Widget _buildDraggablePiece(int pieceId, {int? fromSlot, double size = 56}) {
-    final piece = SizedBox(
-      width: size,
-      height: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xCCFFFFFF), width: 1.2),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x55000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
+  Widget _buildPieceSurface(
+    int pieceId, {
+    required _JigsawShape shape,
+    required double baseSize,
+    required Color borderColor,
+    double borderWidth = 1.2,
+    Color? shadowColor,
+  }) {
+    // Amplía el contenedor para mostrar las pestañas/encajes fuera de la celda base.
+    final pieceExtent = baseSize * (1 + (_knobRatio * 2));
+    // Tamaño físico de la pestaña usado por el clipper/painter.
+    final knobSize = baseSize * _knobRatio;
+
+    return SizedBox(
+      width: pieceExtent,
+      height: pieceExtent,
+      child: CustomPaint(
+        painter: _JigsawBorderPainter(
+          shape: shape,
+          knobSize: knobSize,
+          borderColor: borderColor,
+          borderWidth: borderWidth,
+          shadowColor: shadowColor,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(9),
-          child: _buildPieceImage(pieceId, size),
+        child: ClipPath(
+          clipper: _JigsawClipper(shape: shape, knobSize: knobSize),
+          child: _buildPieceImage(pieceId, baseSize),
         ),
       ),
     );
+  }
 
+  // Crea una pieza draggable desde bandeja o cuadrícula.
+  Widget _buildDraggablePiece(int pieceId, {int? fromSlot, double size = 56}) {
+    final shape = _pieceShapes[pieceId];
+    final piece = _buildPieceSurface(
+      pieceId,
+      shape: shape,
+      baseSize: size,
+      borderColor: const Color(0xCCFFFFFF),
+      shadowColor: const Color(0x55000000),
+    );
+
+    // El Draggable envuelve la pieza para permitir arrastrarla, proporcionando feedback
+    // visual durante el arrastre y manejando el estado de la pieza en la bandeja o cuadrícula.
     return Draggable<_PuzzleDragData>(
       data: _PuzzleDragData(pieceId: pieceId, fromSlot: fromSlot),
       feedback: Material(
         color: Colors.transparent,
-        child: SizedBox(
-          width: size + 10,
-          height: size + 10,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF00E5FF), width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0xAA000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: _buildPieceImage(pieceId, size),
-            ),
-          ),
+        child: _buildPieceSurface(
+          pieceId,
+          shape: shape,
+          baseSize: size,
+          borderColor: const Color(0xFF00E5FF),
+          borderWidth: 2,
+          shadowColor: const Color(0xAA000000),
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: piece),
@@ -442,8 +459,10 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   Widget _buildGrid(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Mantiene el tablero cuadrado usando la dimensión más pequeña disponible.
         final rawSize = math.min(constraints.maxWidth, constraints.maxHeight);
         final size = rawSize.clamp(240.0, 560.0);
+        // Tamaño base de cada celda antes de sumar la expansión por pestañas.
         final slotSize = size / _gridSize;
         return SizedBox(
           width: size,
@@ -452,8 +471,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: _gridSize,
-              mainAxisSpacing: 3,
-              crossAxisSpacing: 3,
+              mainAxisSpacing: 0,
+              crossAxisSpacing: 0,
             ),
             itemCount: _gridSlots.length,
             itemBuilder: (context, index) {
@@ -463,13 +482,15 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                   pieceId != null && _lockedPieces.contains(pieceId);
 
               return DragTarget<_PuzzleDragData>(
-                onWillAccept: (data) {
+                onWillAcceptWithDetails: (details) {
+                  final data = details.data;
                   if (_isChecking || data == null) return false;
                   if (_gridSlots[index] != null) return false;
                   if (data.fromSlot == index) return false;
                   return true;
                 },
-                onAccept: (data) => _handleGridAccept(index, data),
+                onAcceptWithDetails: (details) =>
+                    _handleGridAccept(index, details.data),
                 builder: (context, candidateData, rejectedData) {
                   final highlight = candidateData.isNotEmpty;
                   final borderColor = feedback == null
@@ -502,16 +523,25 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                     ),
                     child: pieceId == null
                         ? const SizedBox.shrink()
-                        : (isLocked
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(7),
-                                  child: _buildPieceImage(pieceId, slotSize),
-                                )
-                              : _buildDraggablePiece(
-                                  pieceId,
-                                  fromSlot: index,
-                                  size: slotSize,
-                                )),
+                        : OverflowBox(
+                            // Permite que las pestañas/encajes sobresalgan del área de la celda.
+                            maxWidth: slotSize * (1 + (_knobRatio * 2)),
+                            maxHeight: slotSize * (1 + (_knobRatio * 2)),
+                            alignment: Alignment.center,
+                            child: isLocked
+                                ? _buildPieceSurface(
+                                    pieceId,
+                                    shape: _pieceShapes[pieceId],
+                                    baseSize: slotSize,
+                                    borderColor: const Color(0xCCFFFFFF),
+                                    shadowColor: const Color(0x55000000),
+                                  )
+                                : _buildDraggablePiece(
+                                    pieceId,
+                                    fromSlot: index,
+                                    size: slotSize,
+                                  ),
+                          ),
                   );
                 },
               );
@@ -631,7 +661,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
         builder: (context, scrollController) {
           final screenHeight = MediaQuery.sizeOf(context).height;
           return DragTarget<_PuzzleDragData>(
-            onWillAccept: (data) {
+            onWillAcceptWithDetails: (details) {
+              final data = details.data;
               if (_isChecking || data == null) return false;
               setState(() {
                 _isTrayHovering = true;
@@ -643,8 +674,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
               );
               return true;
             },
-            onAccept: (data) {
-              _handleTrayAccept(data);
+            onAcceptWithDetails: (details) {
+              _handleTrayAccept(details.data);
               setState(() {
                 _isTrayHovering = false;
               });
@@ -846,6 +877,40 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     if (_isChecking) return;
     _snapTrayToClosest();
   }
+
+  List<_JigsawShape> _buildPieceShapes() {
+    final shapes = List<_JigsawShape>.filled(
+      _gridSize * _gridSize,
+      const _JigsawShape.empty(),
+    );
+
+    for (int row = 0; row < _gridSize; row++) {
+      for (int col = 0; col < _gridSize; col++) {
+        final index = row * _gridSize + col;
+        final top = row == 0
+            ? _EdgeType.flat
+            : shapes[(row - 1) * _gridSize + col].bottom.inverted;
+        final left = col == 0
+            ? _EdgeType.flat
+            : shapes[row * _gridSize + (col - 1)].right.inverted;
+        final right = col == _gridSize - 1
+            ? _EdgeType.flat
+            : _randomEdgeType(_random);
+        final bottom = row == _gridSize - 1
+            ? _EdgeType.flat
+            : _randomEdgeType(_random);
+
+        shapes[index] = _JigsawShape(
+          top: top,
+          right: right,
+          bottom: bottom,
+          left: left,
+        );
+      }
+    }
+
+    return shapes;
+  }
 }
 
 class _PuzzleDragData {
@@ -864,3 +929,220 @@ void registerPuzzleMinigame() {
         PuzzleMinigame(onComplete: onComplete, minigameData: minigameData),
   );
 }
+
+enum _EdgeType { flat, tab, slot }
+
+extension on _EdgeType {
+  _EdgeType get inverted {
+    switch (this) {
+      case _EdgeType.flat:
+        return _EdgeType.flat;
+      case _EdgeType.tab:
+        return _EdgeType.slot;
+      case _EdgeType.slot:
+        return _EdgeType.tab;
+    }
+  }
+}
+
+_EdgeType _randomEdgeType(math.Random random) {
+  return random.nextBool() ? _EdgeType.tab : _EdgeType.slot;
+}
+
+class _JigsawShape {
+  final _EdgeType top;
+  final _EdgeType right;
+  final _EdgeType bottom;
+  final _EdgeType left;
+
+  const _JigsawShape({
+    required this.top,
+    required this.right,
+    required this.bottom,
+    required this.left,
+  });
+
+  const _JigsawShape.empty()
+      : top = _EdgeType.flat,
+        right = _EdgeType.flat,
+        bottom = _EdgeType.flat,
+        left = _EdgeType.flat;
+}
+
+class _JigsawClipper extends CustomClipper<Path> {
+  final _JigsawShape shape;
+  final double knobSize;
+
+  const _JigsawClipper({required this.shape, required this.knobSize});
+
+  @override
+  Path getClip(Size size) {
+    // Cuadrado base sin contar el margen de las pestañas en cada lado.
+    final base = size.width - (knobSize * 2);
+    final x0 = knobSize;
+    final y0 = knobSize;
+
+    final path = Path()..moveTo(x0, y0);
+    _drawTop(path, x0, y0, base);
+    _drawRight(path, x0, y0, base);
+    _drawBottom(path, x0, y0, base);
+    _drawLeft(path, x0, y0, base);
+    path.close();
+    return path;
+  }
+
+  void _drawTop(Path path, double x, double y, double base) {
+    if (shape.top == _EdgeType.flat) {
+      path.lineTo(x + base, y);
+      return;
+    }
+    // La dirección invierte la curva: pestaña hacia afuera o encaje hacia adentro.
+    final direction = shape.top == _EdgeType.tab ? -1.0 : 1.0;
+    path.lineTo(x + base * 0.25, y);
+    path.cubicTo(
+      x + base * 0.25,
+      y + direction * knobSize * 0.2,
+      x + base * 0.35,
+      y + direction * knobSize,
+      x + base * 0.5,
+      y + direction * knobSize,
+    );
+    path.cubicTo(
+      x + base * 0.65,
+      y + direction * knobSize,
+      x + base * 0.75,
+      y + direction * knobSize * 0.2,
+      x + base * 0.75,
+      y,
+    );
+    path.lineTo(x + base, y);
+  }
+
+  void _drawRight(Path path, double x, double y, double base) {
+    if (shape.right == _EdgeType.flat) {
+      path.lineTo(x + base, y + base);
+      return;
+    }
+    // La dirección invierte la curva: pestaña hacia afuera o encaje hacia adentro.
+    final direction = shape.right == _EdgeType.tab ? 1.0 : -1.0;
+    path.lineTo(x + base, y + base * 0.25);
+    path.cubicTo(
+      x + base + direction * knobSize * 0.2,
+      y + base * 0.25,
+      x + base + direction * knobSize,
+      y + base * 0.35,
+      x + base + direction * knobSize,
+      y + base * 0.5,
+    );
+    path.cubicTo(
+      x + base + direction * knobSize,
+      y + base * 0.65,
+      x + base + direction * knobSize * 0.2,
+      y + base * 0.75,
+      x + base,
+      y + base * 0.75,
+    );
+    path.lineTo(x + base, y + base);
+  }
+
+  void _drawBottom(Path path, double x, double y, double base) {
+    if (shape.bottom == _EdgeType.flat) {
+      path.lineTo(x, y + base);
+      return;
+    }
+    // La dirección invierte la curva: pestaña hacia afuera o encaje hacia adentro.
+    final direction = shape.bottom == _EdgeType.tab ? 1.0 : -1.0;
+    path.lineTo(x + base * 0.75, y + base);
+    path.cubicTo(
+      x + base * 0.75,
+      y + base + direction * knobSize * 0.2,
+      x + base * 0.65,
+      y + base + direction * knobSize,
+      x + base * 0.5,
+      y + base + direction * knobSize,
+    );
+    path.cubicTo(
+      x + base * 0.35,
+      y + base + direction * knobSize,
+      x + base * 0.25,
+      y + base + direction * knobSize * 0.2,
+      x + base * 0.25,
+      y + base,
+    );
+    path.lineTo(x, y + base);
+  }
+
+  void _drawLeft(Path path, double x, double y, double base) {
+    if (shape.left == _EdgeType.flat) {
+      path.lineTo(x, y);
+      return;
+    }
+    // La dirección invierte la curva: pestaña hacia afuera o encaje hacia adentro.
+    final direction = shape.left == _EdgeType.tab ? -1.0 : 1.0;
+    path.lineTo(x, y + base * 0.75);
+    path.cubicTo(
+      x + direction * knobSize * 0.2,
+      y + base * 0.75,
+      x + direction * knobSize,
+      y + base * 0.65,
+      x + direction * knobSize,
+      y + base * 0.5,
+    );
+    path.cubicTo(
+      x + direction * knobSize,
+      y + base * 0.35,
+      x + direction * knobSize * 0.2,
+      y + base * 0.25,
+      x,
+      y + base * 0.25,
+    );
+    path.lineTo(x, y);
+  }
+
+  @override
+  bool shouldReclip(covariant _JigsawClipper oldClipper) {
+    return oldClipper.shape != shape || oldClipper.knobSize != knobSize;
+  }
+}
+
+class _JigsawBorderPainter extends CustomPainter {
+  final _JigsawShape shape;
+  final double knobSize;
+  final Color borderColor;
+  final double borderWidth;
+  final Color? shadowColor;
+
+  const _JigsawBorderPainter({
+    required this.shape,
+    required this.knobSize,
+    required this.borderColor,
+    required this.borderWidth,
+    required this.shadowColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _JigsawClipper(shape: shape, knobSize: knobSize).getClip(size);
+
+    if (shadowColor != null) {
+      canvas.drawShadow(path, shadowColor!, 6, true);
+    }
+
+    final paint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth;
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _JigsawBorderPainter oldDelegate) {
+    return oldDelegate.shape != shape ||
+        oldDelegate.knobSize != knobSize ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.borderWidth != borderWidth ||
+        oldDelegate.shadowColor != shadowColor;
+  }
+}
+
