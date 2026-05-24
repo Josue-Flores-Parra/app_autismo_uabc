@@ -156,15 +156,31 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return AssetImage(_imagePath);
   }
 
-  //TODO: verificar la alineacion de las imagenes para cada pieza, puede que haya que ajustar el calculo para que se alineen correctamente con las pestañas/encajes.
   Alignment _alignmentForPiece(int pieceId, double baseSize) {
     // Convierte la posición de la pieza en la cuadrícula al espacio de alineación del OverflowBox.
     final row = pieceId ~/ _gridSize; // División entera para obtener la fila.
     final col = pieceId % _gridSize; // Módulo para obtener la columna.
-    final step = 2 / (_gridSize - 1); // El espacio entre piezas en el rango de -1 a 1.
-    final dx = -1 + (col * step);
-    final dy = -1 + (row * step);
-    return Alignment(dx, dy);
+
+    // Calcula el offset ideal en pixeles para que la celda base quede alineada bajo el clip.
+    // Y evitar que las pestañas/encajes se distorsionen al recortar la imagen.
+    final imageSize = baseSize * _gridSize;
+    final pieceExtent = baseSize * (1 + (_knobRatio * 2));
+    final knobSize = baseSize * _knobRatio;
+    final desiredOffsetX = knobSize - (col * baseSize);
+    final desiredOffsetY = knobSize - (row * baseSize);
+
+    // Convierte el offset en pixeles al rango [-1, 1] de Alignment.
+    // El centro de la imagen es (0, 0), el borde izquierdo es -1 y el derecho es 1. Lo mismo para vertical.
+    double toAlignment(double desiredOffset) {
+      final denominator = pieceExtent - imageSize;
+      if (denominator == 0) return 0;
+      return (2 * desiredOffset / denominator) - 1;
+    }
+    // El resultado es un Alignment que posiciona la imagen dentro del OverflowBox de manera que la celda base de la pieza quede correctamente recortada, incluso con las pestañas/encajes.
+    return Alignment(
+      toAlignment(desiredOffsetX),
+      toAlignment(desiredOffsetY),
+    );
   }
 
   // Construye el fragmento visual recortado de la imagen.
@@ -1145,4 +1161,3 @@ class _JigsawBorderPainter extends CustomPainter {
         oldDelegate.shadowColor != shadowColor;
   }
 }
-
