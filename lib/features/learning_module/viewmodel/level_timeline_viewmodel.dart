@@ -72,7 +72,7 @@ class LevelTimelineViewModel extends ChangeNotifier {
             posibleImagePreview: (level.actividadData?['pictogramaUrl'] as String?)?.isNotEmpty == true
                 ? level.actividadData!['pictogramaUrl'] as String
                 : level.pictogramaUrl,
-            minigameData: level.actividadData,
+            minigameData: _mergeMinigameData(level),
             actividadType: level.actividadType,
             levelId: level.id,
             moduleId: _moduleId,
@@ -127,5 +127,14 @@ class LevelTimelineViewModel extends ChangeNotifier {
   void clearSelection() {
     _selectedIndex = null;
     notifyListeners();
+  }
+
+  Map<String, dynamic>? _mergeMinigameData(ModuleLevelInfo level) {
+    final base = Map<String, dynamic>.from(level.actividadData ?? const {});
+    base.putIfAbsent('puzzleImageUrl', () => level.puzzleImageUrl);
+    base.putIfAbsent('pictogramaUrl', () => level.pictogramaUrl);
+    base.putIfAbsent('videoUrl', () => level.videoUrl);
+    base.removeWhere((_, value) => value == null);
+    return base.isEmpty ? null : base;
   }
 }

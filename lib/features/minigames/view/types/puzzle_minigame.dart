@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../minigame_core.dart';
 import '../../../../shared/services/celebration_helper.dart';
+import '../../../../shared/widgets/loading_screen.dart';
 
 class PuzzleMinigame extends MinigameBase {
   const PuzzleMinigame({
@@ -25,6 +26,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   static const double _maxTraySize = 0.5;
   static const double _initialTraySize = 0.18;
   static const double _trayHeaderHeight = 78;
+  static const Color _feedbackCorrectColor = Color(0xFF00FF7A);
+  static const Color _feedbackIncorrectColor = Color(0xFFFF1744);
 
   late final String _imagePath;
   late final int _maxAttempts;
@@ -43,6 +46,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   bool _isChecking = false;
   bool _isTrayHovering = false;
   double _trayExtent = _initialTraySize;
+  bool _isImageReady = false;
+  bool _hasImage = true;
 
   bool get _isTrayOpen => _trayExtent >= ((_minTraySize + _maxTraySize) / 2);
   bool get _isGridFull => _gridSlots.every((slot) => slot != null);
@@ -52,6 +57,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   void initState() {
     super.initState();
     _imagePath = _resolveImagePath(widget.minigameData);
+    _hasImage = _imagePath.isNotEmpty;
     _maxAttempts = _resolveMaxAttempts(widget.minigameData);
     _gridSlots = List<int?>.filled(_gridSize * _gridSize, null);
     _trayPieces = Set<int>.from(
@@ -100,22 +106,41 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
 
   // Precarga la imagen para evitar parpadeos al renderizar piezas.
   Future<void> _precachePuzzleImage() async {
+    if (!_hasImage) {
+      if (!mounted) return;
+      setState(() {
+        _isImageReady = true;
+      });
+      return;
+    }
     try {
-      await precacheImage(AssetImage(_imagePath), context);
+      // intentar iniciar el precaching
+      await precacheImage(_imageProvider(), context);
     } catch (_) {
       // Ignorar errores de precache para no bloquear el juego.
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isImageReady = true;
+      });
     }
   }
 
   // Resuelve la ruta/URL de la imagen del rompecabezas.
   String _resolveImagePath(Map<String, dynamic> data) {
-    final candidate = (data['imageUrl'] ?? data['imagePath'])
-        ?.toString()
-        .trim();
-    if (candidate != null && candidate.isNotEmpty) {
-      return candidate;
+    final puzzleUrl = data['puzzleImageUrl']?.toString().trim();
+    if (puzzleUrl != null && puzzleUrl.isNotEmpty) {
+      return puzzleUrl;
     }
-    return 'assets/images/DORMIR.jpg';
+    final fallbackUrl = data['pictogramaUrl']?.toString().trim();
+    if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
+      return fallbackUrl;
+    }
+    final legacy = (data['imageUrl'] ?? data['imagePath'])?.toString().trim();
+    if (legacy != null && legacy.isNotEmpty) {
+      return legacy;
+    }
+    return '';
   }
 
   // Resuelve el número máximo de intentos permitido.
@@ -514,26 +539,26 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                             ? const Color(0xFF00E5FF)
                             : const Color(0x66FFFFFF))
                       : (feedback
-                            ? const Color(0xFF05E995)
-                            : const Color(0xFFFF5252));
+                            ? _feedbackCorrectColor
+                            : _feedbackIncorrectColor);
                   final glowColor = feedback == null
                       ? Colors.transparent
                       : (feedback
-                            ? const Color(0xFF05E995)
-                            : const Color(0xFFFF5252));
+                            ? _feedbackCorrectColor
+                            : _feedbackIncorrectColor);
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
                       color: const Color(0x332C5F7A),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: borderColor, width: 1.4),
+                      border: Border.all(color: borderColor, width: 2.2),
                       boxShadow: [
                         if (feedback != null)
                           BoxShadow(
-                            color: glowColor.withAlpha(160),
-                            blurRadius: 10,
-                            spreadRadius: 1,
+                            color: glowColor.withAlpha(220),
+                            blurRadius: 14,
+                            spreadRadius: 2,
                           ),
                       ],
                     ),
@@ -808,61 +833,71 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final trayOffset = (_trayExtent * screenHeight) + 12;
+    final body = !_hasImage
+        ? const Center(
+            child: Text(
+              'Imagen no disponible para este rompecabezas',
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          )
+        : Stack(
+            children: [
+              Column(
+                children: [
+                  _buildTopBar(),
+                  Expanded(
+                    child: IgnorePointer(
+                      ignoring: _isChecking,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final topPadding = constraints.maxHeight * 0.08;
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: topPadding,
+                            ),
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: _buildGrid(context),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: screenHeight * _minTraySize),
+                ],
+              ),
+              if (_isTrayOpen)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _toggleTray,
+                  ),
+                ),
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: trayOffset,
+                child: _buildCheckButton(),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildTray(),
+              ),
+              CelebrationHelper.buildTopConfettiOverlay(
+                controller: _celebrationHelper.confettiController,
+              ),
+            ],
+          );
 
     return Scaffold(
       backgroundColor: const Color(0xFF091F2C),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                _buildTopBar(),
-                Expanded(
-                  child: IgnorePointer(
-                    ignoring: _isChecking,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final topPadding = constraints.maxHeight * 0.08;
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            left: 16,
-                            right: 16,
-                            top: topPadding,
-                          ),
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: _buildGrid(context),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                SizedBox(height: screenHeight * _minTraySize),
-              ],
-            ),
-            if (_isTrayOpen)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: _toggleTray,
-                ),
-              ),
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: trayOffset,
-              child: _buildCheckButton(),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: _buildTray(),
-            ),
-            CelebrationHelper.buildTopConfettiOverlay(
-              controller: _celebrationHelper.confettiController,
-            ),
-          ],
-        ),
+      body: LoadingOverlay(
+        isLoading: _hasImage && !_isImageReady,
+        child: SafeArea(child: body),
       ),
     );
   }

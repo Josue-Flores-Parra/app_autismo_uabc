@@ -36,6 +36,7 @@ class ModuleLevelInfo {
   final int orden;
   final String? pictogramaUrl;
   final String? videoUrl;
+  final String? puzzleImageUrl;
   final String? audioUrl;
   final String? actividadType; // Nullable para detectar cuando no hay actividad interactiva
   final Map<String, dynamic>? actividadData;
@@ -49,6 +50,7 @@ class ModuleLevelInfo {
     required this.orden,
     this.pictogramaUrl,
     this.videoUrl,
+    this.puzzleImageUrl,
     this.audioUrl,
     this.actividadType, // Ahora es nullable
     this.actividadData,
@@ -107,6 +109,7 @@ class ModuleLevelInfo {
       orden: ordenValue,
       pictogramaUrl: data['pictogramaUrl']?.toString(),
       videoUrl: data['videoUrl']?.toString(),
+      puzzleImageUrl: data['puzzleImageUrl']?.toString(),
       audioUrl: data['audioUrl']?.toString(),
       // Tratar null y cadenas vacías como null
       actividadType: _parseActividadType(data['actividadType']),
@@ -167,6 +170,7 @@ class ModuleLevelInfo {
       'orden': orden,
       'pictogramaUrl': pictogramaUrl,
       'videoUrl': videoUrl,
+      'puzzleImageUrl': puzzleImageUrl,
       'audioUrl': audioUrl,
       'actividadType': actividadType,
       'actividadData': actividadData,
