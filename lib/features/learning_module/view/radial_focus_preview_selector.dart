@@ -420,6 +420,10 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       return 'assets/icons/minigame_simple_selection.png';
     }
 
+    if (content.type == ContentType.miniGame && content.miniGameType == 'puzzle') {
+      return 'assets/icons/minigame_puzzle.png';
+    }
+
     return null;
   }
 
