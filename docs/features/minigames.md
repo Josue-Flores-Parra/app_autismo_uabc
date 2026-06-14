@@ -309,6 +309,15 @@ Archivo:
 lib/features/minigames/view/types/audio_minigame.dart
 ```
 
+Estado actual de datos:
+
+- El minijuego de audio esta implementado y registrado en la app.
+- En el estado actual de Firestore no hay ningun nivel con un recurso de audio
+  configurado.
+- Por esa razon, el flujo existe en codigo y puede renderizarse si recibe
+  `audioUrl`, pero no cuenta con contenido de audio disponible hasta que algun
+  documento de nivel incluya una URL remota o asset valido.
+
 Mecanica:
 
 - Crea `AudioViewModel`.
@@ -339,7 +348,7 @@ Archivo:
 lib/features/minigames/view/types/video_minigame.dart
 ```
 
-Estado real:
+Estado actual:
 
 - Existe y esta registrado.
 - El flujo principal para `actividadType == video` en `LevelPlayScreen` usa un reproductor dedicado (`_LevelVideoPlayerScreen`), no este minijuego.

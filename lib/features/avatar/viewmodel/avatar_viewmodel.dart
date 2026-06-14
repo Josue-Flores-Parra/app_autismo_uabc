@@ -218,9 +218,9 @@ class AvatarViewModel
           }
         }
 
-        // Si no hay nombre en avatarConfig o es el valor por defecto "MRBEAST",
+        // Si no hay nombre en avatarConfig o es el valor por defecto "nombre",
         // usar el nombre de la cuenta (displayName o Firestore "name") como en Módulos.
-        final nombreFinal = (nombre != null && nombre.trim().isNotEmpty && nombre != 'MRBEAST')
+        final nombreFinal = (nombre != null && nombre.trim().isNotEmpty && nombre != 'nombre')
             ? nombre
             : (user.displayName?.trim().isNotEmpty == true
                 ? user.displayName!
