@@ -3,7 +3,7 @@
 Appy usa la generacion oficial de localizaciones de Flutter con archivos ARB.
 La configuracion existe y `SettingsPage`, `CustomBottomNavBar` y algunas partes
 de `ModuleListScreen` la consumen. Sin embargo, muchas pantallas todavia tienen
-textos hardcodeados en espanol. Esta pagina describe el estado real.
+textos hardcodeados en espanol. Esta pagina describe el estado actual.
 
 ## Configuracion
 

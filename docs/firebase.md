@@ -15,7 +15,7 @@ app-autismo-25f44
 
 Archivos reales relacionados con Firebase:
 
-| Archivo | Estado real |
+| Archivo | Estado actual |
 | --- | --- |
 | `firebase.json` | Declara metadata de FlutterFire para Android y las apps Dart de Android/iOS/Web. |
 | `lib/firebase_options.dart` | Generado por FlutterFire CLI. Contiene opciones para Web, Android e iOS. |
