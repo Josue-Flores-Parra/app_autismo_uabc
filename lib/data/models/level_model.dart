@@ -9,6 +9,7 @@ class LevelModel {
   final String difficulty;
   final String? pictogramUrl;
   final String? videoUrl;
+  final String? puzzleImageUrl;
   final Map<String, dynamic>? minigameData;
   final bool isActive;
   final DateTime? createdAt;
@@ -22,6 +23,7 @@ class LevelModel {
     this.difficulty = 'easy',
     this.pictogramUrl,
     this.videoUrl,
+    this.puzzleImageUrl,
     this.minigameData,
     this.isActive = true,
     this.createdAt,
@@ -36,6 +38,7 @@ class LevelModel {
     String? difficulty,
     String? pictogramUrl,
     String? videoUrl,
+    String? puzzleImageUrl,
     Map<String, dynamic>? minigameData,
     bool? isActive,
     DateTime? createdAt,
@@ -49,6 +52,7 @@ class LevelModel {
       difficulty: difficulty ?? this.difficulty,
       pictogramUrl: pictogramUrl ?? this.pictogramUrl,
       videoUrl: videoUrl ?? this.videoUrl,
+      puzzleImageUrl: puzzleImageUrl ?? this.puzzleImageUrl,
       minigameData: minigameData ?? this.minigameData,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
@@ -65,6 +69,7 @@ class LevelModel {
       difficulty: (json['difficulty'] ?? 'easy').toString(),
       pictogramUrl: json['pictogramUrl'] as String?,
       videoUrl: json['videoUrl'] as String?,
+      puzzleImageUrl: json['puzzleImageUrl'] as String?,
       minigameData: json['minigameData'] as Map<String, dynamic>?,
       isActive: _toBool(json['isActive']),
       createdAt: _toDateTime(json['createdAt']),
@@ -81,6 +86,7 @@ class LevelModel {
       'difficulty': difficulty,
       'pictogramUrl': pictogramUrl,
       'videoUrl': videoUrl,
+      'puzzleImageUrl': puzzleImageUrl,
       'minigameData': minigameData,
       'isActive': isActive,
       'createdAt': createdAt?.toIso8601String(),

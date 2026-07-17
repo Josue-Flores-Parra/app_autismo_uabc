@@ -2,7 +2,7 @@ name: appy
 description: "Appy - Aplicación educativa para autismo"
 publish_to: "none" # Para paquetes privados
 
-version: 1.0.0+3
+version: 1.0.0+4 # Se necesita para la build de iOS
 
 environment:
   sdk: ^3.9.2

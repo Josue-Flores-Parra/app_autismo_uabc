@@ -435,13 +435,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               
               const SizedBox(width: 12),
               
-              // Título (centrado)
+              // Título del nivel (centrado)
               Expanded(
                 child: Center(
                   child: Text(
                     widget.levelName,
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 25,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 0.8,
