@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:audio_session/audio_session.dart';
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../../../shared/services/tts_service.dart';
+import '../../../../shared/services/celebration_helper.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Selección Simple
@@ -45,8 +45,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   bool _isPreloadingImages = true;
   _InlineFeedbackType _inlineFeedback = _InlineFeedbackType.none;
 
-  late ConfettiController _confettiController;
-  final AudioPlayer _celebrationPlayer = AudioPlayer();
+  late final CelebrationHelper _celebrationHelper;
   final AudioPlayer _negativeBeepPlayer = AudioPlayer();
   final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
@@ -61,7 +60,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   @override
   void initState() {
     super.initState();
-    _initConfetti();
+    _celebrationHelper = CelebrationHelper();
     _initTts();
     _initializeGameData();
     _loadCurrentQuestion();
@@ -71,15 +70,10 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     });
   }
 
-  void _initConfetti() {
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-  }
-
   @override
   void dispose() {
     _ttsService.dispose();
-    _confettiController.dispose();
-    _celebrationPlayer.dispose();
+    _celebrationHelper.dispose();
     _negativeBeepPlayer.dispose();
     super.dispose();
   }
@@ -440,26 +434,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   }
 
   void _celebrateCompletion() {
-    _confettiController.play();
-    _playCelebrationSound();
-  }
-
-  Future<void> _playCelebrationSound() async {
-    try {
-      await _configureAudioSession();
-      await _celebrationPlayer.setAudioSource(
-        AudioSource.asset('assets/audio/celebration.mp3'),
-      );
-      await _celebrationPlayer.setVolume(1.0);
-      if (_celebrationPlayer.processingState == ProcessingState.loading) {
-        await _celebrationPlayer.playerStateStream
-            .timeout(const Duration(seconds: 3))
-            .firstWhere(
-          (state) => state.processingState != ProcessingState.loading,
-        );
-      }
-      await _celebrationPlayer.play();
-    } catch (_) {}
+    _celebrationHelper.playCelebration();
   }
 
   Future<void> _playNegativeBeepSound() async {
@@ -535,27 +510,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: 3.14 / 2,
-              maxBlastForce: 5,
-              minBlastForce: 2,
-              emissionFrequency: 0.05,
-              numberOfParticles: 50,
-              gravity: 0.1,
-              shouldLoop: false,
-              colors: const [
-                Colors.green,
-                Colors.blue,
-                Colors.pink,
-                Colors.orange,
-                Colors.purple,
-                Colors.yellow,
-                Colors.red,
-              ],
-            ),
+          CelebrationHelper.buildTopConfettiOverlay(
+            controller: _celebrationHelper.confettiController,
           ),
         ],
       ),

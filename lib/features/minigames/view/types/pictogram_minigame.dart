@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'package:confetti/confetti.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:audio_session/audio_session.dart';
 import '../../../../shared/services/tts_service.dart';
+import '../../../../shared/services/celebration_helper.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Pictograma
@@ -35,8 +33,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
   bool _autoSpeakTriggered = false;
-  late ConfettiController _confettiController;
-  final AudioPlayer _celebrationPlayer = AudioPlayer();
+  late final CelebrationHelper _celebrationHelper;
 
   @override
   void initState() {
@@ -44,23 +41,18 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     _pageController = PageController();
     _steps = _parseSteps(widget.minigameData);
     _initTts();
-    _initConfetti();
+    _celebrationHelper = CelebrationHelper();
     // Precargar imágenes después del primer frame para asegurar que el contexto esté disponible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precacheAllImages();
     });
   }
 
-  void _initConfetti() {
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-  }
-
   @override
   void dispose() {
     _ttsService.dispose();
     _pageController.dispose();
-    _confettiController.dispose();
-    _celebrationPlayer.dispose();
+    _celebrationHelper.dispose();
     super.dispose();
   }
 
@@ -295,15 +287,6 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   /// Convierte una URL a un hash para usarlo como nombre de archivo
   String _urlToHash(String url) {
     return url.hashCode.toString().replaceAll('-', '');
-  }
-
-  Future<void> _configureAudioSession() async {
-    try {
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
-      await session.setActive(true);
-    } catch (e) {
-    }
   }
 
   @override
@@ -611,27 +594,8 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
         ),
       ),
           // Confettis overlay
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: 3.14 / 2, // Hacia abajo
-              maxBlastForce: 5,
-              minBlastForce: 2,
-              emissionFrequency: 0.05,
-              numberOfParticles: 50,
-              gravity: 0.1,
-              shouldLoop: false,
-              colors: const [
-                Colors.green,
-                Colors.blue,
-                Colors.pink,
-                Colors.orange,
-                Colors.purple,
-                Colors.yellow,
-                Colors.red,
-              ],
-            ),
+          CelebrationHelper.buildTopConfettiOverlay(
+            controller: _celebrationHelper.confettiController,
           ),
         ],
       ),
@@ -640,30 +604,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
   /// Reproduce el sonido de felicitación y muestra los confettis
   void _celebrateCompletion() {
-    // Iniciar confettis inmediatamente
-    _confettiController.play();
-    
-    // Reproducir sonido de felicitación de forma asíncrona
-    _playCelebrationSound();
-  }
-
-  /// Reproduce el sonido de celebración de forma asíncrona
-  Future<void> _playCelebrationSound() async {
-    try {
-      await _configureAudioSession();
-      await _celebrationPlayer.setAudioSource(
-        AudioSource.asset('assets/audio/celebration.mp3'),
-      );
-      await _celebrationPlayer.setVolume(1.0);
-      if (_celebrationPlayer.processingState == ProcessingState.loading) {
-        await _celebrationPlayer.playerStateStream
-            .timeout(const Duration(seconds: 3))
-            .firstWhere(
-          (state) => state.processingState != ProcessingState.loading,
-        );
-      }
-      await _celebrationPlayer.play();
-    } catch (_) {}
+    _celebrationHelper.playCelebration();
   }
 
   /// Obtiene la ruta del archivo en caché para una URL de red

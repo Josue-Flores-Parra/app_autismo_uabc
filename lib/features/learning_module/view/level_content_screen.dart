@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'preview_cards.dart';
-import 'fullscreen_view.dart';
+import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
+import 'popup_preview.dart';
 import '../model/content_card_model.dart';
-import '../../../data/services/firestore_services.dart';
 import '../viewmodel/learning_viewmodel.dart';
-import '../../avatar/viewmodel/avatar_viewmodel.dart';
+import '../data/video_controller_manager.dart';
+import '../../../shared/services/level_completion_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -43,13 +42,18 @@ class LevelContentPreviewScreen extends StatefulWidget {
 class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  late PageController _pageController;
   int _selectedCarouselIndex = 0;
-  
+  bool _isCarouselDragging = false; // Flag necesario en radial_focus_preview_selector para controlar hints de scroll
+  // Cache en memoria por pantalla: retenemos los videos que el usuario ya
+  // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
+  // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
+  final Set<String> _retainedPreloadedVideoPaths = <String>{};
+
   // Rastrear condiciones para habilitar el botón "COMPLETAR"
   bool _videoCompleted = false;
   bool _pictogramViewed = false;
   bool _audioCompleted = false;
+  bool _isCompletingObservationLevel = false;
   
   // Verificar qué tipos de contenido hay
   bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
@@ -116,6 +120,45 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     }
   }
 
+  String get _selectedLaunchLabel {
+    return _selectedActivityType == 'video' ? 'VER VIDEO' : 'JUGAR';
+  }
+
+  String? get _selectedPreviewImageUrl {
+    final selected = _selectedContent;
+    if (selected == null) return null;
+
+    if (selected.imagePath.trim().isNotEmpty) {
+      return selected.imagePath;
+    }
+
+    final minigameImage = widget.minigameData?['pictogramaUrl'] as String?;
+    return minigameImage;
+  }
+
+  String? get _selectedVideoPreviewPath {
+    final selected = _selectedContent;
+    if (selected == null || selected.type != ContentType.video) return null;
+
+    final fromCard = selected.videoPath;
+    if (fromCard != null && fromCard.isNotEmpty) return fromCard;
+
+    final fromVideoUrl = widget.videoUrl;
+    if (fromVideoUrl != null && fromVideoUrl.isNotEmpty) return fromVideoUrl;
+
+    final fromMinigameVideo = widget.minigameData?['videoUrl'] as String?;
+    if (fromMinigameVideo != null && fromMinigameVideo.isNotEmpty) {
+      return fromMinigameVideo;
+    }
+
+    final fromMinigameUrl = widget.minigameData?['url'] as String?;
+    if (fromMinigameUrl != null && fromMinigameUrl.isNotEmpty) {
+      return fromMinigameUrl;
+    }
+
+    return null;
+  }
+
   bool _asBool(dynamic value) {
     if (value is bool) return value;
     if (value is num) return value != 0;
@@ -133,16 +176,109 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _pageController = PageController(viewportFraction: 0.75, initialPage: 0);
-
     _animController.forward();
+    _preloadSelectedVideoInBackground();
   }
 
   @override
   void dispose() {
+    _releaseRetainedPreloadedVideos();
     _animController.dispose();
-    _pageController.dispose();
     super.dispose();
+  }
+
+  void _releaseRetainedPreloadedVideos() {
+    if (_retainedPreloadedVideoPaths.isEmpty) return;
+
+    final manager = VideoControllerManager();
+    // Liberación simétrica: cada retain realizado con getOrCreateController
+    // se devuelve aquí con releaseController.
+    for (final path in _retainedPreloadedVideoPaths) {
+      manager.releaseController(path);
+    }
+    _retainedPreloadedVideoPaths.clear();
+  }
+
+  void _preloadSelectedVideoInBackground() {
+    final selectedPath = _selectedVideoPreviewPath;
+    if (selectedPath == null || selectedPath.isEmpty) return;
+
+    // Si ya fue retenido antes en esta pantalla, no duplicamos referencias.
+    if (_retainedPreloadedVideoPaths.contains(selectedPath)) return;
+
+    final manager = VideoControllerManager();
+
+    // Retener + inicializar en segundo plano:
+    // - Retener evita que cerrar popup/desenfocar nodo destruya el controller.
+    // - Inicializar por adelantado reduce tiempo de espera al abrir preview.
+    manager.getOrCreateController(selectedPath);
+    _retainedPreloadedVideoPaths.add(selectedPath);
+
+    manager.initializeController(selectedPath).catchError((_) {
+      // La UI del popup ya tiene fallback de error; no interrumpimos el flujo.
+    });
+  }
+
+  Future<void> _openSelectedPreviewFlow() async {
+    final selected = _selectedContent;
+    final activityType = _selectedActivityType;
+    if (activityType == null || selected == null || !_canPlaySelectedContent) return;
+
+    final shouldLaunch = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.transparent,
+      // Flujo en dos pasos:
+      // 1) Mostrar popup de vista previa (sin iniciar actividad)
+      // 2) Iniciar actividad solo si usuario confirma con botón dinámico
+      builder: (dialogContext) => PopupPreview(
+        content: selected,
+        launchLabel: _selectedLaunchLabel,
+        canLaunch: _canPlaySelectedContent,
+        previewImageUrl: _selectedPreviewImageUrl,
+        videoPreviewPath: _selectedVideoPreviewPath,
+        onLaunch: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+
+    if (shouldLaunch != true || !mounted) {
+      return;
+    }
+
+    // La actividad real inicia únicamente después de la
+    // confirmación del popup (no al abrir la vista previa).
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LevelPlayScreen(
+          levelTitle: widget.levelTitle ?? widget.levelName,
+          minigameData: widget.minigameData,
+          actividadType: activityType,
+          levelId: widget.levelId ?? '',
+          moduleId: widget.moduleId ?? '',
+          videoUrl: widget.videoUrl,
+          launchSimpleSelectionFromCard: activityType == 'simple_selection',
+        ),
+      ),
+    );
+    if (!mounted) return;
+
+    // Recargar datos después de regresar
+    if (widget.moduleId != null) {
+      final learningViewModel = context.read<LearningViewModel>();
+      await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
+    }
+    if (!mounted || _isCompletingObservationLevel || !_canComplete) {
+      return;
+    }
+
+    _isCompletingObservationLevel = true;
+    await _handleCompleteObservationLevel(context);
+    _isCompletingObservationLevel = false;
+  }
+
+  void _onFocusedNodePressed(int _) {
+    _openSelectedPreviewFlow();
   }
 
   @override
@@ -171,7 +307,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                 children: [
                   _buildHeader(),
 
-                  const SizedBox(height: 20),
+                  // Hint anclado al flujo de la pantalla (debajo del label superior)
+                  // para evitar desalineaciones por escalas/densidades distintas.
+                  RadialScrollHint(isDragging: _isCarouselDragging),
+
+                  const SizedBox(height: 12),
 
                   Expanded(
                     child: FadeTransition(
@@ -181,49 +321,21 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                   ),
 
                   const SizedBox(height: 20),
-                  
+
                   // El botón usa la tarjeta seleccionada para decidir qué actividad abrir.
                   // Así el usuario controla la actividad desde el carrusel + botón principal.
                   if (_canPlaySelectedContent)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final activityType = _selectedActivityType;
-                          if (activityType == null) return;
-
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => LevelPlayScreen(
-                                levelTitle: widget.levelTitle ?? widget.levelName,
-                                minigameData: widget.minigameData,
-                                actividadType: activityType,
-                                levelId: widget.levelId ?? '',
-                                moduleId: widget.moduleId ?? '',
-                                videoUrl: widget.videoUrl,
-                                launchSimpleSelectionFromCard:
-                                    activityType == 'simple_selection',
-                              ),
-                            ),
-                          );
-                          // Recargar datos después de regresar
-                          if (context.mounted && widget.moduleId != null) {
-                            final learningViewModel = context.read<LearningViewModel>();
-                            await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
-                          }
-                        },
+                        onPressed: _openSelectedPreviewFlow,
                         icon: Icon(
-                          _selectedActivityType == 'video'
-                              ? Icons.play_circle_rounded
-                              : Icons.play_arrow_rounded,
+                          Icons.visibility_rounded,
                           color: Colors.white,
                           size: 32,
                         ),
-                        label: Text(
-                          _selectedActivityType == 'video'
-                              ? 'VER VIDEO'
-                              : 'JUGAR',
+                        label: const Text(
+                          'VISTA PREVIA',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -232,13 +344,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _selectedActivityType == 'video'
-                              ? const Color(0xFF5A97B8)
-                              : const Color(0xFF00E5FF),
+                          backgroundColor: const Color(0xFF92C5BC),
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 10,
-                          shadowColor: const Color.fromARGB(204, 0, 229, 255),
+                          shadowColor: const Color.fromARGB(180, 170, 163, 163),
                         ),
                       ),
                     ),
@@ -349,230 +459,78 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     );
   }
 
+  // Construye el carrusel de tarjetas de contenido usando el nuevo widget radial personalizado.
   Widget _buildCarousel() {
-    return PageView.builder(
-      controller: _pageController,
-      physics: const BouncingScrollPhysics(),
-      itemCount: widget.contents.length,
-      onPageChanged: (index) {
+    void onIndexChanged(int index) {
+      if (_selectedCarouselIndex == index) return;
+      setState(() {
+        _selectedCarouselIndex = index;
+      });
+      // Al cambiar de nodo, precargamos el video seleccionado (si aplica)
+      // para mantener respuesta fluida del popup de preview.
+      _preloadSelectedVideoInBackground();
+    }
+    return RadialFocusPreviewSelector(
+      contents: widget.contents,
+      initialIndex: _selectedCarouselIndex,
+      onIndexChanged: onIndexChanged,
+      onFocusedNodePressed: _onFocusedNodePressed,
+      onDragStateChanged: (isDragging) {
+        if (_isCarouselDragging == isDragging) return;
         setState(() {
-          _selectedCarouselIndex = index;
+          _isCarouselDragging = isDragging;
         });
       },
-      itemBuilder: (context, index) {
-        return _buildCarouselItem(index);
-      },
-    );
-  }
-
-  Widget _buildCarouselItem(int index) {
-    return AnimatedBuilder(
-      animation: _pageController,
-      builder: (context, child) {
-        double value = 1.0;
-        if (_pageController.position.haveDimensions) {
-          value = _pageController.page! - index;
-          value = (1 - (value.abs() * 0.2)).clamp(0.85, 1.0);
-        }
-
-        return Center(
-          child: SizedBox(
-            height: Curves.easeOut.transform(value) * 500,
-            child: child,
-          ),
-        );
-      },
-      child: GestureDetector(
-        onTap: () => _navigateToFullscreen(index),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-          child: _buildCardContent(widget.contents[index], isPreview: true),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardContent(ContentCardData data, {required bool isPreview}) {
-    switch (data.type) {
-      case ContentType.pictogram:
-        return PictogramPreviewCard(
-          imgPreview: data.imagePath,
-          pictogramTitle: data.title,
-          pictogramDesc: data.description ?? '',
-          isPreview: isPreview,
-          onPictogramViewed: () {
-            if (mounted) {
-              setState(() {
-                _pictogramViewed = true;
-              });
-            }
-          },
-        );
-      case ContentType.video:
-        return VideoPreviewCard(
-          videoPath: data.videoPath!,
-          videoTitle: data.title,
-          videoDesc: data.description,
-          isPreview: isPreview,
-          onVideoCompleted: () {
-            if (mounted) {
-              setState(() {
-                _videoCompleted = true;
-              });
-            }
-          },
-        );
-      case ContentType.audio:
-        return AudioPreviewCard(
-          audioPath: data.audioPath!,
-          audioTitle: data.title,
-          audioDesc: data.description,
-          isPreview: isPreview,
-          imagePath: data.imagePath.isNotEmpty ? data.imagePath : null,
-          onAudioCompleted: () {
-            if (mounted) {
-              setState(() {
-                _audioCompleted = true;
-              });
-            }
-          },
-        );
-      case ContentType.miniGame:
-        return MiniGamePreviewCard(
-          gameTitle: data.title,
-          imgPreview: data.imagePath,
-          gameDesc: data.description,
-          isPreview: isPreview,
-        );
-    }
-  }
-
-  void _navigateToFullscreen(int initialIndex) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => FullScreenContentView(
-          contents: widget.contents,
-          initialIndex: initialIndex,
-          levelName: widget.levelName,
-          bgLevelImg: widget.bgLevelImg,
-          onVideoCompleted: () {
-            if (mounted) {
-              setState(() {
-                _videoCompleted = true;
-              });
-            }
-          },
-          onPictogramViewed: () {
-            if (mounted) {
-              setState(() {
-                _pictogramViewed = true;
-              });
-            }
-          },
-          onAudioCompleted: () {
-            if (mounted) {
-              setState(() {
-                _audioCompleted = true;
-              });
-            }
-          },
-        ),
-      ),
     );
   }
 
   /// Guarda el progreso para niveles de solo observación (sin minijuego)
   /// Otorga 2 estrellas y 20 monedas por completar el nivel
   Future<void> _handleCompleteObservationLevel(BuildContext context) async {
-    if (widget.levelId == null || widget.moduleId == null) {
-      return;
-    }
+    final result = await LevelCompletionService.completeObservationLevel(
+      context: context,
+      moduleId: widget.moduleId,
+      levelId: widget.levelId,
+    );
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (!context.mounted) return;
 
-    try {
-      final firestoreService = FirestoreService();
-      
-      // Para niveles de solo observación, otorgamos 2 estrellas
-      final stars = 2;
-      final coins = 20; // 20 monedas por 2 estrellas
-      
-      final progressData = {
-        'status': 'completed',
-        'estrellas': stars,
-        'attempts': 0, // No hay intentos en niveles de observación
-        'completedAt': DateTime.now().toIso8601String(),
-        'updatedAt': DateTime.now().toIso8601String(),
-        'type': 'observation', // Marcar como nivel de observación
-      };
-
-      await firestoreService.updateUserLevelProgress(
-        user.uid,
-        widget.moduleId!,
-        widget.levelId!,
-        progressData,
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al guardar el progreso'),
+          backgroundColor: Colors.red,
+        ),
       );
-
-      // Otorgar monedas
-      if (context.mounted) {
-        try {
-          final avatarViewModel = context.read<AvatarViewModel>();
-          await avatarViewModel.agregarMonedas(coins);
-        } catch (e) {
-          // Error al agregar monedas, pero no bloqueamos la UI
-        }
-      }
-
-      // Limpiar caché del módulo para forzar recarga
-      if (context.mounted) {
-        final learningViewModel = context.read<LearningViewModel>();
-        await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
-      }
-
-      // Mostrar mensaje de éxito
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '¡Nivel completado! +$stars +$coins',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF05E995),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        
-        // Cerrar la pantalla después de un breve delay
-        Future.delayed(const Duration(seconds: 1), () {
-          if (context.mounted) {
-            Navigator.of(context).pop();
-          }
-        });
-      }
-    } catch (e) {
-      // Error al guardar, mostrar mensaje
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al guardar el progreso'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '¡Nivel completado! +${result.stars} +${result.coins}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF05E995),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 
   /// Helper function para construir imágenes desde URLs

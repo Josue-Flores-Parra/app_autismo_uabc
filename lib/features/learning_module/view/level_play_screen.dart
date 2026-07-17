@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../minigames/minigame_core.dart';
 import '../../minigames/view/minigames_widget.dart';
-import '../../../data/services/firestore_services.dart';
 import '../../../shared/services/tts_service.dart';
-import '../viewmodel/learning_viewmodel.dart';
+import '../../../shared/services/celebration_helper.dart';
+import '../../../shared/services/level_completion_service.dart';
 import '../viewmodel/video_viewmodel.dart';
-import '../../avatar/viewmodel/avatar_viewmodel.dart';
 
 /// Pantalla de juego de nivel
 /// Se muestra cuando el usuario presiona "JUGAR" en un nivel del timeline
@@ -42,7 +39,6 @@ class LevelPlayScreen extends StatefulWidget {
 class _LevelPlayScreenState extends State<LevelPlayScreen> {
   late int _retriesLeft;
   Key _minigameKey = UniqueKey();
-  final FirestoreService _firestoreService = FirestoreService();
   final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
 
@@ -148,13 +144,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         levelId: widget.levelId,
         moduleId: widget.moduleId,
         previewImageUrl: widget.minigameData?['pictogramaUrl'] as String?,
-        onCompleted: (success) async {
-          if (success) {
-            await _saveProgress(context, true, 1);
-          }
-          if (context.mounted) {
-            Navigator.of(context).pop();
-          }
+        onCompleted: (success) {
+          _handleMinigameComplete(context, success, 1);
         },
       );
     }
@@ -225,80 +216,6 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     );
   }
 
-  /// Calcula las estrellas basado en los intentos
-  /// 1 intento = 3 estrellas, 2 intentos = 2 estrellas, 3+ intentos = 1 estrella
-  int _calculateStars(int attempts) {
-    if (attempts <= 1) return 3;
-    if (attempts == 2) return 2;
-    return 1;
-  }
-
-  /// Calcula las monedas basado en las estrellas obtenidas
-  /// 3 estrellas = 30 monedas, 2 estrellas = 20 monedas, 1 estrella = 10 monedas
-  int _calculateCoins(int stars) {
-    switch (stars) {
-      case 3:
-        return 30;
-      case 2:
-        return 20;
-      case 1:
-        return 10;
-      default:
-        return 0;
-    }
-  }
-
-  /// Guarda el progreso del usuario en Firestore y otorga recompensas
-  Future<void> _saveProgress(BuildContext context, bool success, int attempts) async {
-    if (widget.levelId == null || widget.moduleId == null) {
-      return; // No se puede guardar sin levelId y moduleId
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return; // No hay usuario autenticado
-    }
-
-    try {
-      final stars = success ? _calculateStars(attempts) : 0;
-      
-      final progressData = {
-        'status': success ? 'completed' : 'in_progress',
-        'estrellas': stars,
-        'attempts': attempts,
-        'completedAt': success ? DateTime.now().toIso8601String() : null,
-        'updatedAt': DateTime.now().toIso8601String(),
-      };
-
-      await _firestoreService.updateUserLevelProgress(
-        user.uid,
-        widget.moduleId!,
-        widget.levelId!,
-        progressData,
-      );
-
-      // Otorgar monedas si el nivel se completó exitosamente
-      if (success && stars > 0 && context.mounted) {
-        try {
-          final avatarViewModel = context.read<AvatarViewModel>();
-          final coins = _calculateCoins(stars);
-          await avatarViewModel.agregarMonedas(coins);
-        } catch (e) {
-          // Error al agregar monedas, pero no bloqueamos la UI
-          // Log de error silencioso para no interrumpir la experiencia del usuario
-        }
-      }
-
-      // Limpiar caché del módulo para forzar recarga
-      if (context.mounted) {
-        final learningViewModel = context.read<LearningViewModel>();
-        await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
-      }
-    } catch (e) {
-      // Error al guardar, pero no bloqueamos la UI
-      // Log de error silencioso para no interrumpir la experiencia del usuario
-    }
-  }
 
   /// Construye la imagen del pictograma para mostrar en el diálogo
   Widget _buildPictogramImage(Map<String, dynamic> minigameData) {
@@ -375,16 +292,23 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   ) async {
     // Guardar progreso si fue exitoso
     if (success) {
-      await _saveProgress(context, success, attempts);
+      await LevelCompletionService.completeInteractiveLevel(
+        context: context,
+        moduleId: widget.moduleId,
+        levelId: widget.levelId,
+        success: true,
+        attempts: attempts,
+      );
     }
 
     await _speakCompletionFeedback(success);
+    if (!mounted) return;
 
     // Mostrar resultado y navegar de regreso
     showDialog(
-      context: context,
+      context: this.context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1A3D52),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -468,7 +392,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                         const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
                         const SizedBox(width: 8),
                         Text(
-                          'Monedas: +${_calculateCoins(_calculateStars(attempts))}',
+                          'Monedas: +${LevelCompletionService.calculateCoins(LevelCompletionService.calculateStars(attempts))}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -620,20 +544,45 @@ class _LevelVideoPlayerScreen extends StatefulWidget {
 
 class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
   late VideoViewModel _viewModel;
+  late final CelebrationHelper _celebrationHelper;
   bool _hasNotifiedCompletion = false;
   bool _isCompleted = false;
   bool _hasStartedPlaying = false;
+  bool _isFinishing = false;
+
+  // Mantiene la UI de portada sincronizada con controladores compartidos:
+  // si el video ya avanzó o ya está reproduciéndose en otra ruta,
+  // ocultamos la portada para mostrar el frame real.
+  void _syncStartedStateFromController() {
+    try {
+      final value = _viewModel.videoController.value;
+      if (!value.isInitialized || _hasStartedPlaying) return;
+
+      final hasPlaybackProgress = value.position > Duration.zero;
+      if (value.isPlaying || hasPlaybackProgress) {
+        setState(() => _hasStartedPlaying = true);
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
     super.initState();
+    _celebrationHelper = CelebrationHelper();
     _viewModel = VideoViewModel();
     _viewModel.initialize(widget.videoUrl, null);
     _viewModel.addListener(_onVideoUpdate);
   }
 
+  void _celebrateCompletion() {
+    _celebrationHelper.playCelebration();
+  }
+
   void _onVideoUpdate() {
     if (!mounted) return;
+
+    // Reconciliar estado visual local con el estado real del controller.
+    _syncStartedStateFromController();
     setState(() {});
 
     if (_hasNotifiedCompletion) return;
@@ -650,37 +599,64 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
       final progress = position.inMilliseconds / duration.inMilliseconds;
       final isAtEnd = position >= duration;
 
+      // Consideramos el video completado si el usuario ha visto al menos el 90% o si llegó al final.
+      // Logica para marcar como completado
       if (progress >= 0.9 || isAtEnd) {
         _hasNotifiedCompletion = true;
         setState(() => _isCompleted = true);
-        // Pause when done
-        if (controller.value.isPlaying) {
-          controller.pause();
-        }
       }
     } catch (_) {}
   }
 
+  Future<void> _pauseBeforeExit() async {
+    // Al salir del contexto de esta pantalla, detenemos reproduccion para
+    // evitar que el audio/video continue en segundo plano.
+    try {
+      if (_viewModel.videoController.value.isInitialized &&
+          _viewModel.videoController.value.isPlaying) {
+        await _viewModel.videoController.pause();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _pauseAndPop() async {
+    // Si el usuario intenta salir con el botón de back, nos aseguramos de pausar el video antes de cerrar la pantalla.
+    await _pauseBeforeExit();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   void dispose() {
+    // Guard defensivo para cierres no interceptados (replace/remove route).
+    _viewModel.pause();
     _viewModel.removeListener(_onVideoUpdate);
     _viewModel.dispose();
+    _celebrationHelper.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: FutureBuilder<void>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // Si la ruta ya se está cerrando, no interferir.
+        _pauseAndPop(); // Intercepción manual de back button para asegurar que el video se pausa antes de salir.
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: FutureBuilder<void>(
           future: _viewModel.initializeVideoFuture,
           builder: (context, snapshot) {
             final ready = snapshot.connectionState == ConnectionState.done &&
                 snapshot.error == null;
 
-            return Column(
+            return Stack(
               children: [
+                Column(
+                  children: [
                 // ── Top bar ──────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -695,7 +671,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.of(context).pop(),
+                         onPressed: _pauseAndPop,
                       ),
                       Expanded(
                         child: Text(
@@ -742,7 +718,16 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                       // ── Ready: show cover until first play, then video ──────
                       : GestureDetector(
                           onTap: () {
-                            setState(() => _hasStartedPlaying = true);
+                            if (!_hasStartedPlaying) {
+                              // Primer tap: revelar video y solo iniciar reproducción
+                              // si aún no venía reproduciéndose en otra ruta.
+                              setState(() => _hasStartedPlaying = true);
+                              if (!_viewModel.videoController.value.isPlaying) {
+                                _viewModel.togglePlayPause();
+                              }
+                              return;
+                            }
+                            // Taps siguientes: comportamiento normal play/pause.
                             _viewModel.togglePlayPause();
                           },
                           child: Stack(
@@ -769,7 +754,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                                         ? Image.network(
                                             widget.previewImageUrl!,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
+                                            errorBuilder: (context, error, stackTrace) =>
                                                 Container(color: Colors.black),
                                             // Skeleton sobre fondo negro mientras carga la imagen de portada
                                             loadingBuilder: (context, child, loadingProgress) {
@@ -881,7 +866,30 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () => widget.onCompleted(true),
+                              onPressed: _isFinishing
+                                  ? null
+                                  : () async {
+                                      setState(() {
+                                        _isFinishing = true;
+                                      });
+
+                                      // Resetear el progreso compartido para que
+                                      // al salir del flujo el video no quede en 100%.
+                                      try {
+                                        final controller = _viewModel.videoController;
+                                        if (controller.value.isPlaying) {
+                                          await controller.pause();
+                                        }
+                                        await controller.seekTo(Duration.zero);
+                                      } catch (_) {}
+
+                                      _celebrateCompletion();
+                                      await Future.delayed(
+                                        const Duration(milliseconds: 1500),
+                                      );
+                                      if (!mounted) return;
+                                      widget.onCompleted(true);
+                                    },
                               icon: const Icon(Icons.check_circle_rounded,
                                   color: Colors.white),
                               label: const Text(
@@ -907,9 +915,15 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                       ],
                     ),
                   ),
+                  ],
+                ),
+                CelebrationHelper.buildTopConfettiOverlay(
+                  controller: _celebrationHelper.confettiController,
+                ),
               ],
             );
           },
+          ),
         ),
       ),
     );

@@ -54,8 +54,8 @@ class MyApp extends StatelessWidget {
     final skinsDisponibles = AvatarRepository.obtenerSkinsDisponibles();
 
     // Crear el estado inicial del avatar
-    final estadoInicial = AvatarEstado(
-      nombre: 'MRBEAST',
+    final estadoInicial = AvatarEstado( // Definir estado inicial con valores por defecto
+      nombre: 'nombre',
       felicidad: 64,
       energia: 92,
       skinActual: skinsDisponibles.first,
@@ -67,9 +67,6 @@ class MyApp extends StatelessWidget {
         'Gafas', // Desbloqueado por defecto
       },
     );
-
-    const String moduleId = 'Higiene_01';
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsViewModel()),
@@ -118,12 +115,6 @@ class MyApp extends StatelessWidget {
                 );
               },
               home: const LoginScreen(),
-              // home: const ModuleListScreen(),
-              // home: LevelTimelineScreen(
-              //   moduleId: moduleId,
-              //   backgroundImagePath:
-              //       'assets/images/LevelBGs/Higiene/HigieneModuloBG.png',
-              // ),
             ),
           );
         },

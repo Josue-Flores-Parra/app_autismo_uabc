@@ -49,7 +49,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
     _viewModel = VideoViewModel();
     _viewModel!.initialize(videoUrl, null);
     _viewModel!.addListener(_onVideoStateChanged);
-    
+
     // Iniciar reproducción automática y desactivar loop
     _viewModel!.initializeVideoFuture.then((_) {
       if (mounted && !_isDisposed && _viewModel != null) {
@@ -108,7 +108,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
     }
   }
 
-  void _handleComplete() {
+  Future<void> _handleComplete() async {
     if (_isCompleted || _isDisposed || _viewModel == null) return;
     
     setState(() {
@@ -118,8 +118,11 @@ class _VideoMinigameState extends State<VideoMinigame> {
     try {
       // Pausar el video
       if (_viewModel!.videoController.value.isPlaying) {
-        _viewModel!.videoController.pause();
+        await _viewModel!.videoController.pause();
       }
+
+      // Reiniciar la posicion para no dejar la barra al final
+      await _viewModel!.videoController.seekTo(Duration.zero);
     } catch (e) {}
     
     // Llamar al callback de completado
@@ -131,7 +134,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
     _isDisposed = true;
     _completionCheckTimer?.cancel();
     _completionCheckTimer = null;
-    
+
     if (_viewModel != null) {
       try {
         _viewModel!.removeListener(_onVideoStateChanged);
@@ -139,7 +142,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
       } catch (e) {}
       _viewModel = null;
     }
-    
+
     super.dispose();
   }
 

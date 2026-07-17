@@ -12,7 +12,7 @@ class TtsService {
   Future<bool> initializeDefaultEsMx() async {
     try {
       await _tts.setLanguage('es-MX');
-      await _tts.setSpeechRate(0.6);
+      await _tts.setSpeechRate(0.5);
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
       _isReady = true;

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../minigame_core.dart';
 import '../../../learning_module/viewmodel/audio_viewmodel.dart';
-import 'simple_selection_minigame.dart'; // Para _buildImageFromPath
+import '../../../../shared/services/celebration_helper.dart';
 
 /// Minijuego de Audio
 /// Reproduce un audio/música completo como actividad del nivel
@@ -26,10 +26,12 @@ class _AudioMinigameState extends State<AudioMinigame> {
   bool _hasError = false; // Rastrear si hay un error al cargar el audio
   String? _errorMessage; // Mensaje de error
   Timer? _positionTimer;
+  late final CelebrationHelper _celebrationHelper;
 
   @override
   void initState() {
     super.initState();
+    _celebrationHelper = CelebrationHelper();
     _initializeAudio();
   }
 
@@ -112,14 +114,13 @@ class _AudioMinigameState extends State<AudioMinigame> {
     _positionTimer?.cancel();
     _viewModel?.dispose();
     _viewModel = null;
+    _celebrationHelper.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final audioUrl = widget.minigameData['audioUrl'] as String?;
     final pictogramaUrl = widget.minigameData['pictogramaUrl'] as String?;
-    final videoUrl = widget.minigameData['videoUrl'] as String?;
     final title = widget.minigameData['title'] as String? ?? 
                   widget.minigameData['titulo'] as String? ?? 
                   'Audio';
@@ -158,8 +159,10 @@ class _AudioMinigameState extends State<AudioMinigame> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF091F2C),
-      body: SafeArea(
-        child: Column(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
           children: [
             // Header con título y descripción
             Padding(
@@ -194,7 +197,7 @@ class _AudioMinigameState extends State<AudioMinigame> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.2),
+                          color: Colors.red.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.red, width: 1),
                         ),
@@ -313,7 +316,7 @@ class _AudioMinigameState extends State<AudioMinigame> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF05E995).withOpacity(0.5),
+                              color: const Color(0xFF05E995).withValues(alpha: 0.5),
                               blurRadius: 20,
                               spreadRadius: 5,
                             ),
@@ -367,10 +370,13 @@ class _AudioMinigameState extends State<AudioMinigame> {
                   ElevatedButton.icon(
                     onPressed: (_isCompleted || !_audioFinished)
                         ? null
-                        : () {
+                        : () async {
                             setState(() {
                               _isCompleted = true;
                             });
+                            _celebrationHelper.playCelebration();
+                            await Future.delayed(const Duration(milliseconds: 1500));
+                            if (!mounted) return;
                             widget.onComplete(true, 1);
                           },
                     icon: Icon(
@@ -405,6 +411,11 @@ class _AudioMinigameState extends State<AudioMinigame> {
             ),
           ],
         ),
+          ),
+          CelebrationHelper.buildTopConfettiOverlay(
+            controller: _celebrationHelper.confettiController,
+          ),
+        ],
       ),
     );
   }

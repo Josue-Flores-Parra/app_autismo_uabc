@@ -128,85 +128,95 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
 
     return BasePreviewCard(
       isPreview: widget.isPreview,
-      typeOfPreviewCard: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildPreviewMediaWithTypeLabel(
-                label: 'PICTOGRAMA',
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0x001A3D52), // Sin fondo blanco, transparente
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0x997BA5C9), width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x80000000),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: widget.imgPreview.isNotEmpty
-                        ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain, shimmerBaseColor: const Color(0xFF1A3D52))
-                        : const Center(
-                            child: Icon(
-                              Icons.image_outlined,
-                              size: 80,
-                              color: Color(0xFFCCCCCC),
-                            ),
+      typeOfPreviewCard: LayoutBuilder(
+        builder: (context, constraints) {
+          // En rotaciones iOS hay frames transitorios con alturas diminutas (ej. 8px).
+          // Evitamos construir un Column no viable que dispara RenderFlex overflow.
+          if (constraints.maxHeight < 120) {
+            return const SizedBox.expand();
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildPreviewMediaWithTypeLabel(
+                    label: 'PICTOGRAMA',
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0x001A3D52), // Sin fondo blanco, transparente
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x80000000),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                            offset: Offset(0, 10),
                           ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: widget.imgPreview.isNotEmpty
+                            ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain, shimmerBaseColor: const Color(0xFF1A3D52))
+                            : const Center(
+                                child: Icon(
+                                  Icons.image_outlined,
+                                  size: 80,
+                                  color: Color(0xFFCCCCCC),
+                                ),
+                              ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            Text(
-              widget.pictogramTitle,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 0.5,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            const SizedBox(height: 8),
-
-            if (widget.pictogramDesc.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  widget.pictogramDesc,
+                Text(
+                  widget.pictogramTitle,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xE6FFFFFF),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
-            // El botón se oculta porque el clic en la tarjeta completa ya navega a fullscreen
-            // El botón era redundante y causaba confusión
-          ],
-        ),
+                if (widget.pictogramDesc.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      widget.pictogramDesc,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xE6FFFFFF),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                // El botón se oculta porque el clic en la tarjeta completa ya navega a fullscreen
+                // El botón era redundante y causaba confusión
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -220,6 +230,9 @@ class VideoPreviewCard extends StatefulWidget {
   final String videoTitle;
   final String? videoDesc;
   final bool isPreview;
+  // Solo la tarjeta activa debe poder mantener reproduccion.
+  // Este flag lo define la pantalla contenedora (carrusel/pageview).
+  final bool isActive;
   final VideoPlayerController? externalController;
   final VoidCallback? onVideoCompleted; // Callback cuando el video se completa
 
@@ -229,6 +242,7 @@ class VideoPreviewCard extends StatefulWidget {
     required this.videoTitle,
     this.videoDesc,
     this.isPreview = true,
+    this.isActive = true,
     this.externalController,
     this.onVideoCompleted,
   });
@@ -242,6 +256,17 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
   late VideoViewModel _viewModel;
   bool _hasNotifiedCompletion = false;
   Timer? _completionCheckTimer;
+
+  void _pauseIfPlaying() {
+    // Helper defensivo para unificar pausado y evitar excepciones si el
+    // controller aun no termino de inicializar o ya fue descartado.
+    try {
+      final controller = _viewModel.videoController;
+      if (controller.value.isInitialized && controller.value.isPlaying) {
+        controller.pause();
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -307,6 +332,18 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
   }
 
   @override
+  void didUpdateWidget(covariant VideoPreviewCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // En carruseles con keepAlive, la tarjeta puede salir de foco sin deactivarse.
+    // Decision de diseno: el pausado por perdida de foco debe depender del estado
+    // isActive y no del ciclo de vida del widget, porque keepAlive evita dispose.
+    if (oldWidget.isActive && !widget.isActive) {
+      _pauseIfPlaying();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
 
@@ -316,23 +353,30 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
         if (snapshot.connectionState == ConnectionState.done) {
           return BasePreviewCard(
             isPreview: widget.isPreview,
-            typeOfPreviewCard: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: _buildPreviewMediaWithTypeLabel(
-                      label: 'VIDEO',
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
+            typeOfPreviewCard: LayoutBuilder(
+              builder: (context, parentConstraints) {
+                if (parentConstraints.maxHeight < 120) {
+                  return const SizedBox.expand();
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildPreviewMediaWithTypeLabel(
+                          label: 'VIDEO',
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
                           final double videoAspectRatio =
                               _viewModel.videoController.value.aspectRatio;
                           final double availableWidth = constraints.maxWidth;
                           final double videoHeight =
                               availableWidth / videoAspectRatio;
-                          final double controlBarHeight = videoHeight * 0.15;
+                          final double controlBarHeight = (videoHeight * 0.15)
+                              .clamp(32.0, 56.0);
 
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(20),
@@ -468,43 +512,45 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                               ),
                             ),
                           );
-                        },
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                  Text(
-                    widget.videoTitle,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-
-                  if (widget.videoDesc != null && widget.videoDesc!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        widget.videoDesc!,
+                      Text(
+                        widget.videoTitle,
                         style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xE6FFFFFF),
-                          fontWeight: FontWeight.w500,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                ],
-              ),
+
+                      if (widget.videoDesc != null && widget.videoDesc!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            widget.videoDesc!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xE6FFFFFF),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           );
         } else {
@@ -513,22 +559,30 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
           // y asegurar que keepAlive funcione correctamente en todas las rutas de build
           return BasePreviewCard(
             isPreview: widget.isPreview,
-            typeOfPreviewCard: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+            typeOfPreviewCard: LayoutBuilder(
+              builder: (context, parentConstraints) {
+                if (parentConstraints.maxHeight < 120) {
+                  return const SizedBox.expand();
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 28,
+                        child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 28,
-                    child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           );
         }
@@ -538,12 +592,9 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void deactivate() {
-    // Pausar cada que la tarjeta se desactiva del viewport (deslizar en el carrusel) para evitar que el video siga sonando en segundo plano
-    try {
-      if (_viewModel.videoController.value.isPlaying) {
-        _viewModel.videoController.pause();
-      }
-    } catch (_) {}
+    // Red de seguridad adicional: en rutas donde Flutter si desactive la tarjeta,
+    // tambien detenemos audio/video para evitar reproduccion en segundo plano.
+    _pauseIfPlaying();
     super.deactivate();
   }
 
@@ -555,6 +606,8 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
   }
 
   @override
+  // Se conserva keepAlive para no reconstruir controllers al deslizar,
+  // por eso el control de reproduccion se resuelve con isActive.
   bool get wantKeepAlive => true;
 }
 
@@ -718,85 +771,87 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
 
     return BasePreviewCard(
       isPreview: widget.isPreview,
-      typeOfPreviewCard: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildPreviewMediaWithTypeLabel(
-                label: 'MINIJUEGO',
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0x997BA5C9), width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x80000000),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: widget.imgPreview.isNotEmpty
-                        ? _buildImageFromUrl(
-                            widget.imgPreview,
-                            fit: BoxFit.contain,
-                            shimmerBaseColor: const Color(0xFF1A3D52),
-                          )
-                        : const Center(
-                            child: Icon(
-                              Icons.gamepad_rounded,
-                              size: 80,
-                              color: Color(0xFFCCCCCC),
-                            ),
+      typeOfPreviewCard: LayoutBuilder(
+        builder: (context, constraints) {
+          // En la transicion de orientacion puede alcanzar constraints minimos
+          // (ej. altura=8). Saltamos ese frame para evitar warning de overflow.
+          if (constraints.maxHeight < 120) {
+            return const SizedBox.expand();
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildPreviewMediaWithTypeLabel(
+                    label: 'MINIJUEGO',
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x80000000),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                            offset: Offset(0, 10),
                           ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: _buildImageFromUrl(
+                          'assets/imgs/simple_selection_preview.png',
+                          fit: BoxFit.contain,
+                          shimmerBaseColor: const Color(0xFF1A3D52),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            Text(
-              widget.gameTitle,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 0.5,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            const SizedBox(height: 8),
-
-            if (widget.gameDesc != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  widget.gameDesc!,
+                Text(
+                  widget.gameTitle,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xE6FFFFFF),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
 
-            const SizedBox(height: 8),
-          ],
-        ),
+                const SizedBox(height: 8),
+
+                if (widget.gameDesc != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      widget.gameDesc!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xE6FFFFFF),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1015,7 +1070,7 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                         color: Colors.white,
                       ),
                       onPressed: () {
-                        _viewModel.togglePlayPause();
+                          _viewModel.togglePlayPause();
                       },
                     ),
                   ],
