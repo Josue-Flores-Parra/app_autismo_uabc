@@ -7,7 +7,7 @@ enum MinigameType {
   video, // minijuego de video tutorial
   pictogram, // minijuego de pictograma
   audio, // minijuego de audio/música
-  // TODO: Agregar más tipos de minijuegos a medida que se implementen
+  puzzle, // minijuego de rompecabezas
 }
 
 /// Función de callback que se llama cuando un minijuego se completa

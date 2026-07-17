@@ -36,6 +36,15 @@ class PopupPreview extends StatelessWidget {
     }
   }
 
+  // Helper para detectar casos específicos de minijuegos sin imagen de preview válida.
+  bool get _isPuzzleMissingImage {
+    if (content.type != ContentType.miniGame || content.miniGameType != 'puzzle') {
+      return false;
+    }
+    final source = (previewImageUrl ?? content.imagePath).trim();
+    return source.isEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.sizeOf(context);
@@ -180,11 +189,13 @@ class PopupPreview extends StatelessWidget {
                             ),
                           ),
                           if (!canLaunch)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                'Actividad no disponible para este contenido.',
-                                style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 13),
+                                _isPuzzleMissingImage
+                                    ? 'Imagen no disponible para este rompecabezas'
+                                    : 'Actividad no disponible para este contenido.',
+                                style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 13),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -267,7 +278,9 @@ class PopupPreview extends StatelessWidget {
     // Para minijuegos usamos siempre la miniatura local dedicada.
     // Evita depender de miniGameType exacto y de rutas dinámicas inconsistentes.
     final source = (content.type == ContentType.miniGame)
-        ? 'assets/imgs/simple_selection_preview.png'
+        ? (content.miniGameType == 'simple_selection'
+            ? 'assets/imgs/simple_selection_preview.png'
+            : (previewImageUrl ?? content.imagePath).trim())
         : (previewImageUrl ?? content.imagePath).trim();
     if (source.isEmpty) {
       // Fallback explícito para recursos ausentes o no mapeados.
@@ -355,4 +368,3 @@ class _PopupMediaWithTypeLabel extends StatelessWidget {
     );
   }
 }
-

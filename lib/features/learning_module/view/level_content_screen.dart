@@ -100,6 +100,14 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         if (selected.miniGameType == 'simple_selection') {
           return _isSimpleSelectionEnabled && widget.minigameData != null;
         }
+        if (selected.miniGameType == 'puzzle') {
+          final puzzleUrl = widget.minigameData?['puzzleImageUrl'] as String?;
+          final fallbackUrl = widget.minigameData?['pictogramaUrl'] as String?;
+          final hasPuzzleImage =
+              (puzzleUrl != null && puzzleUrl.trim().isNotEmpty) ||
+              (fallbackUrl != null && fallbackUrl.trim().isNotEmpty);
+          return hasPuzzleImage;
+        }
         return false;
     }
   }
@@ -130,6 +138,12 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
     if (selected.imagePath.trim().isNotEmpty) {
       return selected.imagePath;
+    }
+    if (selected.type == ContentType.miniGame && selected.miniGameType == 'puzzle') {
+      final puzzleUrl = widget.minigameData?['puzzleImageUrl'] as String?;
+      if (puzzleUrl != null && puzzleUrl.trim().isNotEmpty) return puzzleUrl;
+      final fallbackUrl = widget.minigameData?['pictogramaUrl'] as String?;
+      return fallbackUrl;
     }
 
     final minigameImage = widget.minigameData?['pictogramaUrl'] as String?;
@@ -421,13 +435,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               
               const SizedBox(width: 12),
               
-              // Título (centrado)
+              // Título del nivel (centrado)
               Expanded(
                 child: Center(
                   child: Text(
                     widget.levelName,
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 25,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 0.8,

@@ -765,6 +765,13 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     final List<ContentCardData> contents = [];
     final simpleSelectionEnabled =
         _asBool(level.actividadData?['isSimpleSelectionEnabled']);
+    final puzzleEnabled = _asBool(level.actividadData?['isPuzzleEnabled']) ||
+        (level.actividadType?.toLowerCase() == 'puzzle');
+    final puzzleImageUrl = level.puzzleImageUrl;
+    final puzzleFallbackUrl = level.pictogramaUrl;
+    final hasPuzzleImage =
+        (puzzleImageUrl != null && puzzleImageUrl.isNotEmpty) ||
+        (puzzleFallbackUrl != null && puzzleFallbackUrl.isNotEmpty);
 
     // 1. PRIMERO: Si hay pictograma, agregar tarjeta de pictograma
     if (level.pictogramaUrl != null && level.pictogramaUrl!.isNotEmpty) {
@@ -804,6 +811,20 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       );
     }
 
+    // 2.6: Si el nivel habilita rompecabezas, agregar su tarjeta en el carrusel.
+    if (puzzleEnabled && hasPuzzleImage) {
+      contents.add(
+        ContentCardData(
+          type: ContentType.miniGame,
+          miniGameType: 'puzzle',
+          title: 'Rompecabezas',
+          description: 'Arma la imagen arrastrando las piezas',
+          imagePath: puzzleImageUrl?.isNotEmpty == true
+              ? puzzleImageUrl!
+              : (puzzleFallbackUrl ?? ''),
+        ),
+      );
+    }
 
     // 3. TERCERO: Si hay audio, agregar tarjeta de audio
     if (level.audioUrl != null && level.audioUrl!.isNotEmpty) {

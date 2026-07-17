@@ -38,7 +38,7 @@ class LevelRepository {
           whatState: estado,
           stars: level.estrellas,
           posibleImagePreview: level.pictogramaUrl,
-          minigameData: level.actividadData,
+          minigameData: _mergeMinigameData(level),
           actividadType: level.actividadType,
           levelId: level.id,
           moduleId: moduleId,
@@ -49,5 +49,14 @@ class LevelRepository {
     } catch (e, stackTrace) {
       return [];
     }
+  }
+
+  Map<String, dynamic>? _mergeMinigameData(ModuleLevelInfo level) {
+    final base = Map<String, dynamic>.from(level.actividadData ?? const {});
+    base.putIfAbsent('puzzleImageUrl', () => level.puzzleImageUrl);
+    base.putIfAbsent('pictogramaUrl', () => level.pictogramaUrl);
+    base.putIfAbsent('videoUrl', () => level.videoUrl);
+    base.removeWhere((_, value) => value == null);
+    return base.isEmpty ? null : base;
   }
 }
