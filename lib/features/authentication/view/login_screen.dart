@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
-import '../../home/view/main_shell.dart';
 import 'register_screen.dart';
-import '../../../shared/widgets/loading_wrapper.dart';
+import '../../../shared/services/loading_service.dart';
 
 class LoginScreen
     extends StatefulWidget {
@@ -91,9 +90,18 @@ class _LoginScreenState
     // Ocultar el teclado
     FocusScope.of(context).unfocus();
 
+    // Capturar el servicio de carga ANTES de cualquier await: el context del
+    // LoginScreen puede desmontarse cuando AuthGate swap a MainShell tras un
+    // login exitoso. Operar sobre la referencia viva evita un Provider.of que
+    // fallaria sobre un context ya disposed (loading colgado).
+    final loadingService =
+        Provider.of<LoadingService>(
+          context,
+          listen: false,
+        );
+
     // Mostrar pantalla de carga
-    LoadingHook.show(
-      context,
+    loadingService.showLoading(
       'Iniciando sesión...',
     );
 
@@ -115,27 +123,20 @@ class _LoginScreenState
           const Duration(seconds: 2),
         );
 
-    // Esperar a que ambos se completen (login Y mínimo 2 segundos)
-    final results = await Future.wait([
-      loginFuture,
-      minDelayFuture,
-    ]);
-    final success = results[0] as bool;
-
-    // Ocultar pantalla de carga
-    LoadingHook.hide(context);
-
-    if (success && mounted) {
-      // Navegar a MainShell si el login fue exitoso
-      Navigator.of(
-        context,
-      ).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) =>
-              const MainShell(),
-        ),
-      );
+    // Esperar a que ambos se completen (login Y mínimo 2 segundos).
+    // finally garantiza que el overlay se oculte aun si el await se resume
+    // despues de que LoginScreen fue desmontado por el swap del AuthGate.
+    try {
+      await Future.wait([
+        loginFuture,
+        minDelayFuture,
+      ]);
+    } finally {
+      loadingService.hideLoading();
     }
+
+    // El swap a MainShell lo maneja AuthGate via Consumer<AuthViewModel>.
+    // Los errores ya quedan registrados en AuthViewModel.errorMessage.
   }
 
   @override

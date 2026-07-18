@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
-import '../../home/view/main_shell.dart';
-import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -38,18 +36,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
 
-    final success = await authViewModel.register(
+    await authViewModel.register(
       _emailController.text.trim(),
       _passwordController.text,
       _nameController.text.trim(),
     );
 
-    if (success && mounted) {
-      // Navegar a MainShell si el registro fue exitoso
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainShell()),
-      );
-    }
+    // El swap a MainShell lo maneja AuthGate via Consumer<AuthViewModel>.
+    // Los errores ya quedan en AuthViewModel.errorMessage.
   }
 
   @override
@@ -266,11 +260,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     context,
                                     listen: false,
                                   ).clearError();
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(
-                                      builder: (context) => const LoginScreen(),
-                                    ),
-                                  );
+                                  Navigator.of(context).pop();
                                 },
                                 child: const Text(
                                   'Inicia sesión',

@@ -4,7 +4,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../authentication/view/login_screen.dart';
 import '../../authentication/viewmodel/auth_viewmodel.dart';
 import '../../avatar/viewmodel/avatar_viewmodel.dart';
 import '../viewmodel/settings_viewmodel.dart';
@@ -428,10 +427,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await auth?.logout();
     if (!mounted) return;
     _showSnack(l10n?.logoutSuccess ?? 'Sesión cerrada');
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    // El swap a LoginScreen lo maneja AuthGate via Consumer<AuthViewModel>.
   }
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
@@ -481,12 +477,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (confirmed == true) {
       final success = await auth.deleteAccount();
       if (!mounted) return;
-      if (success) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      } else {
+      if (!success) {
         _showSnack(l10n?.deleteAccountFailed ?? 'No se pudo eliminar la cuenta');
       }
     }
