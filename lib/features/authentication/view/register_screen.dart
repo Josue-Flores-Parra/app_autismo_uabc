@@ -36,14 +36,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
 
-    await authViewModel.register(
+    final success = await authViewModel.register(
       _emailController.text.trim(),
       _passwordController.text,
       _nameController.text.trim(),
     );
 
-    // El swap a MainShell lo maneja AuthGate via Consumer<AuthViewModel>.
-    // Los errores ya quedan en AuthViewModel.errorMessage.
+    // El swap lo maneja AuthGate via Consumer<AuthViewModel>. Tras un registro
+    // exitoso el usuario queda signed-out, así que volvemos al LoginScreen del
+    // gate donde se muestra el cue de éxito.
+    if (success && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
