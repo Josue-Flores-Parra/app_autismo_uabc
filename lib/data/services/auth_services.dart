@@ -46,6 +46,10 @@ class AuthService {
     await _auth.signOut();
   }
 
+  /// Envía un correo de restablecimiento de contraseña a [email].
+  Future<void> sendPasswordResetEmail(String email) =>
+      _auth.sendPasswordResetEmail(email: email);
+
   Future<bool> updateDisplayName(String name) async {
     final user = _auth.currentUser;
     if (user == null) return false;

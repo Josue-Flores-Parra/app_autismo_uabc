@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../../../shared/services/loading_service.dart';
 
@@ -612,7 +613,17 @@ class _LoginScreenState
                           // Seccion para "¿Olvidaste tu contraseña?"
                           TextButton(
                             onPressed: () {
-                              // TODO: Implementar navegación a recuperación de contraseña
+                              Provider.of<AuthViewModel>(
+                                context,
+                                listen: false,
+                              ).clearError();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (
+                                    context,
+                                  ) => const ForgotPasswordScreen(),
+                                ),
+                              );
                             },
                             child: const Text(
                               '¿Olvidaste tu contraseña?',

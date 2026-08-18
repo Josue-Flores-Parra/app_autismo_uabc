@@ -74,6 +74,33 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Solicita el envío de un correo de restablecimiento de contraseña.
+  /// Devuelve `true` incluso si el correo no existe (mensaje genérico para
+  /// evitar enumeración de usuarios). Solo devuelve `false` en errores
+  /// inesperados.
+  Future<bool> resetPassword(String email) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      _setLoading(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _setLoading(false);
+      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        // No revelar si el correo existe.
+        return true;
+      }
+      _handleAuthError(e);
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Error inesperado: ${e.toString()}');
+      return false;
+    }
+  }
+
   /// Cierra la sesión del usuario actual
   Future<void> logout() async {
     _setLoading(true);
