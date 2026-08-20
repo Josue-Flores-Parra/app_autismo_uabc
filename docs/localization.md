@@ -122,6 +122,7 @@ bottom nav no muestra `PIN`, regenera l10n.
 | `ModuleListScreen` | Parcialmente | AppBar usa `navModules` y tooltip `settingsTitle`; gran parte del contenido sigue hardcodeado. |
 | `LoginScreen` | No | Textos hardcodeados en espanol. |
 | `RegisterScreen` | No | Textos hardcodeados en espanol. |
+| `ForgotPasswordScreen` | No | Textos hardcodeados en espanol. |
 | `AvatarScreen` | No | Textos hardcodeados en espanol. |
 | `MainShell` dialogs de PIN | No | Textos hardcodeados en espanol. |
 | `LevelTimelineScreen` | No | Textos hardcodeados como `JUGAR`. |

@@ -170,13 +170,14 @@ operacion si la sesion no es reciente.
 
 1. Llama `AuthViewModel.logout`.
 2. Muestra snackbar.
-3. Navega a `LoginScreen` con `pushAndRemoveUntil`.
+3. El swap a `LoginScreen` lo maneja `AuthGate` via `Consumer<AuthViewModel>`.
 
 ### Eliminar cuenta
 
 1. Pide confirmar escribiendo `BORRAR` o `DELETE`, segun locale.
 2. Llama `AuthViewModel.deleteAccount`.
-3. Si fue exitoso, navega a `LoginScreen`.
+3. En exito, `deleteAccount()` limpia `_currentUser` y `AuthGate` hace el swap a
+   `LoginScreen` (sin navegacion imperativa).
 4. Si falla, muestra snackbar.
 
 ## PIN de acceso a Settings

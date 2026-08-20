@@ -76,6 +76,7 @@ Archivos usados en pantallas principales:
 | `assets/images/TRISTE.png` | Cara triste del avatar. |
 | `assets/images/app_icon.png` | Fuente de icono de launcher. |
 | `assets/images/splash_icon.png` | Fuente de splash. |
+| `assets/images/forgot-password.png` | Imagen del flujo de recuperacion de contrasena (`ForgotPasswordScreen`). |
 
 Tambien existe `assets/pictogramas/appysittin.png`, pero el timeline usa
 `assets/images/appysittin.png`.
