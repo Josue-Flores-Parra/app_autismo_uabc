@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../minigame_core.dart';
 import '../../../../shared/services/celebration_helper.dart';
 import '../../../../shared/widgets/loading_screen.dart';
@@ -18,7 +20,7 @@ class PuzzleMinigame extends MinigameBase {
 }
 
 class _PuzzleMinigameState extends State<PuzzleMinigame> {
-  static const int _gridSize = 5;
+  static const int _gridSize = 4; // Regresado a 4 para probar, TODO: regresar a 5 si feedback lo dicta
   static const double _knobRatio = 0.15;
   static const Duration _feedbackDuration = Duration(seconds: 3);
   static const Duration _celebrationDuration = Duration(seconds: 3);
@@ -40,6 +42,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final Map<int, bool> _feedbackSlots = <int, bool>{};
   final DraggableScrollableController _trayController = DraggableScrollableController();
   final CelebrationHelper _celebrationHelper = CelebrationHelper(duration: _celebrationDuration);
+  final AudioPlayer _placeSoundPlayer = AudioPlayer();
 
   int _attempts = 0;
   bool _isCompleted = false;
@@ -74,6 +77,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   @override
   void dispose() {
     _celebrationHelper.dispose();
+    _placeSoundPlayer.dispose();
     super.dispose();
   }
 
@@ -319,6 +323,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _gridSlots[slotIndex] = data.pieceId;
       _feedbackSlots.remove(slotIndex);
     });
+
+    _playPlaceSound();
   }
 
   // Maneja cuando una pieza se devuelve a la bandeja.
@@ -332,6 +338,34 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _addToTray(data.pieceId, shuffle: true);
       _feedbackSlots.remove(data.fromSlot);
     });
+  }
+
+  // Configura la sesión de audio para reproducir sonidos de feedback.
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+    } catch (_) {}
+  }
+
+  // Reproduce el sonido de feedback al colocar una pieza en la cuadrícula.
+  Future<void> _playPlaceSound() async {
+    try {
+      await _configureAudioSession();
+      await _placeSoundPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/puzzle_piece_placed.mp3'),
+      );
+      await _placeSoundPlayer.setVolume(1.0);
+      if (_placeSoundPlayer.processingState == ProcessingState.loading) {
+        await _placeSoundPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+              (state) => state.processingState != ProcessingState.loading,
+            );
+      }
+      await _placeSoundPlayer.play();
+    } catch (_) {}
   }
 
   // Valida el tablero, muestra feedback y procesa el resultado.
@@ -412,7 +446,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   Widget _buildTopBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.only(left: 20, right: 8, top: 16, bottom: 16), // padding derecho reducido para dar espacio a la imagen del preview, sin que estorbe al titulo/instrucciones
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -485,7 +519,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
               ],
             ),
           ),
-          const SizedBox(width: 52),
+          _buildPreview(),
         ],
       ),
     );
@@ -494,6 +528,39 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   // Mantiene compatibilidad; la instrucción ya está en el encabezado.
   Widget _buildInstruction() {
     return const SizedBox.shrink();
+  }
+
+  // Miniatura de referencia que muestra el resultado final del rompecabezas.
+  Widget _buildPreview() {
+    if (!_hasImage) return const SizedBox(width: 56);
+    return Container(
+      width: 68,
+      height: 68,
+      decoration: BoxDecoration(
+        color: const Color(0x33FFFFFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x99FFFFFF), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Image(
+          image: _imageProvider(),
+          width: 68,
+          height: 68,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const ColoredBox(
+            color: Color(0x332C5F7A),
+          ),
+        ),
+      ),
+    );
   }
 
   // Construye la cuadrícula del rompecabezas con drag targets.
