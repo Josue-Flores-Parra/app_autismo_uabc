@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../minigame_core.dart';
 import '../../../../shared/services/celebration_helper.dart';
+import '../../../../shared/services/negative_feedback_helper.dart';
 import '../../../../shared/widgets/loading_screen.dart';
 
 class PuzzleMinigame extends MinigameBase {
@@ -23,7 +24,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   late final int _gridSize;
   static const double _knobRatio = 0.15;
   static const Duration _feedbackDuration = Duration(seconds: 3);
-  static const Duration _celebrationDuration = Duration(seconds: 3);
+  static const Duration _celebrationDuration = Duration(milliseconds: 1500);
   static const double _minTraySize = 0.14;
   static const double _maxTraySize = 0.5;
   static const double _initialTraySize = 0.18;
@@ -42,12 +43,17 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final Map<int, bool> _feedbackSlots = <int, bool>{};
   final DraggableScrollableController _trayController =
       DraggableScrollableController();
-  final CelebrationHelper _celebrationHelper = CelebrationHelper(
-    duration: _celebrationDuration,
-  );
+  final CelebrationHelper _celebrationHelper = CelebrationHelper();
+    //duration: _celebrationDuration,
+  //);
   final AudioPlayer _placeSoundPlayer = AudioPlayer();
+  // Servicio reutilizable que reproduce el sonido de fallo (negative beep).
+  final NegativeFeedbackHelper _negativeFeedbackHelper = NegativeFeedbackHelper();
 
   int _attempts = 0;
+  // Intentos restantes antes de fallar el rompecabezas. Se inicializa con
+  // _maxAttempts y se decrementa en cada "COMPROBAR" con piezas incorrectas.
+  late int _remainingAttempts;
   bool _isCompleted = false;
   bool _isChecking = false;
   bool _isTrayHovering = false;
@@ -66,8 +72,10 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     super.initState();
     _imagePath = _resolveImagePath(widget.minigameData);
     _hasImage = _imagePath.isNotEmpty;
-    _maxAttempts = _resolveMaxAttempts(widget.minigameData);
     _gridSize = _resolveGridSize(widget.minigameData);
+    _maxAttempts = _resolveMaxAttempts(_gridSize);
+    // Los intentos restantes arrancan en el máximo según la dificultad.
+    _remainingAttempts = _maxAttempts;
     _gridSlots = List<int?>.filled(_gridSize * _gridSize, null);
     _trayPieces = Set<int>.from(
       List<int>.generate(_gridSize * _gridSize, (index) => index),
@@ -84,6 +92,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   void dispose() {
     _celebrationHelper.dispose();
     _placeSoundPlayer.dispose();
+    _negativeFeedbackHelper.dispose();
     super.dispose();
   }
 
@@ -153,13 +162,24 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return '';
   }
 
-  // Resuelve el número máximo de intentos permitido.
-  int _resolveMaxAttempts(Map<String, dynamic> data) {
-    final value = data['maxAttempts'];
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 999;
-    return 999;
+  // Resuelve el número máximo de intentos a partir de la dificultad (gridSize).
+  // La dificultad la elige el usuario en el diálogo previo al minijuego:
+  //   Fácil (gridSize 4)  -> 5 intentos
+  //   Normal (gridSize 5) -> 4 intentos
+  //   Difícil (gridSize 6)-> 3 intentos
+  // El valor de `maxAttempts` del mapa de datos se ignora a propósito: los
+  // intentos derivan exclusivamente de la dificultad seleccionada.
+  int _resolveMaxAttempts(int gridSize) {
+    switch (gridSize) {
+      case 4:
+        return 5; // Fácil
+      case 5:
+        return 4; // Normal
+      case 6:
+        return 3; // Difícil
+      default:
+        return 999; // Fallback (gridSize heredado) → sin límite.
+    }
   }
 
   // Resuelve el tamaño de la cuadrícula según la dificultad elegida.
@@ -403,6 +423,11 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
 
     setState(() {
       _attempts++;
+      // Solo se consume un intento cuando el tablero NO es correcto. Un
+      // "COMPROBAR" acertado no reduce los intentos restantes.
+      if (incorrectSlots.isNotEmpty) {
+        _remainingAttempts--;
+      }
       _isChecking = true;
       // Actualizar el feedback para cada celda: verde para correcto, rojo para incorrecto.
       _feedbackSlots
@@ -452,10 +477,16 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _isChecking = false;
     });
 
-    if (_attempts >= _maxAttempts && !_isCompleted) {
+    // Si los intentos restantes se agotaron, el juego termina sin éxito:
+    // reproduce el sonido de fallo (negative beep) y espera un instante antes
+    // de notificar el resultado para que el feedback sea perceptible.
+    if (_remainingAttempts <= 0 && !_isCompleted) {
       setState(() {
         _isCompleted = true;
       });
+      _negativeFeedbackHelper.playNegativeBeep();
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
       widget.onComplete(false, _attempts);
     }
   }
@@ -512,8 +543,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              children: const [
-                Text(
+              children: [
+                const Text(
                   'Rompecabezas',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -524,8 +555,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 6),
-                Text(
+                const SizedBox(height: 6),
+                const Text(
                   'Arrastra las piezas para completar la imagen.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -534,6 +565,23 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.4,
                   ),
+                ),
+                const SizedBox(height: 6),
+                // Indicador de intentos restantes, alimentado por _remainingAttempts.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.flag, color: Color(0xFFFFD700), size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Intentos: $_remainingAttempts',
+                      style: const TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
