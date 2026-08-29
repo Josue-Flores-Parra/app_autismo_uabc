@@ -4,24 +4,6 @@ Este documento describe los modelos Dart, las rutas de Firestore, las claves de
 `SharedPreferences` y los mapas dinamicos usados por minijuegos. El objetivo es
 reflejar el codigo actual, aunque haya duplicacion o schemas historicos.
 
-## Modelos Dart generales
-
-Los modelos en `lib/data/models/` son clases puras de Dart. No importan Flutter
-ni Firebase.
-
-| Archivo | Clases | Uso real |
-| --- | --- | --- |
-| `user_model.dart` | `UserModel` | Modelo serializable de usuario. Define mas campos de los que `AuthService` escribe actualmente. |
-| `module_model.dart` | `ModuleModel`, `ModuleLevel` | Modelo generico con campos en ingles (`name`, `order`). No es el modelo principal del learning module actual. |
-| `level_model.dart` | `LevelModel` | Modelo generico de nivel con campos en ingles (`title`, `difficulty`, `minigameData`). No es el parser principal de Firestore para timeline. |
-| `progress_log_model.dart` | `ProgressLogModel` | Modelo serializable de progreso. No es usado directamente por `LevelCompletionService`, que escribe mapas. |
-
-Estos modelos hacen conversion defensiva:
-
-- Numeros pueden venir como `int`, `double` o `String`.
-- Fechas pueden venir como `DateTime`, milisegundos `int`, `String` ISO 8601 o mapas tipo Timestamp con `seconds`/`nanoseconds`.
-- `toJson()` elimina campos `null`.
-
 ## Modelos de learning module
 
 | Archivo | Clase/enum | Uso |
@@ -30,6 +12,7 @@ Estos modelos hacen conversion defensiva:
 | `features/learning_module/model/levels_models.dart` | `StateOfStep` | Estado visual: `completed`, `blocked`, `inProgress`. |
 | `features/learning_module/model/levels_models.dart` | `ModuleLevelInfo` | Modelo principal de nivel leido desde Firestore. |
 | `features/learning_module/model/levels_models.dart` | `LevelStepInfo` | Modelo adaptado para nodos del timeline. |
+| `features/learning_module/model/levels_models.dart` | `isCompletedProgress`, `countCompletedLevels`, `parseProgressEstrellas` | Predicados puros de progreso completado (status 'completed' o estrellas > 0). Usados por `LearningViewModel` y el badge "NIVEL X". |
 | `features/learning_module/model/content_card_model.dart` | `ContentType`, `ContentCardData` | Modelo de tarjetas de preview: pictograma, video, audio y miniGame. |
 
 ## Modelo de avatar
@@ -61,19 +44,6 @@ Campos escritos o leidos por codigo actual:
 | `deletedAt` | `String` ISO 8601 | `AuthService.deleteAccount` | No se lee en flujo principal |
 | `nivel` | `int` o `String` parseable | No se escribe en el codigo actual | `FirestoreService.getUserLevel` |
 | `avatarConfig` | `Map<String, dynamic>` | `AvatarViewModel.saveAvatarConfigToFirestore` | `AvatarViewModel.loadAvatarConfigFromFirestore` |
-
-`UserModel` espera estos campos adicionales si se usa:
-
-```text
-id
-displayName
-monedas
-role
-updatedAt
-```
-
-Pero el registro actual no escribe `id`, `displayName`, `monedas`, `role` ni
-`updatedAt` dentro de Firestore.
 
 ## users.avatarConfig
 
@@ -184,14 +154,7 @@ hay progreso calculado.
 
 ## Firestore: progreso
 
-Hay dos rutas historicas:
-
-```text
-users/{uid}/progress/{levelId}
-users/{uid}/progress/{moduleId}/levels/{levelId}
-```
-
-La ruta principal actual para el learning module es:
+Ruta usada por el learning module:
 
 ```text
 users/{uid}/progress/{moduleId}/levels/{levelId}
@@ -280,9 +243,6 @@ Keys usadas por varios minijuegos:
 | `steps` | `List` | Secuencia de pictogramas o fuente para generar preguntas de seleccion simple. |
 | `pictogramSteps` | `List` | Alias de `steps`. |
 | `questions` | `List` o `Map` | Preguntas explicitas de seleccion simple. |
-| `question` | `String` | Pregunta legacy de seleccion simple. |
-| `correctIndex` | `int` o `String` | Indice correcto legacy. |
-| `options` | `List` o `Map` | Opciones legacy/explicitas de seleccion simple. |
 | `title` / `titulo` | `String` | Titulo en pictogram/audio. |
 | `description` / `descripcion` | `String` | Descripcion en pictogram/audio. |
 
@@ -306,22 +266,6 @@ Aliases aceptados dentro de cada step:
 | --- | --- |
 | Imagen | `url`, `imagePath`, `src`, `pictogramaUrl` |
 | Texto | `caption`, `label`, `text` |
-
-Shape legacy de seleccion simple:
-
-```json
-{
-  "question": "Selecciona la imagen correcta",
-  "correctIndex": 0,
-  "maxAttempts": 3,
-  "options": [
-    {
-      "imagePath": "assets/images/FELIZ.png",
-      "label": "Feliz"
-    }
-  ]
-}
-```
 
 Shape con preguntas explicitas:
 
