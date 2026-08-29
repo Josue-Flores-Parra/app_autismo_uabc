@@ -107,7 +107,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     with SingleTickerProviderStateMixin {
   OverlayEntry? _overlayEntry;
   final List<GlobalKey> _keys = [];
-  final double _itemHeight = 155.0;
+  final double _itemHeight = 175.0;
 
   AnimationController? _animationController;
   Animation<double>? _scaleAnimation;
@@ -534,6 +534,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       ),
       child: Text(
         title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 18, // Tamaño de fuente mas grande para mejor legibilidad
           fontWeight: FontWeight.bold,
