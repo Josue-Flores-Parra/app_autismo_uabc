@@ -72,7 +72,7 @@ Secuencia real:
 6. Monta `MultiProvider`.
 7. Envuelve la app con `LoadingWrapper`.
 8. Configura `MaterialApp` con tema, locale, delegates de l10n y `MediaQuery.textScaler`.
-9. Usa `LoginScreen` como pantalla inicial.
+9. Usa `AuthGate` como pantalla inicial (resuelve entre `LoginScreen` y `MainShell` segun la sesion).
 
 Los minijuegos registrados en `main.dart` son:
 
@@ -91,7 +91,7 @@ registerPuzzleMinigame()
 | Provider | Tipo | Responsabilidad real |
 | --- | --- | --- |
 | `SettingsViewModel` | `ChangeNotifierProvider` | Preferencias locales: tema, idioma, escala de texto, accesibilidad, recordatorios, metricas, control parental y limpieza de cache de imagenes. |
-| `AuthViewModel` | `ChangeNotifierProvider` | Estado de autenticacion, login, registro, logout, cambio de nombre, cambio de password y eliminacion de cuenta. |
+| `AuthViewModel` | `ChangeNotifierProvider` | Estado de autenticacion, login, registro, logout, restablecimiento de password, cambio de nombre, cambio de password y eliminacion de cuenta. |
 | `AvatarViewModel` | `ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>` | Estado visual del avatar y persistencia en `users/{uid}.avatarConfig`. Cuando hay usuario autenticado llama `initialize()`. |
 | `LearningViewModel` | `ChangeNotifierProvider` | Carga modulos, niveles, progreso, cache de niveles y pines de imagenes de portada en `ImageCache`. |
 | `LoadingService` | `ChangeNotifierProvider` | Overlay global de carga consumido por `LoadingWrapper` y `LoadingHook`. |
@@ -107,17 +107,34 @@ registerPuzzleMinigame()
 
 ## Flujo de navegacion principal
 
-La app siempre inicia en `LoginScreen`.
+La app arranca con `AuthGate` (`lib/features/authentication/view/auth_gate.dart`)
+como pantalla inicial en `main.dart`. El gate es un `StatefulWidget` que:
+
+- Muestra un splash (`CircularProgressIndicator`) hasta el primer post-frame callback.
+- Escucha `AuthViewModel` con `Consumer`; ante cualquier cambio de `currentUser`
+  (login, logout, deleteAccount, registro) hace el swap automatico:
+  - sin usuario → `LoginScreen`.
+  - con usuario (login o sesion restaurada por Firebase) → `MainShell`.
+
+Esto elimino la navegacion imperativa (`pushReplacement` / `pushAndRemoveUntil`)
+que antes usaban login, registro y settings para moverse entre pantallas.
 
 Flujo despues de autenticarse:
 
 ```text
-LoginScreen / RegisterScreen
+AuthGate
+  -> LoginScreen / RegisterScreen / ForgotPasswordScreen
   -> AuthViewModel
   -> AuthService
   -> FirebaseAuth
-  -> MainShell
+  -> MainShell (visto via AuthGate cuando currentUser != null)
 ```
+
+`RegisterScreen` y `ForgotPasswordScreen` se empujan sobre el `LoginScreen` del
+gate con `Navigator.push` y regresan con `Navigator.pop()`. Tras un registro
+exitoso, `AuthViewModel.register` cierra la sesion auto-iniciada por Firebase,
+marca `registrationSuccess` y el gate permanece en `LoginScreen` mostrando un
+cue de exito.
 
 `MainShell` contiene tres pantallas:
 

@@ -8,7 +8,7 @@ import 'firebase_options.dart';
 
 // Auth
 import 'features/authentication/viewmodel/auth_viewmodel.dart';
-import 'features/authentication/view/login_screen.dart';
+import 'features/authentication/view/auth_gate.dart';
 import 'features/settings/viewmodel/settings_viewmodel.dart';
 
 // Avatar
@@ -116,7 +116,7 @@ class MyApp extends StatelessWidget {
                   child: child ?? const SizedBox.shrink(),
                 );
               },
-              home: const LoginScreen(),
+              home: const AuthGate(), // Gate de autenticación como pantalla inicial
             ),
           );
         },

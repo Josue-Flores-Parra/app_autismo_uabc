@@ -10,6 +10,7 @@ class AuthViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   User? _currentUser;
+  bool _registrationSuccess = false;
 
   AuthViewModel() {
     _currentUser = _authService.currentUser;
@@ -18,6 +19,13 @@ class AuthViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   User? get currentUser => _currentUser;
+  bool get registrationSuccess => _registrationSuccess;
+
+  /// Limpia la bandera de registro exitoso tras haber mostrado el cue.
+  void clearRegistrationSuccess() {
+    _registrationSuccess = false;
+    notifyListeners();
+  }
 
   /// Inicia sesión con email y contraseña
   Future<bool> login(String email, String password) async {
@@ -46,12 +54,44 @@ class AuthViewModel extends ChangeNotifier {
     _clearError();
 
     try {
-      final user = await _authService.register(email, password, name);
-      _currentUser = user;
+      await _authService.register(email, password, name);
+      // Registro exitoso: cerrar la sesión que Firebase abre automáticamente
+      // tras createUserWithEmailAndPassword para que el usuario inicie sesión
+      // manualmente. AuthGate permanece en LoginScreen y muestra el cue.
+      await _authService.logout();
+      _currentUser = null;
+      _registrationSuccess = true;
       _setLoading(false);
       return true;
     } on FirebaseAuthException catch (e) {
       _setLoading(false);
+      _handleAuthError(e);
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Error inesperado: ${e.toString()}');
+      return false;
+    }
+  }
+
+  /// Solicita el envío de un correo de restablecimiento de contraseña.
+  /// Devuelve `true` incluso si el correo no existe (mensaje genérico para
+  /// evitar enumeración de usuarios). Solo devuelve `false` en errores
+  /// inesperados.
+  Future<bool> resetPassword(String email) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      _setLoading(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _setLoading(false);
+      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        // No revelar si el correo existe.
+        return true;
+      }
       _handleAuthError(e);
       return false;
     } catch (e) {

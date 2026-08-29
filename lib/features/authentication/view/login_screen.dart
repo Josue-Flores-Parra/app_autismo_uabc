@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
-import '../../home/view/main_shell.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
-import '../../../shared/widgets/loading_wrapper.dart';
+import '../../../shared/services/loading_service.dart';
 
 class LoginScreen
     extends StatefulWidget {
@@ -37,10 +37,27 @@ class _LoginScreenState
     _passwordController.addListener(
       _clearErrorOnInput,
     );
+    // Reaccionar a registrationSuccess cuando vuelva el RegisterScreen via pop.
+    // LoginScreen ya esta montado debajo de RegisterScreen, asi que initState
+    // solo corre una vez al arranque — necesitamos un listener reactivo.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final authViewModel = Provider.of<AuthViewModel>(
+        context,
+        listen: false,
+      );
+      authViewModel.addListener(_onAuthChanged);
+      // Cubrir el caso en que el flag ya este true al montar.
+      _onAuthChanged();
+    });
   }
 
   @override
   void dispose() {
+    // Quitar el listener si llegamos a tener la referencia.
+    if (_authViewModelRef != null) {
+      _authViewModelRef!.removeListener(_onAuthChanged);
+    }
     _emailController.removeListener(
       _clearErrorOnInput,
     );
@@ -50,6 +67,75 @@ class _LoginScreenState
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  AuthViewModel? _authViewModelRef;
+
+  void _onAuthChanged() {
+    if (!mounted) return;
+    final authViewModel = Provider.of<AuthViewModel>(
+      context,
+      listen: false,
+    );
+    _authViewModelRef ??= authViewModel;
+    if (authViewModel.registrationSuccess) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showRegistrationCue(),
+      );
+    }
+  }
+
+  /// Muestra un cue en la parte superior-central tras un registro exitoso,
+  /// luego limpia la bandera en AuthViewModel.
+  void _showRegistrationCue() {
+    if (!mounted) return;
+    final authViewModel = Provider.of<AuthViewModel>(
+      context,
+      listen: false,
+    );
+    if (!authViewModel.registrationSuccess) return;
+
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 80,
+        left: 24,
+        right: 24,
+        child: Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5B8DB3),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'Registro exitoso, puedes iniciar sesión ahora',
+                style: TextStyle(color: Colors.white, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (entry.mounted) entry.remove();
+    });
+    authViewModel.clearRegistrationSuccess();
   }
 
   /// Limpia el error cuando el usuario empieza a escribir
@@ -91,9 +177,18 @@ class _LoginScreenState
     // Ocultar el teclado
     FocusScope.of(context).unfocus();
 
+    // Capturar el servicio de carga ANTES de cualquier await: el context del
+    // LoginScreen puede desmontarse cuando AuthGate swap a MainShell tras un
+    // login exitoso. Operar sobre la referencia viva evita un Provider.of que
+    // fallaria sobre un context ya disposed (loading colgado).
+    final loadingService =
+        Provider.of<LoadingService>(
+          context,
+          listen: false,
+        );
+
     // Mostrar pantalla de carga
-    LoadingHook.show(
-      context,
+    loadingService.showLoading(
       'Iniciando sesión...',
     );
 
@@ -115,27 +210,20 @@ class _LoginScreenState
           const Duration(seconds: 2),
         );
 
-    // Esperar a que ambos se completen (login Y mínimo 2 segundos)
-    final results = await Future.wait([
-      loginFuture,
-      minDelayFuture,
-    ]);
-    final success = results[0] as bool;
-
-    // Ocultar pantalla de carga
-    LoadingHook.hide(context);
-
-    if (success && mounted) {
-      // Navegar a MainShell si el login fue exitoso
-      Navigator.of(
-        context,
-      ).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) =>
-              const MainShell(),
-        ),
-      );
+    // Esperar a que ambos se completen (login Y mínimo 2 segundos).
+    // finally garantiza que el overlay se oculte aun si el await se resume
+    // despues de que LoginScreen fue desmontado por el swap del AuthGate.
+    try {
+      await Future.wait([
+        loginFuture,
+        minDelayFuture,
+      ]);
+    } finally {
+      loadingService.hideLoading();
     }
+
+    // El swap a MainShell lo maneja AuthGate via Consumer<AuthViewModel>.
+    // Los errores ya quedan registrados en AuthViewModel.errorMessage.
   }
 
   @override
@@ -525,7 +613,17 @@ class _LoginScreenState
                           // Seccion para "¿Olvidaste tu contraseña?"
                           TextButton(
                             onPressed: () {
-                              // TODO: Implementar navegación a recuperación de contraseña
+                              Provider.of<AuthViewModel>(
+                                context,
+                                listen: false,
+                              ).clearError();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (
+                                    context,
+                                  ) => const ForgotPasswordScreen(),
+                                ),
+                              );
                             },
                             child: const Text(
                               '¿Olvidaste tu contraseña?',

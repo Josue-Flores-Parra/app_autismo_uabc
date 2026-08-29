@@ -85,6 +85,7 @@ Operaciones reales:
 | Logout | `AuthService.logout` | `signOut` |
 | Update display name | `AuthService.updateDisplayName` | `User.updateDisplayName` |
 | Cambio de password | `AuthService.changePassword` | `User.updatePassword` |
+| Restablecimiento de password | `AuthService.sendPasswordResetEmail` | `sendPasswordResetEmail` |
 | Marcado/eliminacion de cuenta | `AuthService.deleteAccount` | Firestore + `User.delete` |
 | Reautenticacion para recuperar PIN | `MainShell._handleForgotPin` | `EmailAuthProvider.credential` + `reauthenticateWithCredential` |
 
