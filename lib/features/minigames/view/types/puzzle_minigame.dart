@@ -44,11 +44,12 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final DraggableScrollableController _trayController =
       DraggableScrollableController();
   final CelebrationHelper _celebrationHelper = CelebrationHelper();
-    //duration: _celebrationDuration,
+  //duration: _celebrationDuration,
   //);
   final AudioPlayer _placeSoundPlayer = AudioPlayer();
   // Servicio reutilizable que reproduce el sonido de fallo (negative beep).
-  final NegativeFeedbackHelper _negativeFeedbackHelper = NegativeFeedbackHelper();
+  final NegativeFeedbackHelper _negativeFeedbackHelper =
+      NegativeFeedbackHelper();
 
   int _attempts = 0;
   // Intentos restantes antes de fallar el rompecabezas. Se inicializa con

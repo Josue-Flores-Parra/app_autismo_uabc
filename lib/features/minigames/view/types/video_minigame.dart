@@ -35,7 +35,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
   void _initializeVideo() {
     // Obtener la URL del video desde minigameData
     final videoUrl = widget.minigameData['videoUrl'] as String?;
-    
+
     if (videoUrl == null || videoUrl.isEmpty) {
       // Si no hay video, completar inmediatamente con error
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -51,18 +51,20 @@ class _VideoMinigameState extends State<VideoMinigame> {
     _viewModel!.addListener(_onVideoStateChanged);
 
     // Iniciar reproducción automática y desactivar loop
-    _viewModel!.initializeVideoFuture.then((_) {
-      if (mounted && !_isDisposed && _viewModel != null) {
-        try {
-          // Desactivar loop para el minigame (el video se reproduce una vez)
-          _viewModel!.videoController.setLooping(false);
-          _viewModel!.videoController.play();
-          setState(() {
-            _hasStartedPlaying = true;
-          });
-        } catch (e) {}
-      }
-    }).catchError((_) {});
+    _viewModel!.initializeVideoFuture
+        .then((_) {
+          if (mounted && !_isDisposed && _viewModel != null) {
+            try {
+              // Desactivar loop para el minigame (el video se reproduce una vez)
+              _viewModel!.videoController.setLooping(false);
+              _viewModel!.videoController.play();
+              setState(() {
+                _hasStartedPlaying = true;
+              });
+            } catch (e) {}
+          }
+        })
+        .catchError((_) {});
 
     // Iniciar timer para verificar si el video se completó
     _startCompletionCheck();
@@ -70,7 +72,9 @@ class _VideoMinigameState extends State<VideoMinigame> {
 
   void _startCompletionCheck() {
     _completionCheckTimer?.cancel();
-    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      timer,
+    ) {
       if (!mounted || _isDisposed || _viewModel == null) {
         timer.cancel();
         return;
@@ -81,7 +85,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
         if (controller.value.isInitialized) {
           final position = controller.value.position;
           final duration = controller.value.duration;
-          
+
           // Verificar si el video se completó (al menos 90% visto)
           if (duration.inMilliseconds > 0) {
             final progress = position.inMilliseconds / duration.inMilliseconds;
@@ -110,11 +114,11 @@ class _VideoMinigameState extends State<VideoMinigame> {
 
   Future<void> _handleComplete() async {
     if (_isCompleted || _isDisposed || _viewModel == null) return;
-    
+
     setState(() {
       _isCompleted = true;
     });
-    
+
     try {
       // Pausar el video
       if (_viewModel!.videoController.value.isPlaying) {
@@ -124,7 +128,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
       // Reiniciar la posicion para no dejar la barra al final
       await _viewModel!.videoController.seekTo(Duration.zero);
     } catch (e) {}
-    
+
     // Llamar al callback de completado
     widget.onComplete(true, 1);
   }
@@ -152,9 +156,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFF5B8DB3),
-          ),
+          child: CircularProgressIndicator(color: Color(0xFF5B8DB3)),
         ),
       );
     }
@@ -167,9 +169,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF5B8DB3),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFF5B8DB3)),
               );
             }
 
@@ -208,9 +208,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
   Widget _buildVideoPlayer() {
     if (_viewModel == null || _isDisposed) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF5B8DB3),
-        ),
+        child: CircularProgressIndicator(color: Color(0xFF5B8DB3)),
       );
     }
 
@@ -238,7 +236,9 @@ class _VideoMinigameState extends State<VideoMinigame> {
                         }
                       },
                       child: AnimatedOpacity(
-                        opacity: (_viewModel?.showGiantIcon ?? false) ? 1.0 : 0.0,
+                        opacity: (_viewModel?.showGiantIcon ?? false)
+                            ? 1.0
+                            : 0.0,
                         duration: const Duration(milliseconds: 300),
                         child: Center(
                           child: SvgPicture.asset(
@@ -309,10 +309,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
                     _viewModel != null && !_isDisposed
                         ? '${_viewModel!.formatDuration(controller.value.position)} / ${_viewModel!.formatDuration(controller.value.duration)}'
                         : '00:00 / 00:00',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
@@ -383,10 +380,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
 void registerVideoMinigame() {
   MinigameFactory.register(
     MinigameType.video,
-    ({required onComplete, required minigameData}) => VideoMinigame(
-      onComplete: onComplete,
-      minigameData: minigameData,
-    ),
+    ({required onComplete, required minigameData}) =>
+        VideoMinigame(onComplete: onComplete, minigameData: minigameData),
   );
 }
-
