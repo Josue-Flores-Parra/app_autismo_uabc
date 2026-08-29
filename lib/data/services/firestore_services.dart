@@ -15,59 +15,6 @@ class FirestoreService {
   }
 
   // =======================================
-  // Métodos de Progreso del Usuario
-  // =======================================
-
-  /*
-  Guarda el progreso del usuario para un nivel específico
-  */
-  Future<void> saveUserProgress(
-    String userId,
-    String levelId,
-    Map<String, dynamic> result,
-  ) async {
-    try {
-      await _db
-          .collection('users')
-          .doc(userId)
-          .collection('progress')
-          .doc(levelId)
-          .set(result, SetOptions(merge: true));
-    } catch (e) {
-      // Error handling can be added at higher level if needed
-      rethrow;
-    }
-  }
-
-  /*
-  Obtiene todos los progresos del usuario
-  Retorna un Map donde la clave es el levelId y el valor es el progreso
-  */
-  Future<Map<String, dynamic>?> getUserProgress(String userId) async {
-    try {
-      final snapshot = await _db
-          .collection('users')
-          .doc(userId)
-          .collection('progress')
-          .get();
-
-      if (snapshot.docs.isEmpty) {
-        return null;
-      }
-
-      // Procesar y retornar datos como un Map
-      final progressMap = <String, dynamic>{};
-      for (var doc in snapshot.docs) {
-        progressMap[doc.id] = doc.data();
-      }
-
-      return progressMap;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // =======================================
   // Métodos para Módulos de Aprendizaje
   // =======================================
 
@@ -95,23 +42,6 @@ class FirestoreService {
   Obtiene todos los módulos disponibles
   */
   Future<List<Map<String, dynamic>>> getAllModules() async {
-    try {
-      final snapshot = await _db.collection('modules').get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        // Add the document ID to the data map
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /*
-  Obtiene la lista completa de módulos
-  */
-  Future<List<Map<String, dynamic>>> getModules() async {
     try {
       final snapshot = await _db.collection('modules').get();
       return snapshot.docs.map((doc) {
@@ -156,60 +86,6 @@ class FirestoreService {
   }
 
   /*
-  Obtiene los niveles pertenecientes a un módulo específico
-  */
-  Future<List<Map<String, dynamic>>> getLevelsForModule(String moduleId) async {
-    // Validar que moduleId no esté vacío
-    if (moduleId.isEmpty) {
-      return [];
-    }
-
-    try {
-      final snapshot = await _db
-          .collection('modules')
-          .doc(moduleId)
-          .collection('levels')
-          .get();
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        // Add the document ID to the data map
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /*
-  Obtiene un nivel específico de un módulo
-  */
-  Future<Map<String, dynamic>?> getModuleLevel(
-    String moduleId,
-    String levelId,
-  ) async {
-    try {
-      final doc = await _db
-          .collection('modules')
-          .doc(moduleId)
-          .collection('levels')
-          .doc(levelId)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
-        // Add the document ID to the data map
-        data['id'] = doc.id;
-        return data;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /*
   Actualiza el progreso de un usuario en un nivel específico
   */
   Future<void> updateUserLevelProgress(
@@ -229,27 +105,6 @@ class FirestoreService {
           .set(progressData, SetOptions(merge: true));
     } catch (e) {
       // Silent fail - error handling can be added at higher level if needed
-    }
-  }
-
-  /*
-  Obtiene el progreso de un usuario en un módulo específico
-  */
-  Future<Map<String, dynamic>?> getUserModuleProgress(
-    String uid,
-    String moduleId,
-  ) async {
-    try {
-      final doc = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('progress')
-          .doc(moduleId)
-          .get();
-
-      return doc.exists ? doc.data() : null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -277,30 +132,6 @@ class FirestoreService {
       return progressMap;
     } catch (e) {
       return {};
-    }
-  }
-
-  /*
-  Obtiene el progreso de un nivel específico para un usuario
-  */
-  Future<Map<String, dynamic>?> getUserLevelProgress(
-    String uid,
-    String moduleId,
-    String levelId,
-  ) async {
-    try {
-      final doc = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('progress')
-          .doc(moduleId)
-          .collection('levels')
-          .doc(levelId)
-          .get();
-
-      return doc.exists ? doc.data() : null;
-    } catch (e) {
-      return null;
     }
   }
 
