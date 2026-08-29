@@ -69,7 +69,10 @@ class LevelTimelineViewModel extends ChangeNotifier {
             previewTitle: titleWithPrefix,
             whatState: level.estado,
             stars: level.estrellas,
-            posibleImagePreview: (level.actividadData?['pictogramaUrl'] as String?)?.isNotEmpty == true
+            posibleImagePreview:
+                (level.actividadData?['pictogramaUrl'] as String?)
+                        ?.isNotEmpty ==
+                    true
                 ? level.actividadData!['pictogramaUrl'] as String
                 : level.pictogramaUrl,
             minigameData: _mergeMinigameData(level),
@@ -91,7 +94,6 @@ class LevelTimelineViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   void calculateNodePositions(Size screenSize, double itemHeight) {
     final List<Offset> positions = [];

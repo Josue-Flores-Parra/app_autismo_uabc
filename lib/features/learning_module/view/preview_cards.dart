@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
+import 'preview_card_colors.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -62,7 +63,8 @@ class PictogramPreviewCard extends StatefulWidget {
   final String pictogramTitle;
   final String pictogramDesc;
   final bool isPreview;
-  final VoidCallback? onPictogramViewed; // Callback cuando se ve por 10 segundos
+  final VoidCallback?
+  onPictogramViewed; // Callback cuando se ve por 10 segundos
 
   const PictogramPreviewCard({
     super.key,
@@ -106,7 +108,7 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
     // Cancelar timer anterior si existe
     _viewTimer?.cancel();
     _fullscreenStartTime = DateTime.now();
-    
+
     // Iniciar timer para rastrear tiempo de visualización (10 segundos)
     _viewTimer = Timer(const Duration(seconds: 10), () {
       if (mounted && !_hasNotified && widget.onPictogramViewed != null) {
@@ -148,9 +150,14 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
                     label: 'PICTOGRAMA',
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0x001A3D52), // Sin fondo blanco, transparente
+                        color: const Color(
+                          0x001A3D52,
+                        ), // Sin fondo blanco, transparente
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                        border: Border.all(
+                          color: const Color(0x997BA5C9),
+                          width: 2,
+                        ),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x80000000),
@@ -163,7 +170,11 @@ class _PictogramPreviewCardState extends State<PictogramPreviewCard>
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(18),
                         child: widget.imgPreview.isNotEmpty
-                            ? _buildImageFromUrl(widget.imgPreview, fit: BoxFit.contain, shimmerBaseColor: const Color(0xFF1A3D52))
+                            ? _buildImageFromUrl(
+                                widget.imgPreview,
+                                fit: BoxFit.contain,
+                                shimmerBaseColor: const Color(0xFF1A3D52),
+                              )
                             : const Center(
                                 child: Icon(
                                   Icons.image_outlined,
@@ -278,25 +289,27 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
     });
 
     // Verificar periódicamente si el video se completó
-    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      timer,
+    ) {
       if (!mounted || _hasNotifiedCompletion) return;
-      
+
       try {
         final controller = _viewModel.videoController;
         if (controller.value.isInitialized) {
           final position = controller.value.position;
           final duration = controller.value.duration;
-          
+
           // Verificar si el video se completó (al menos 90% visto o llegó al final)
           if (duration.inMilliseconds > 0) {
             final progress = position.inMilliseconds / duration.inMilliseconds;
             final isAtEnd = position >= duration;
-            
+
             if ((progress >= 0.9 || isAtEnd) && !_hasNotifiedCompletion) {
               _hasNotifiedCompletion = true;
               // NO cancelar el timer completamente, solo marcar como notificado
               // Esto permite que el usuario pueda volver a reproducir el video
-              
+
               // Detener el video cuando se completa (pero permitir reproducirlo de nuevo)
               try {
                 // Asegurarse de que el loop esté desactivado
@@ -311,12 +324,12 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
               } catch (e) {
                 // Error al pausar, continuar
               }
-              
+
               if (widget.onVideoCompleted != null) {
                 widget.onVideoCompleted!();
               }
             }
-            
+
             // Si el usuario vuelve a reproducir el video después de completarlo,
             // permitir que se pueda completar de nuevo (resetear el flag si el video se reinicia)
             if (_hasNotifiedCompletion && position < duration * 0.5) {
@@ -370,148 +383,155 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                           label: 'VIDEO',
                           child: LayoutBuilder(
                             builder: (context, constraints) {
-                          final double videoAspectRatio =
-                              _viewModel.videoController.value.aspectRatio;
-                          final double availableWidth = constraints.maxWidth;
-                          final double videoHeight =
-                              availableWidth / videoAspectRatio;
-                          final double controlBarHeight = (videoHeight * 0.15)
-                              .clamp(32.0, 56.0);
+                              final double videoAspectRatio =
+                                  _viewModel.videoController.value.aspectRatio;
+                              final double availableWidth =
+                                  constraints.maxWidth;
+                              final double videoHeight =
+                                  availableWidth / videoAspectRatio;
+                              final double controlBarHeight =
+                                  (videoHeight * 0.15).clamp(32.0, 56.0);
 
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: AspectRatio(
-                              aspectRatio: videoAspectRatio,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  VideoPlayer(_viewModel.videoController),
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: AspectRatio(
+                                  aspectRatio: videoAspectRatio,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      VideoPlayer(_viewModel.videoController),
 
-                                  Positioned.fill(
-                                    child: GestureDetector(
-                                      onTap: _viewModel.togglePlayPause,
-                                      child: AnimatedOpacity(
-                                        opacity: _viewModel.showGiantIcon
-                                            ? 1.0
-                                            : 0.0,
-                                        duration: const Duration(
-                                          milliseconds: 300,
-                                        ),
-                                        child: SvgPicture.asset(
-                                          _viewModel
-                                                  .videoController
-                                                  .value
-                                                  .isPlaying
-                                              ? 'assets/icons/pausebigbutton.svg'
-                                              : 'assets/icons/playbigbutton.svg',
-                                          width: 60.0,
-                                          height: 60.0,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  Positioned(
-                                    bottom: controlBarHeight + 10.0,
-                                    left: 0,
-                                    right: 0,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10.0,
-                                      ),
-                                      child: VideoProgressIndicator(
-                                        _viewModel.videoController,
-                                        allowScrubbing: true,
-                                        colors: const VideoProgressColors(
-                                          playedColor: Colors.white,
-                                          bufferedColor: Colors.white54,
-                                          backgroundColor: Colors.white24,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: Container(
-                                      height: controlBarHeight,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF5B8DB3),
-                                        border: Border(
-                                          top: BorderSide(
-                                            width: 3.0,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceAround,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          GestureDetector(
-                                            onTap: _viewModel.togglePlayPause,
+                                      Positioned.fill(
+                                        child: GestureDetector(
+                                          onTap: _viewModel.togglePlayPause,
+                                          child: AnimatedOpacity(
+                                            opacity: _viewModel.showGiantIcon
+                                                ? 1.0
+                                                : 0.0,
+                                            duration: const Duration(
+                                              milliseconds: 300,
+                                            ),
                                             child: SvgPicture.asset(
-                                              _viewModel.videoController.value.isPlaying
-                                                  ? 'assets/icons/pausebutton.svg'
-                                                  : 'assets/icons/playbuttoncontroller.svg',
-                                              width: 28,
-                                              height: 28,
+                                              _viewModel
+                                                      .videoController
+                                                      .value
+                                                      .isPlaying
+                                                  ? 'assets/icons/pausebigbutton.svg'
+                                                  : 'assets/icons/playbigbutton.svg',
+                                              width: 60.0,
+                                              height: 60.0,
                                             ),
                                           ),
+                                        ),
+                                      ),
 
-                                          Flexible(
-                                            child: Text(
-                                              '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
-                                              style: const TextStyle(
+                                      Positioned(
+                                        bottom: controlBarHeight + 10.0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10.0,
+                                          ),
+                                          child: VideoProgressIndicator(
+                                            _viewModel.videoController,
+                                            allowScrubbing: true,
+                                            colors: const VideoProgressColors(
+                                              playedColor: Colors.white,
+                                              bufferedColor: Colors.white54,
+                                              backgroundColor: Colors.white24,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          height: controlBarHeight,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF5B8DB3),
+                                            border: Border(
+                                              top: BorderSide(
+                                                width: 3.0,
                                                 color: Colors.white,
-                                                fontSize: 13,
                                               ),
-                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-
-                                          GestureDetector(
-                                            onTap: _viewModel.replay,
-                                            child: SvgPicture.asset(
-                                              'assets/icons/replay.svg',
-                                              width: 28,
-                                              height: 28,
-                                            ),
-                                          ),
-
-                                          GestureDetector(
-                                            onTap: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      _FullscreenVideoPlayer(
-                                                        viewModel: _viewModel,
-                                                        onClose: () =>
-                                                            Navigator.of(
-                                                              context,
-                                                            ).pop(),
-                                                      ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceAround,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            children: [
+                                              GestureDetector(
+                                                onTap:
+                                                    _viewModel.togglePlayPause,
+                                                child: SvgPicture.asset(
+                                                  _viewModel
+                                                          .videoController
+                                                          .value
+                                                          .isPlaying
+                                                      ? 'assets/icons/pausebutton.svg'
+                                                      : 'assets/icons/playbuttoncontroller.svg',
+                                                  width: 28,
+                                                  height: 28,
                                                 ),
-                                              );
-                                            },
-                                            child: SvgPicture.asset(
-                                              'assets/icons/fullscreen.svg',
-                                              width: 28,
-                                              height: 28,
-                                            ),
+                                              ),
+
+                                              Flexible(
+                                                child: Text(
+                                                  '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / ${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 13,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+
+                                              GestureDetector(
+                                                onTap: _viewModel.replay,
+                                                child: SvgPicture.asset(
+                                                  'assets/icons/replay.svg',
+                                                  width: 28,
+                                                  height: 28,
+                                                ),
+                                              ),
+
+                                              GestureDetector(
+                                                onTap: () {
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          _FullscreenVideoPlayer(
+                                                            viewModel:
+                                                                _viewModel,
+                                                            onClose: () =>
+                                                                Navigator.of(
+                                                                  context,
+                                                                ).pop(),
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: SvgPicture.asset(
+                                                  'assets/icons/fullscreen.svg',
+                                                  width: 28,
+                                                  height: 28,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          );
+                                ),
+                              );
                             },
                           ),
                         ),
@@ -532,7 +552,8 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                         overflow: TextOverflow.ellipsis,
                       ),
 
-                      if (widget.videoDesc != null && widget.videoDesc!.isNotEmpty)
+                      if (widget.videoDesc != null &&
+                          widget.videoDesc!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
@@ -572,12 +593,16 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                     children: [
                       Expanded(
                         flex: 3,
-                        child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+                        child: _PreviewCardShimmer(
+                          baseColor: const Color(0xFF1A3D52),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 28,
-                        child: _PreviewCardShimmer(baseColor: const Color(0xFF1A3D52)),
+                        child: _PreviewCardShimmer(
+                          baseColor: const Color(0xFF1A3D52),
+                        ),
                       ),
                     ],
                   ),
@@ -792,7 +817,10 @@ class _MiniGamePreviewCardState extends State<MiniGamePreviewCard>
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFFFF),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0x997BA5C9), width: 2),
+                        border: Border.all(
+                          color: const Color(0x997BA5C9),
+                          width: 2,
+                        ),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x80000000),
@@ -892,40 +920,45 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
   void initState() {
     super.initState();
     _viewModel = AudioViewModel();
-    _viewModel.initialize(widget.audioPath).then((_) {
-      if (mounted) setState(() {});
-    }).catchError((_) {});
-    
+    _viewModel
+        .initialize(widget.audioPath)
+        .then((_) {
+          if (mounted) setState(() {});
+        })
+        .catchError((_) {});
+
     _viewModel.addListener(() {
       if (mounted) setState(() {});
     });
-    
+
     // Verificar periódicamente si el audio se completó
-    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      timer,
+    ) {
       if (!mounted) return;
-      
+
       try {
         final position = _viewModel.position;
         final duration = _viewModel.duration;
-        
+
         // Verificar si el audio se completó (al menos 90% visto o llegó al final)
         if (duration != null && duration.inMilliseconds > 0) {
           final progress = position.inMilliseconds / duration.inMilliseconds;
           final isAtEnd = position >= duration;
-          
+
           if ((progress >= 0.9 || isAtEnd) && !_hasNotifiedCompletion) {
             _hasNotifiedCompletion = true;
-            
+
             // Pausar el audio cuando se completa
             if (isAtEnd && _viewModel.isPlaying) {
               _viewModel.pause();
             }
-            
+
             if (widget.onAudioCompleted != null) {
               widget.onAudioCompleted!();
             }
           }
-          
+
           // Si el usuario vuelve a reproducir el audio después de completarlo,
           // permitir que se pueda completar de nuevo (resetear el flag si el audio se reinicia)
           if (_hasNotifiedCompletion && position < duration * 0.5) {
@@ -966,7 +999,8 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: widget.imagePath != null && widget.imagePath!.isNotEmpty
+                  child:
+                      widget.imagePath != null && widget.imagePath!.isNotEmpty
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: _buildImageFromUrl(
@@ -999,10 +1033,7 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
               const SizedBox(height: 8),
               Text(
                 widget.audioDesc!,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1017,14 +1048,18 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                     child: Column(
                       children: [
                         Slider(
-                          value: _viewModel.position.inMilliseconds.toDouble().clamp(
-                            0.0,
-                            _viewModel.duration!.inMilliseconds.toDouble(),
-                          ),
+                          value: _viewModel.position.inMilliseconds
+                              .toDouble()
+                              .clamp(
+                                0.0,
+                                _viewModel.duration!.inMilliseconds.toDouble(),
+                              ),
                           min: 0.0,
                           max: _viewModel.duration!.inMilliseconds.toDouble(),
                           onChanged: (value) {
-                            _viewModel.seek(Duration(milliseconds: value.toInt()));
+                            _viewModel.seek(
+                              Duration(milliseconds: value.toInt()),
+                            );
                           },
                           activeColor: Colors.white,
                           inactiveColor: Colors.white24,
@@ -1057,7 +1092,11 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.replay, color: Colors.white, size: 28),
+                      icon: const Icon(
+                        Icons.replay,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                       onPressed: () {
                         _viewModel.replay();
                       },
@@ -1065,12 +1104,14 @@ class _AudioPreviewCardState extends State<AudioPreviewCard>
                     const SizedBox(width: 16),
                     IconButton(
                       icon: Icon(
-                        _viewModel.isPlaying ? Icons.pause_circle : Icons.play_circle,
+                        _viewModel.isPlaying
+                            ? Icons.pause_circle
+                            : Icons.play_circle,
                         size: 64,
                         color: Colors.white,
                       ),
                       onPressed: () {
-                          _viewModel.togglePlayPause();
+                        _viewModel.togglePlayPause();
                       },
                     ),
                   ],
@@ -1226,17 +1267,9 @@ class _PreviewCardShimmerState extends State<_PreviewCardShimmer>
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        // Color de destello: variante más oscura del baseColor para que sea visible
-        final r = (widget.baseColor.r * 255.0).clamp(0, 255).round();
-        final g = (widget.baseColor.g * 255.0).clamp(0, 255).round();
-        final b = (widget.baseColor.b * 255.0).clamp(0, 255).round();
-        // Para colores claros (como blanco), el destello es más oscuro
-        // Para colores oscuros, el destello es más claro
-        // TODO: Simplify this bloody jumble
-        final brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-        final highlightColor = brightness > 0.5
-            ? Color.fromARGB(255, (r * 0.85).round(), (g * 0.85).round(), (b * 0.85).round())
-            : Color.fromARGB(255, (r + (255 - r) ~/ 2).clamp(0, 255), (g + (255 - g) ~/ 2).clamp(0, 255), (b + (255 - b) ~/ 2).clamp(0, 255));
+        // Color de destello: variante más oscura (colores claros) o más clara
+        // (colores oscuros) del baseColor para que sea siempre visible.
+        final highlightColor = computeHighlightColor(widget.baseColor);
 
         return ShaderMask(
           blendMode: BlendMode.srcATop,
@@ -1276,5 +1309,3 @@ class _PreviewCardShimmerState extends State<_PreviewCardShimmer>
     );
   }
 }
-
-

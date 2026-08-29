@@ -16,6 +16,7 @@ class LevelPlayScreen extends StatefulWidget {
   final String? actividadType;
   final String? levelId;
   final String? moduleId;
+
   /// URL del video (desde Firebase Storage o Firestore) para niveles de tipo 'video'
   final String? videoUrl;
   // Permite abrir seleccion simple de forma explicita al tocar la tarjeta del carrusel.
@@ -88,7 +89,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   @override
   Widget build(BuildContext context) {
     final type = widget.actividadType?.toLowerCase().trim();
-    final simpleSelectionEnabled = _isSimpleSelectionEnabled(widget.minigameData);
+    final simpleSelectionEnabled = _isSimpleSelectionEnabled(
+      widget.minigameData,
+    );
 
     // Seleccion simple solo inicia cuando se entra desde la tarjeta del carrusel.
     if (widget.launchSimpleSelectionFromCard && simpleSelectionEnabled) {
@@ -106,7 +109,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
     // Manejo especial para niveles de tipo 'video': mostrar reproductor de video
     if (type == 'video') {
-      final url = widget.videoUrl ??
+      final url =
+          widget.videoUrl ??
           (widget.minigameData?['videoUrl'] as String?) ??
           (widget.minigameData?['url'] as String?);
 
@@ -219,7 +223,6 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     );
   }
 
-
   /// Construye la imagen del pictograma para mostrar en el diálogo
   Widget _buildPictogramImage(Map<String, dynamic> minigameData) {
     final imageUrl = minigameData['pictogramaUrl'] as String?;
@@ -227,7 +230,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     if (imageUrl == null || imageUrl.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     // Construir la imagen según el tipo de URL
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       return Container(
@@ -392,7 +395,10 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
+                        const Icon(
+                          Icons.monetization_on,
+                          color: Color(0xFFFFD700),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Monedas: +${LevelCompletionService.calculateCoins(LevelCompletionService.calculateStars(attempts))}',
@@ -651,281 +657,342 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
         backgroundColor: Colors.black,
         body: SafeArea(
           child: FutureBuilder<void>(
-          future: _viewModel.initializeVideoFuture,
-          builder: (context, snapshot) {
-            final ready = snapshot.connectionState == ConnectionState.done &&
-                snapshot.error == null;
+            future: _viewModel.initializeVideoFuture,
+            builder: (context, snapshot) {
+              final ready =
+                  snapshot.connectionState == ConnectionState.done &&
+                  snapshot.error == null;
 
-            return Stack(
-              children: [
-                Column(
-                  children: [
-                // ── Top bar ──────────────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xCC000000), Colors.transparent],
-                    ),
-                  ),
-                  child: Row(
+              return Stack(
+                children: [
+                  Column(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                         onPressed: _pauseAndPop,
-                      ),
-                      Expanded(
-                        child: Text(
-                          widget.levelTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
+                      // ── Top bar ──────────────────────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
                         ),
-                      ),
-                      const SizedBox(width: 48),
-                    ],
-                  ),
-                ),
-
-                // ── Video area ────────────────────────────────────────────────
-                Expanded(
-                  child: !ready
-                      ? (snapshot.connectionState != ConnectionState.done
-                          // Skeleton sobre fondo negro mientras el video inicializa
-                          ? const _PlayScreenShimmer(baseColor: Colors.black)
-                          : Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.error_outline,
-                                        color: Colors.red, size: 64),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'No se pudo cargar el video.\n${snapshot.error}',
-                                      style: const TextStyle(
-                                          color: Colors.white70, fontSize: 14),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ))
-                      // ── Ready: show cover until first play, then video ──────
-                      : GestureDetector(
-                          onTap: () {
-                            if (!_hasStartedPlaying) {
-                              // Primer tap: revelar video y solo iniciar reproducción
-                              // si aún no venía reproduciéndose en otra ruta.
-                              setState(() => _hasStartedPlaying = true);
-                              if (!_viewModel.videoController.value.isPlaying) {
-                                _viewModel.togglePlayPause();
-                              }
-                              return;
-                            }
-                            // Taps siguientes: comportamiento normal play/pause.
-                            _viewModel.togglePlayPause();
-                          },
-                          child: Stack(
-                            alignment: Alignment.center,
-                            fit: StackFit.expand,
-                            children: [
-                              Container(color: Colors.black),
-                              // Video (always rendered so it buffers in background)
-                              Center(
-                                child: AspectRatio(
-                                  aspectRatio:
-                                      _viewModel.videoController.value.aspectRatio,
-                                  child: VideoPlayer(_viewModel.videoController),
-                                ),
-                              ),
-                              // Cover image — shown until user first presses play
-                              if (!_hasStartedPlaying)
-                                Center(
-                                  child: AspectRatio(
-                                    aspectRatio:
-                                        _viewModel.videoController.value.aspectRatio,
-                                    child: widget.previewImageUrl != null &&
-                                            widget.previewImageUrl!.isNotEmpty
-                                        ? Image.network(
-                                            widget.previewImageUrl!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) =>
-                                                Container(color: Colors.black),
-                                            // Skeleton sobre fondo negro mientras carga la imagen de portada
-                                            loadingBuilder: (context, child, loadingProgress) {
-                                              if (loadingProgress == null) return child;
-                                              return const _PlayScreenShimmer(baseColor: Colors.black);
-                                            },
-                                          )
-                                        : Container(color: Colors.black),
-                                  ),
-                                ),
-                              // Play button on cover / play-pause icon during playback
-                              if (!_hasStartedPlaying)
-                                const Center(
-                                  child: Icon(
-                                    Icons.play_circle_fill_rounded,
-                                    color: Colors.white70,
-                                    size: 72,
-                                  ),
-                                )
-                              else
-                                AnimatedOpacity(
-                                  opacity: _viewModel.showGiantIcon ? 1.0 : 0.0,
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Center(
-                                    child: SvgPicture.asset(
-                                      _viewModel.videoController.value.isPlaying
-                                          ? 'assets/icons/pausebigbutton.svg'
-                                          : 'assets/icons/playbigbutton.svg',
-                                      width: 80,
-                                      height: 80,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xCC000000), Colors.transparent],
                           ),
                         ),
-                ),
-
-                // ── Bottom controls ───────────────────────────────────────────
-                if (ready)
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    color: const Color(0xCC000000),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Progress bar
-                        VideoProgressIndicator(
-                          _viewModel.videoController,
-                          allowScrubbing: true,
-                          colors: const VideoProgressColors(
-                            playedColor: Color(0xFF00E5FF),
-                            bufferedColor: Colors.white38,
-                            backgroundColor: Colors.white24,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        // Controls row — use GestureDetector instead of IconButton
-                        // to avoid the 48px minimum touch target enforcing an overflow
-                        // on narrow screens.
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Row(
                           children: [
-                            // Replay
-                            GestureDetector(
-                              onTap: () {
-                                _viewModel.replay();
-                                setState(() {
-                                  _hasStartedPlaying = true;
-                                  _hasNotifiedCompletion = false;
-                                  _isCompleted = false;
-                                });
-                              },
-                              child: SvgPicture.asset(
-                                'assets/icons/replay.svg',
-                                width: 28,
-                                height: 28,
+                            IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
                               ),
+                              onPressed: _pauseAndPop,
                             ),
-                            const SizedBox(width: 20),
-                            // Play / Pause
-                            GestureDetector(
-                              onTap: _viewModel.togglePlayPause,
-                              child: SvgPicture.asset(
-                                _viewModel.videoController.value.isPlaying
-                                    ? 'assets/icons/pausebutton.svg'
-                                    : 'assets/icons/playbuttoncontroller.svg',
-                                width: 36,
-                                height: 36,
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            // Time label — Expanded so it takes remaining space
-                            // and never pushes the row past the screen edge.
                             Expanded(
                               child: Text(
-                                '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / '
-                                '${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
+                                widget.levelTitle,
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 13),
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 48),
                           ],
                         ),
-                        // "COMPLETAR" button
-                        if (_isCompleted) ...[
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _isFinishing
-                                  ? null
-                                  : () async {
-                                      setState(() {
-                                        _isFinishing = true;
-                                      });
+                      ),
 
-                                      // Resetear el progreso compartido para que
-                                      // al salir del flujo el video no quede en 100%.
-                                      try {
-                                        final controller = _viewModel.videoController;
-                                        if (controller.value.isPlaying) {
-                                          await controller.pause();
-                                        }
-                                        await controller.seekTo(Duration.zero);
-                                      } catch (_) {}
-
-                                      _celebrateCompletion();
-                                      await Future.delayed(
-                                        const Duration(milliseconds: 1500),
-                                      );
-                                      if (!mounted) return;
-                                      widget.onCompleted(true);
-                                    },
-                              icon: const Icon(Icons.check_circle_rounded,
-                                  color: Colors.white),
-                              label: const Text(
-                                'COMPLETAR',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 1.2,
+                      // ── Video area ────────────────────────────────────────────────
+                      Expanded(
+                        child: !ready
+                            ? (snapshot.connectionState != ConnectionState.done
+                                  // Skeleton sobre fondo negro mientras el video inicializa
+                                  ? const _PlayScreenShimmer(
+                                      baseColor: Colors.black,
+                                    )
+                                  : Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Colors.red,
+                                              size: 64,
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'No se pudo cargar el video.\n${snapshot.error}',
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ))
+                            // ── Ready: show cover until first play, then video ──────
+                            : GestureDetector(
+                                onTap: () {
+                                  if (!_hasStartedPlaying) {
+                                    // Primer tap: revelar video y solo iniciar reproducción
+                                    // si aún no venía reproduciéndose en otra ruta.
+                                    setState(() => _hasStartedPlaying = true);
+                                    if (!_viewModel
+                                        .videoController
+                                        .value
+                                        .isPlaying) {
+                                      _viewModel.togglePlayPause();
+                                    }
+                                    return;
+                                  }
+                                  // Taps siguientes: comportamiento normal play/pause.
+                                  _viewModel.togglePlayPause();
+                                },
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Container(color: Colors.black),
+                                    // Video (always rendered so it buffers in background)
+                                    Center(
+                                      child: AspectRatio(
+                                        aspectRatio: _viewModel
+                                            .videoController
+                                            .value
+                                            .aspectRatio,
+                                        child: VideoPlayer(
+                                          _viewModel.videoController,
+                                        ),
+                                      ),
+                                    ),
+                                    // Cover image — shown until user first presses play
+                                    if (!_hasStartedPlaying)
+                                      Center(
+                                        child: AspectRatio(
+                                          aspectRatio: _viewModel
+                                              .videoController
+                                              .value
+                                              .aspectRatio,
+                                          child:
+                                              widget.previewImageUrl != null &&
+                                                  widget
+                                                      .previewImageUrl!
+                                                      .isNotEmpty
+                                              ? Image.network(
+                                                  widget.previewImageUrl!,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder:
+                                                      (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) => Container(
+                                                        color: Colors.black,
+                                                      ),
+                                                  // Skeleton sobre fondo negro mientras carga la imagen de portada
+                                                  loadingBuilder:
+                                                      (
+                                                        context,
+                                                        child,
+                                                        loadingProgress,
+                                                      ) {
+                                                        if (loadingProgress ==
+                                                            null)
+                                                          return child;
+                                                        return const _PlayScreenShimmer(
+                                                          baseColor:
+                                                              Colors.black,
+                                                        );
+                                                      },
+                                                )
+                                              : Container(color: Colors.black),
+                                        ),
+                                      ),
+                                    // Play button on cover / play-pause icon during playback
+                                    if (!_hasStartedPlaying)
+                                      const Center(
+                                        child: Icon(
+                                          Icons.play_circle_fill_rounded,
+                                          color: Colors.white70,
+                                          size: 72,
+                                        ),
+                                      )
+                                    else
+                                      AnimatedOpacity(
+                                        opacity: _viewModel.showGiantIcon
+                                            ? 1.0
+                                            : 0.0,
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        child: Center(
+                                          child: SvgPicture.asset(
+                                            _viewModel
+                                                    .videoController
+                                                    .value
+                                                    .isPlaying
+                                                ? 'assets/icons/pausebigbutton.svg'
+                                                : 'assets/icons/playbigbutton.svg',
+                                            width: 80,
+                                            height: 80,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF05E995),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30)),
-                                elevation: 10,
-                                shadowColor: const Color(0x8005E995),
+                      ),
+
+                      // ── Bottom controls ───────────────────────────────────────────
+                      if (ready)
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                          color: const Color(0xCC000000),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Progress bar
+                              VideoProgressIndicator(
+                                _viewModel.videoController,
+                                allowScrubbing: true,
+                                colors: const VideoProgressColors(
+                                  playedColor: Color(0xFF00E5FF),
+                                  bufferedColor: Colors.white38,
+                                  backgroundColor: Colors.white24,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              // Controls row — use GestureDetector instead of IconButton
+                              // to avoid the 48px minimum touch target enforcing an overflow
+                              // on narrow screens.
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Replay
+                                  GestureDetector(
+                                    onTap: () {
+                                      _viewModel.replay();
+                                      setState(() {
+                                        _hasStartedPlaying = true;
+                                        _hasNotifiedCompletion = false;
+                                        _isCompleted = false;
+                                      });
+                                    },
+                                    child: SvgPicture.asset(
+                                      'assets/icons/replay.svg',
+                                      width: 28,
+                                      height: 28,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  // Play / Pause
+                                  GestureDetector(
+                                    onTap: _viewModel.togglePlayPause,
+                                    child: SvgPicture.asset(
+                                      _viewModel.videoController.value.isPlaying
+                                          ? 'assets/icons/pausebutton.svg'
+                                          : 'assets/icons/playbuttoncontroller.svg',
+                                      width: 36,
+                                      height: 36,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  // Time label — Expanded so it takes remaining space
+                                  // and never pushes the row past the screen edge.
+                                  Expanded(
+                                    child: Text(
+                                      '${_viewModel.formatDuration(_viewModel.videoController.value.position)} / '
+                                      '${_viewModel.formatDuration(_viewModel.videoController.value.duration)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // "COMPLETAR" button
+                              if (_isCompleted) ...[
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isFinishing
+                                        ? null
+                                        : () async {
+                                            setState(() {
+                                              _isFinishing = true;
+                                            });
+
+                                            // Resetear el progreso compartido para que
+                                            // al salir del flujo el video no quede en 100%.
+                                            try {
+                                              final controller =
+                                                  _viewModel.videoController;
+                                              if (controller.value.isPlaying) {
+                                                await controller.pause();
+                                              }
+                                              await controller.seekTo(
+                                                Duration.zero,
+                                              );
+                                            } catch (_) {}
+
+                                            _celebrateCompletion();
+                                            await Future.delayed(
+                                              const Duration(
+                                                milliseconds: 1500,
+                                              ),
+                                            );
+                                            if (!mounted) return;
+                                            widget.onCompleted(true);
+                                          },
+                                    icon: const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      'COMPLETAR',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF05E995),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                      elevation: 10,
+                                      shadowColor: const Color(0x8005E995),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
-                  ],
-                ),
-                CelebrationHelper.buildTopConfettiOverlay(
-                  controller: _celebrationHelper.confettiController,
-                ),
-              ],
-            );
-          },
+                  CelebrationHelper.buildTopConfettiOverlay(
+                    controller: _celebrationHelper.confettiController,
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

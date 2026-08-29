@@ -169,7 +169,12 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     _overlayEntry = null;
   }
 
-  void _showOverlay(BuildContext context, LevelStepInfo step, int index, LevelTimelineViewModel viewModel) {
+  void _showOverlay(
+    BuildContext context,
+    LevelStepInfo step,
+    int index,
+    LevelTimelineViewModel viewModel,
+  ) {
     _removeOverlay();
     final RenderBox renderBox =
         _keys[index].currentContext!.findRenderObject() as RenderBox;
@@ -389,7 +394,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 30),
-                    child: _buildPlayButton(context, viewModel, activeStepIndex),
+                    child: _buildPlayButton(
+                      context,
+                      viewModel,
+                      activeStepIndex,
+                    ),
                   ),
                 ),
             ],
@@ -406,7 +415,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   ) {
     const activeColor = Color(0xFF00E5FF);
     final step = viewModel.steps[stepIndex];
-    
+
     return ElevatedButton.icon(
       onPressed: () async {
         // Obtener el nivel completo desde el ViewModel
@@ -417,7 +426,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
         // Construir el contenido del carrusel desde el nivel completo
         final contents = _buildContentFromLevel(levelInfo);
-        
+
         // Primero navegar a la pantalla de preview con el carrusel
         await Navigator.push(
           context,
@@ -538,7 +547,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   // Construye el contenido del popup al hacer tap en un nodo, mostrando la información del paso y el botón de JUGAR
   // Al presionar JUGAR, primero cierra el popup, luego navega a la pantalla de preview del nivel, pasando
   // toda la información necesaria para mostrar el carrusel y los datos del minijuego.
-  Widget _buildPopupContent(BuildContext context, LevelStepInfo step, LevelTimelineViewModel viewModel) {
+  Widget _buildPopupContent(
+    BuildContext context,
+    LevelStepInfo step,
+    LevelTimelineViewModel viewModel,
+  ) {
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -619,7 +632,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 onPressed: () async {
                   // Cerrar el popup primero
                   viewModel.clearSelection();
-                  
+
                   // Obtener el nivel completo desde el ViewModel
                   final levelInfo = viewModel.moduleLevels.firstWhere(
                     (level) => level.id == step.levelId,
@@ -628,7 +641,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
                   // Construir el contenido del carrusel desde el nivel completo
                   final contents = _buildContentFromLevel(levelInfo);
-                  
+
                   // Primero navegar a la pantalla de preview con el carrusel
                   await Navigator.push(
                     context,
@@ -740,7 +753,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     // Mostrar máximo 3 estrellas (el máximo que se puede obtener)
     final maxStars = 3;
     final actualStars = starCount.clamp(0, maxStars);
-    
+
     return Center(
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -763,9 +776,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   /// Construye el contenido del carrusel desde un ModuleLevelInfo
   List<ContentCardData> _buildContentFromLevel(ModuleLevelInfo level) {
     final List<ContentCardData> contents = [];
-    final simpleSelectionEnabled =
-        _asBool(level.actividadData?['isSimpleSelectionEnabled']);
-    final puzzleEnabled = _asBool(level.actividadData?['isPuzzleEnabled']) ||
+    final simpleSelectionEnabled = _asBool(
+      level.actividadData?['isSimpleSelectionEnabled'],
+    );
+    final puzzleEnabled =
+        _asBool(level.actividadData?['isPuzzleEnabled']) ||
         (level.actividadType?.toLowerCase() == 'puzzle');
     final puzzleImageUrl = level.puzzleImageUrl;
     final puzzleFallbackUrl = level.pictogramaUrl;
