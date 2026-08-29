@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:appy/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
@@ -21,7 +22,10 @@ class ModuleListScreen extends StatelessWidget {
         centerTitle: true,
         title: Text(
           l10n?.navModules ?? 'Mis Módulos',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
         actions: [
@@ -29,9 +33,9 @@ class ModuleListScreen extends StatelessWidget {
             icon: const Icon(Icons.settings),
             tooltip: l10n?.settingsTitle ?? 'Ajustes',
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
             },
           ),
         ],
@@ -74,10 +78,13 @@ class ModuleListScreen extends StatelessWidget {
 
             // Obtener nombre de usuario desde Firebase Auth
             final user = FirebaseAuth.instance.currentUser;
-            final nombreUsuario = user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
-            final nivelUsuario = 2; // TODO: Obtener desde Firestore si está disponible
+            final nombreUsuario =
+                user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
+            final nivelUsuario = viewModel.completedLevelsCount;
 
-            final parentalMinLevel = context.watch<SettingsViewModel>().parentalMinLevel;
+            final parentalMinLevel = context
+                .watch<SettingsViewModel>()
+                .parentalMinLevel;
             return ModulosGridView(
               modulos: viewModel.modulos,
               nombreUsuario: nombreUsuario,
@@ -254,7 +261,7 @@ class ModulosGridView extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'NIVEL $nivelUsuario',
+                  'NIVEL ${max(1, nivelUsuario)}',
                   style: const TextStyle(
                     color: Color(0xFF000000),
                     fontSize: 14,
@@ -869,9 +876,9 @@ class _ModuleListSkeleton extends StatelessWidget {
                   crossAxisSpacing: 7,
                   mainAxisSpacing: 7,
                 ),
-                // Se muestran 4 tarjetas para llenar la pantalla típica
-                // NOTE: Ajustar este número si el diseño cambia o para probar diferentes cantidades de placeholders
-                // Mantendremos un valor hardcodeado porque todavia no estamos obteniendo datos reales, pero idealmente esto debería ser dinámico o al menos configurable.
+                // La app tiene como máximo 4 módulos, así que el skeleton fija
+                // 4 placeholders. La cantidad real no se carga aquí porque el
+                // skeleton solo busca llenar la pantalla durante la carga.
                 itemCount: 4,
                 itemBuilder: (_, __) => const _SkeletonModuleCard(),
               ),
@@ -882,4 +889,3 @@ class _ModuleListSkeleton extends StatelessWidget {
     );
   }
 }
-

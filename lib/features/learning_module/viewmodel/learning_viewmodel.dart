@@ -28,6 +28,10 @@ class LearningViewModel extends ChangeNotifier {
   // Nivel del usuario
   int _userLevel = 1;
 
+  // Total de niveles completados (para el badge "NIVEL X" del header).
+  // Se deriva del progreso ya cargado en _loadModulesProgress().
+  int _completedLevelsCount = 0;
+
   // Control de race conditions: evitar peticiones duplicadas simultáneas
   final Map<String, Future<List<ModuleLevelInfo>>> _pendingLevelLoads = {};
 
@@ -46,6 +50,7 @@ class LearningViewModel extends ChangeNotifier {
   bool get isLoadingLevels => _isLoadingLevels;
   String? get errorMessageLevels => _errorMessageLevels;
   int get userLevel => _userLevel;
+  int get completedLevelsCount => _completedLevelsCount;
 
   /*
   Obtiene el UID del usuario actual
@@ -127,6 +132,8 @@ class LearningViewModel extends ChangeNotifier {
   Future<void> _loadModulesProgress() async {
     if (_currentUserId == null || _modulos.isEmpty) return;
 
+    _completedLevelsCount = 0;
+
     // Lanzar todas las peticiones de progreso en paralelo
     final progressFutures = _modulos.map(
       (modulo) => _firestoreService
@@ -145,6 +152,9 @@ class LearningViewModel extends ChangeNotifier {
       progress.forEach((_, levelProgress) {
         totalStars += (levelProgress['estrellas'] as int? ?? 0);
       });
+
+      // Contar niveles completados con la misma regla que _determineLevelStates
+      _completedLevelsCount += countCompletedLevels(progress);
 
       final bloqueadoPorNivel = _userLevel < modulo.nivel;
       final estaBloqueado = modulo.bloqueado || bloqueadoPorNivel;
@@ -169,7 +179,10 @@ class LearningViewModel extends ChangeNotifier {
   Protege contra race conditions: si ya hay una carga en curso para el mismo
   moduleId, reutiliza el mismo Future en lugar de lanzar una petición duplicada.
   */
-  Future<List<ModuleLevelInfo>> getModuleLevels(String moduleId, {bool forceReload = false}) async {
+  Future<List<ModuleLevelInfo>> getModuleLevels(
+    String moduleId, {
+    bool forceReload = false,
+  }) async {
     // Si ya están en caché y no se fuerza recarga, retornarlos inmediatamente
     if (!forceReload && _moduleLevels.containsKey(moduleId)) {
       return _moduleLevels[moduleId]!;
@@ -349,14 +362,16 @@ class LearningViewModel extends ChangeNotifier {
 
       if (progress != null) {
         final status = progress['status']?.toString().toLowerCase();
-        final estrellas = progress['estrellas'] as int? ?? 0;
+        final estrellas = parseProgressEstrellas(progress);
 
-        if (status == 'completed' || estrellas > 0) {
+        if (isCompletedProgress(progress)) {
           estado = StateOfStep.completed;
         } else if (status == 'in_progress' || status == 'inprogress') {
           estado = StateOfStep.inProgress;
         } else {
-          estado = estrellas > 0 ? StateOfStep.completed : StateOfStep.inProgress;
+          estado = estrellas > 0
+              ? StateOfStep.completed
+              : StateOfStep.inProgress;
         }
       } else {
         if (i == 0) {
@@ -390,7 +405,9 @@ class LearningViewModel extends ChangeNotifier {
   Obtiene el progreso del usuario para un módulo específico.
   Usa caché si está disponible.
   */
-  Future<Map<String, Map<String, dynamic>>> getUserProgress(String moduleId) async {
+  Future<Map<String, Map<String, dynamic>>> getUserProgress(
+    String moduleId,
+  ) async {
     if (_currentUserId == null) return {};
     if (_userProgress.containsKey(moduleId)) return _userProgress[moduleId]!;
 
@@ -484,7 +501,8 @@ class LearningViewModel extends ChangeNotifier {
     final urls = <String>{};
     for (final level in levels) {
       final url = level.pictogramaUrl;
-      if (url != null && url.isNotEmpty &&
+      if (url != null &&
+          url.isNotEmpty &&
           (url.startsWith('http://') || url.startsWith('https://'))) {
         urls.add(url);
       }
@@ -588,4 +606,3 @@ class LearningViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
-
