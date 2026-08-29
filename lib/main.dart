@@ -33,9 +33,7 @@ import 'core/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Registrar minijuegos
   registerSimpleSelectionMinigame();
@@ -56,7 +54,8 @@ class MyApp extends StatelessWidget {
     final skinsDisponibles = AvatarRepository.obtenerSkinsDisponibles();
 
     // Crear el estado inicial del avatar
-    final estadoInicial = AvatarEstado( // Definir estado inicial con valores por defecto
+    final estadoInicial = AvatarEstado(
+      // Definir estado inicial con valores por defecto
       nombre: 'nombre',
       felicidad: 64,
       energia: 92,
@@ -110,13 +109,12 @@ class MyApp extends StatelessWidget {
               builder: (context, child) {
                 final mediaQuery = MediaQuery.of(context);
                 return MediaQuery(
-                  data: mediaQuery.copyWith(
-                    textScaler: textScaler,
-                  ),
+                  data: mediaQuery.copyWith(textScaler: textScaler),
                   child: child ?? const SizedBox.shrink(),
                 );
               },
-              home: const AuthGate(), // Gate de autenticación como pantalla inicial
+              home:
+                  const AuthGate(), // Gate de autenticación como pantalla inicial
             ),
           );
         },

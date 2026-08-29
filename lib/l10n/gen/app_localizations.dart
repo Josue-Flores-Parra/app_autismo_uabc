@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// No description provided for @navSettings.
   ///
   /// In es, this message translates to:
-  /// **'Ajustes'**
+  /// **'PIN'**
   String get navSettings;
 
   /// No description provided for @settingsTitle.

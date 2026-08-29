@@ -9,7 +9,7 @@ class CelebrationHelper {
   final AudioPlayer _celebrationPlayer = AudioPlayer();
 
   CelebrationHelper({Duration duration = const Duration(seconds: 3)})
-      : confettiController = ConfettiController(duration: duration);
+    : confettiController = ConfettiController(duration: duration);
 
   Future<void> playCelebration() async {
     confettiController.play();
@@ -74,4 +74,3 @@ class CelebrationHelper {
     );
   }
 }
-

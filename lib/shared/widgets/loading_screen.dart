@@ -5,11 +5,7 @@ class LoadingScreen extends StatelessWidget {
   final String? message;
   final double avatarScale;
 
-  const LoadingScreen({
-    super.key,
-    this.message,
-    this.avatarScale = 0.65,
-  });
+  const LoadingScreen({super.key, this.message, this.avatarScale = 0.65});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +30,7 @@ class LoadingScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
-                
+
                 // Indicador de carga con cubitos animados centrados
                 _AnimatedDotsLoader(),
               ],
@@ -67,9 +63,7 @@ class LoadingOverlay extends StatelessWidget {
         if (isLoading)
           Container(
             color: Colors.black.withValues(alpha: 0.5),
-            child: const Center(
-              child: LoadingScreen(),
-            ),
+            child: const Center(child: LoadingScreen()),
           ),
       ],
     );
@@ -104,10 +98,7 @@ class _AnimatedDotsLoaderState extends State<_AnimatedDotsLoader>
       return Tween<double>(
         begin: 0.0,
         end: 1.0,
-      ).animate(CurvedAnimation(
-        parent: controller,
-        curve: Curves.easeInOut,
-      ));
+      ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
     }).toList();
 
     _startAnimation();
@@ -154,7 +145,9 @@ class _AnimatedDotsLoaderState extends State<_AnimatedDotsLoader>
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF5B8DB3).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF5B8DB3,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
