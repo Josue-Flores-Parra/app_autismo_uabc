@@ -172,13 +172,13 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   // intentos derivan exclusivamente de la dificultad seleccionada.
   int _resolveMaxAttempts(int gridSize) {
     switch (gridSize) {
-      case 3:
+      case 2:
         return 6; // Muy facil
-      case 4:
+      case 3:
         return 5; // Fácil
-      case 5:
+      case 4:
         return 4; // Normal
-      case 6:
+      case 5:
         return 3; // Difícil
       default:
         return 999; // Fallback (gridSize heredado) → sin límite.
@@ -1050,7 +1050,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                                           return _buildDraggablePiece(
                                             pieceId,
                                             size: cellSize,
-                                            knobRatio: 0.12, // 0.12 para evitar que la pestaña corten mucha imagen
+                                            knobRatio: 0.08, // 0.08 para evitar que la pestaña corten mucha imagen
                                           );
                                         },
                                       );

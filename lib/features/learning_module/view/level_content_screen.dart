@@ -301,7 +301,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        int selectedGrid = 3;
+        int selectedGrid = 2;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -330,31 +330,31 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildDifficultyOption(
-                    value: 3,
+                    value: 2,
                     groupValue: selectedGrid,
                     title: 'Muy Fácil',
+                    subtitle: '4 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
+                  _buildDifficultyOption(
+                    value: 3,
+                    groupValue: selectedGrid,
+                    title: 'Fácil',
                     subtitle: '9 piezas',
                     onChanged: (v) => setDialogState(() => selectedGrid = v),
                   ),
                   _buildDifficultyOption(
                     value: 4,
                     groupValue: selectedGrid,
-                    title: 'Fácil',
+                    title: 'Normal',
                     subtitle: '16 piezas',
                     onChanged: (v) => setDialogState(() => selectedGrid = v),
                   ),
                   _buildDifficultyOption(
                     value: 5,
                     groupValue: selectedGrid,
-                    title: 'Normal',
-                    subtitle: '25 piezas',
-                    onChanged: (v) => setDialogState(() => selectedGrid = v),
-                  ),
-                  _buildDifficultyOption(
-                    value: 6,
-                    groupValue: selectedGrid,
                     title: 'Difícil',
-                    subtitle: '36 piezas',
+                    subtitle: '25 piezas',
                     onChanged: (v) => setDialogState(() => selectedGrid = v),
                   ),
                 ],
