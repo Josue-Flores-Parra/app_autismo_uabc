@@ -296,19 +296,38 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     bool success,
     int attempts,
   ) async {
-    // Guardar progreso si fue exitoso
-    if (success) {
-      await LevelCompletionService.completeInteractiveLevel(
+    final tipo = widget.actividadType?.toLowerCase().trim();
+    final isObservation = tipo == 'pictogram' || tipo == 'video';
+
+    // Guardar progreso: los niveles de observación (pictograma/video) no
+    // tienen intentos ni pueden fallar, así que se completan por la vía de
+    // observación. Los niveles interactivos siempre escriben su documento de
+    // progreso, incluso al fallar, para que el timeline lo registre.
+    LevelCompletionResult? result;
+    if (isObservation) {
+      if (success) {
+        result = await LevelCompletionService.completeObservationLevel(
+          context: context,
+          moduleId: widget.moduleId,
+          levelId: widget.levelId,
+          actividadType: tipo,
+        );
+      }
+    } else {
+      result = await LevelCompletionService.completeInteractiveLevel(
         context: context,
         moduleId: widget.moduleId,
         levelId: widget.levelId,
-        success: true,
+        actividadType: tipo,
+        success: success,
         attempts: attempts,
       );
     }
 
     await _speakCompletionFeedback(success);
     if (!mounted) return;
+
+    final coins = result?.coins ?? 0;
 
     // Mostrar resultado y navegar de regreso
     showDialog(
@@ -401,7 +420,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Monedas: +${LevelCompletionService.calculateCoins(LevelCompletionService.calculateStars(attempts))}',
+                          'Monedas: +$coins',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

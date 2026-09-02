@@ -6,7 +6,6 @@ import 'popup_preview.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
-import '../../../shared/services/level_completion_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -51,28 +50,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
   final Set<String> _retainedPreloadedVideoPaths = <String>{};
-
-  // Rastrear condiciones para habilitar el botón "COMPLETAR"
-  bool _videoCompleted = false;
-  bool _pictogramViewed = false;
-  bool _audioCompleted = false;
-  bool _isCompletingObservationLevel = false;
-
-  // Verificar qué tipos de contenido hay
-  bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
-
-  bool get _hasPictogram =>
-      widget.contents.any((c) => c.type == ContentType.pictogram);
-
-  bool get _hasAudio => widget.contents.any((c) => c.type == ContentType.audio);
-
-  // El botón está habilitado si se cumplen todas las condiciones necesarias
-  bool get _canComplete {
-    bool videoOk = !_hasVideo || _videoCompleted;
-    bool pictogramOk = !_hasPictogram || _pictogramViewed;
-    bool audioOk = !_hasAudio || _audioCompleted;
-    return videoOk && pictogramOk && audioOk;
-  }
 
   bool get _isSimpleSelectionEnabled {
     return _asBool(widget.minigameData?['isSimpleSelectionEnabled']);
@@ -311,13 +288,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         forceReload: true,
       );
     }
-    if (!mounted || _isCompletingObservationLevel || !_canComplete) {
-      return;
-    }
-
-    _isCompletingObservationLevel = true;
-    await _handleCompleteObservationLevel(context);
-    _isCompletingObservationLevel = false;
   }
 
   void _onFocusedNodePressed(int _) {
@@ -681,58 +651,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         });
       },
     );
-  }
-
-  /// Guarda el progreso para niveles de solo observación (sin minijuego)
-  /// Otorga 2 estrellas y 20 monedas por completar el nivel
-  Future<void> _handleCompleteObservationLevel(BuildContext context) async {
-    final result = await LevelCompletionService.completeObservationLevel(
-      context: context,
-      moduleId: widget.moduleId,
-      levelId: widget.levelId,
-    );
-
-    if (!context.mounted) return;
-
-    if (result == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al guardar el progreso'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '¡Nivel completado! +${result.stars} +${result.coins}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF05E995),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-
-    Future.delayed(const Duration(seconds: 1), () {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
-    });
   }
 
   /// Helper function para construir imágenes desde URLs

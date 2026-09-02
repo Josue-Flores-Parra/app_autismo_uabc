@@ -25,7 +25,14 @@ class LearningViewModel extends ChangeNotifier {
   bool _isLoadingLevels = false;
   String? _errorMessageLevels;
 
-  // Nivel del usuario
+  // Nivel del usuario.
+  //
+  // Nota: este valor se lee desde `users/{uid}.nivel` vía
+  // `FirestoreService.getUserLevel`, pero ese campo NUNCA se escribe en el
+  // código actual, por lo que `_userLevel` es siempre 1. Como todos los
+  // módulos en Firestore usan `nivelMinimo = 1`, el bloqueo por nivel es un
+  // no-op hoy. Se deja así a propósito y no se persiste `nivel`; el "nivel"
+  // real mostrado en UI se deriva de `_completedLevelsCount`.
   int _userLevel = 1;
 
   // Total de niveles completados (para el badge "NIVEL X" del header).
@@ -154,7 +161,8 @@ class LearningViewModel extends ChangeNotifier {
       });
 
       // Contar niveles completados con la misma regla que _determineLevelStates
-      _completedLevelsCount += countCompletedLevels(progress);
+      final completedInModule = countCompletedLevels(progress);
+      _completedLevelsCount += completedInModule;
 
       final bloqueadoPorNivel = _userLevel < modulo.nivel;
       final estaBloqueado = modulo.bloqueado || bloqueadoPorNivel;
@@ -169,9 +177,20 @@ class LearningViewModel extends ChangeNotifier {
         color: modulo.color,
         bloqueado: estaBloqueado,
         descripcion: modulo.descripcion,
+        nivelesCompletados: completedInModule,
       );
     }
     notifyListeners();
+  }
+
+  /*
+  Recalcula el progreso agregado de todos los módulos (estrellas, niveles
+  completados y `_completedLevelsCount`) sin recargar la lista de módulos.
+  Útil para refrescar el header "NIVEL X" y los badges "NV" del ModuleListScreen
+  justo después de completar un nivel.
+  */
+  Future<void> refreshModulesProgress() async {
+    await _loadModulesProgress();
   }
 
   /*

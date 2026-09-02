@@ -128,6 +128,7 @@ class ModulosGridView extends StatelessWidget {
             color: modulo.color,
             bloqueado: modulo.bloqueado || modulo.nivel < parentalMinLevel,
             descripcion: modulo.descripcion,
+            nivelesCompletados: modulo.nivelesCompletados,
           ),
         )
         .toList();
@@ -445,7 +446,7 @@ class ModuloPlantilla extends StatelessWidget {
           ],
         ),
         child: Text(
-          'NV ${modulo.nivel}',
+          'NV ${modulo.nivelesCompletados}',
           style: const TextStyle(
             color: Color(0xFF000000),
             fontSize: 10,

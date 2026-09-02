@@ -15,6 +15,7 @@ class ModuloInfo {
   final Color color;
   final bool bloqueado;
   final String? descripcion;
+  final int nivelesCompletados;
 
   ModuloInfo({
     required this.id,
@@ -26,6 +27,7 @@ class ModuloInfo {
     required this.color,
     this.bloqueado = false,
     this.descripcion,
+    this.nivelesCompletados = 0,
   });
 
   /*

@@ -651,9 +651,9 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                 borderRadius: BorderRadius.circular(16),
                 child: Image(
                   image: _imageProvider(),
-                  width: size.width * 0.8,
-                  height: size.height * 0.3,
-                  fit: BoxFit.cover,
+                  width: size.width * 0.8, // 80% del ancho la pantalla
+                  height: size.height * 0.5, // 50% del alto de la pantalla
+                  fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
                       const ColoredBox(color: Color(0x332C5F7A)),
                 ),

@@ -22,10 +22,24 @@ class LevelCompletionResult {
 
 /// Centralizes progress persistence and rewards for level completion flows.
 class LevelCompletionService {
-  static int calculateStars(int attempts) {
-    if (attempts <= 1) return 3;
-    if (attempts == 2) return 2;
-    return 1;
+  /// Estrellas otorgadas por tipo de actividad al completar un nivel.
+  ///
+  /// - pictogram / video (observación): 1 estrella.
+  /// - simple_selection: 3 estrellas.
+  /// - puzzle: 2 estrellas.
+  /// - audio / desconocido: 0 (reservado para futuras tareas de media).
+  static int starsForActivityType(String? actividadType) {
+    switch (actividadType?.toLowerCase().trim()) {
+      case 'pictogram':
+      case 'video':
+        return 1;
+      case 'simple_selection':
+        return 3;
+      case 'puzzle':
+        return 2;
+      default:
+        return 0;
+    }
   }
 
   static int calculateCoins(int stars) {
@@ -45,6 +59,7 @@ class LevelCompletionService {
     required BuildContext context,
     required String? moduleId,
     required String? levelId,
+    required String? actividadType,
     required bool success,
     required int attempts,
     FirestoreService? firestoreService,
@@ -58,7 +73,7 @@ class LevelCompletionService {
 
     try {
       final nowIso = DateTime.now().toIso8601String();
-      final stars = success ? calculateStars(attempts) : 0;
+      final stars = success ? starsForActivityType(actividadType) : 0;
       final coins = success ? calculateCoins(stars) : 0;
 
       final progressData = {
@@ -86,6 +101,7 @@ class LevelCompletionService {
       if (context.mounted) {
         final learningViewModel = context.read<LearningViewModel>();
         await learningViewModel.getModuleLevels(moduleId, forceReload: true);
+        await learningViewModel.refreshModulesProgress();
       }
 
       return LevelCompletionResult(
@@ -103,6 +119,7 @@ class LevelCompletionService {
     required BuildContext context,
     required String? moduleId,
     required String? levelId,
+    required String? actividadType,
     FirestoreService? firestoreService,
   }) async {
     if (moduleId == null || levelId == null) return null;
@@ -113,8 +130,8 @@ class LevelCompletionService {
     final service = firestoreService ?? FirestoreService();
 
     try {
-      const stars = 2;
-      const coins = 20;
+      final stars = starsForActivityType(actividadType);
+      final coins = calculateCoins(stars);
       final nowIso = DateTime.now().toIso8601String();
 
       final progressData = {
@@ -143,9 +160,10 @@ class LevelCompletionService {
       if (context.mounted) {
         final learningViewModel = context.read<LearningViewModel>();
         await learningViewModel.getModuleLevels(moduleId, forceReload: true);
+        await learningViewModel.refreshModulesProgress();
       }
 
-      return const LevelCompletionResult(
+      return LevelCompletionResult(
         success: true,
         attempts: 0,
         stars: stars,
