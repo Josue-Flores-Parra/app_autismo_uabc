@@ -295,7 +295,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }
 
   // Muestra el diálogo de selección de dificultad del rompecabezas.
-  // Devuelve el tamaño de cuadrícula elegido (3/4/5) o null si se cancela.
+  // Devuelve el tamaño de cuadrícula elegido (2/4/5/6) o null si se cancela.
   Future<int?> _showPuzzleDifficultyDialog() async {
     return showDialog<int>(
       context: context,
@@ -329,6 +329,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  _buildDifficultyOption(
+                    value: 3,
+                    groupValue: selectedGrid,
+                    title: 'Muy Fácil',
+                    subtitle: '9 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
                   _buildDifficultyOption(
                     value: 4,
                     groupValue: selectedGrid,
