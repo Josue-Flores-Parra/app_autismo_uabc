@@ -37,8 +37,13 @@ class LevelTimelineViewModel extends ChangeNotifier {
   /// Recarga los datos del módulo (útil después de completar un nivel).
   /// Fuerza una relectura del progreso en Firestore para que las estrellas y el
   /// estado (check) de cada nodo se refresquen al volver al timeline.
+  ///
+  /// Primero limpia la caché del módulo (niveles, progreso y cargas pendientes)
+  /// y después reconstruye los datos, de modo que la recarga sea determinista y
+  /// no devuelva un Future en vuelo con progreso obsoleto.
   Future<void> reloadModuleData() async {
-    await _loadModuleData(_moduleId, forceReload: true);
+    await _learningViewModel.reloadModuleLevels(_moduleId);
+    await _loadModuleData(_moduleId);
   }
 
   Future<void> _loadModuleData(String moduleId, {bool forceReload = false}) async {

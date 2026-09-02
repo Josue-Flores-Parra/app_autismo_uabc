@@ -208,8 +208,10 @@ class LearningViewModel extends ChangeNotifier {
     }
 
     // Si ya hay una carga en curso para este moduleId, reutilizar ese Future
-    // para evitar peticiones duplicadas (race condition al pulsar un nodo rápido)
-    if (_pendingLevelLoads.containsKey(moduleId)) {
+    // para evitar peticiones duplicadas (race condition al pulsar un nodo rápido).
+    // Con forceReload se omite este short-circuit: siempre se relanzará una
+    // relectura real desde Firestore.
+    if (!forceReload && _pendingLevelLoads.containsKey(moduleId)) {
       return _pendingLevelLoads[moduleId]!;
     }
 

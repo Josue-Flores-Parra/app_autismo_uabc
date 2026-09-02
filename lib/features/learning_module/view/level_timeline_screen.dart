@@ -445,9 +445,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
             ),
           ),
         );
-        // Recargar datos del módulo después de regresar
+        // Recargar datos del módulo después de regresar.
+        // Se hace await para que la relectura de Firestore termine antes de
+        // reconstruir el timeline y no quedarse con progreso obsoleto.
         if (context.mounted) {
-          viewModel.reloadModuleData();
+          await viewModel.reloadModuleData();
         }
       },
       icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
@@ -644,9 +646,14 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                   // Construir el contenido del carrusel desde el nivel completo
                   final contents = _buildContentFromLevel(levelInfo);
 
+                  // Navegar y verificar montado con el contexto del State, que
+                  // permanece montado al volver. El contexto del overlay se
+                  // desmonta al cerrar el popup (clearSelection), por lo que
+                  // usarlo aquí haría que la recarga se saltara por completo.
+                  final timelineContext = this.context;
                   // Primero navegar a la pantalla de preview con el carrusel
                   await Navigator.push(
-                    context,
+                    timelineContext,
                     MaterialPageRoute(
                       builder: (context) => LevelContentPreviewScreen(
                         levelName: levelInfo.titulo,
@@ -662,9 +669,12 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                       ),
                     ),
                   );
-                  // Recargar datos del módulo después de regresar
-                  if (context.mounted) {
-                    viewModel.reloadModuleData();
+                  // Recargar datos del módulo después de regresar.
+                  // Se hace await para que la relectura de Firestore termine
+                  // antes de reconstruir el timeline y no quedarse con progreso
+                  // obsoleto.
+                  if (timelineContext.mounted) {
+                    await viewModel.reloadModuleData();
                   }
                 },
                 icon: const Icon(Icons.play_arrow, color: Colors.white),
