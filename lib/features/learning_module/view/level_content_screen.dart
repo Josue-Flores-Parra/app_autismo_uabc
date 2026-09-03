@@ -51,6 +51,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
   final Set<String> _retainedPreloadedVideoPaths = <String>{};
 
+  // Referencia a la animación de la ruta para poder desregistrar el listener
+  // en dispose y evitar registros duplicados en didChangeDependencies.
+  Animation<double>? _routeAnimation;
+  bool _isRouteStatusListenerAttached = false;
+
   bool get _isSimpleSelectionEnabled {
     return _asBool(widget.minigameData?['isSimpleSelectionEnabled']);
   }
@@ -178,13 +183,42 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
+      // Salida rápida: al iniciar el pop de esta ruta desvanecemos el carrusel
+      // en 120ms para que no lingering durante la transición de página (~300ms).
+      reverseDuration: const Duration(milliseconds: 120),
     );
     _animController.forward();
     _preloadSelectedVideoInBackground();
   }
 
   @override
+  void didChangeDependencies() {
+    // El listener de estado de animación de la ruta se registra aquí en lugar de initState
+    // porque ModalRoute.of(context) no está disponible en initState.
+    super.didChangeDependencies();
+    if (_isRouteStatusListenerAttached) return;
+    final routeAnimation = ModalRoute.of(context)?.animation;
+    if (routeAnimation == null) return;
+    _routeAnimation = routeAnimation;
+    routeAnimation.addStatusListener(_onRouteAnimationStatus);
+    _isRouteStatusListenerAttached = true;
+  }
+
+  // Reacciona al ciclo de vida de la ruta:
+  // - reverse: inició el pop (botón atrás o gesto del sistema) → desvanecer carrusel.
+  // - forward: el pop fue cancelado (ej. back-swipe incompleto) → restaurar carrusel.
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    if (!mounted) return;
+    if (status == AnimationStatus.reverse) {
+      _animController.reverse();
+    } else if (status == AnimationStatus.forward) {
+      _animController.forward();
+    }
+  }
+
+  @override
   void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
     _releaseRetainedPreloadedVideos();
     _animController.dispose();
     super.dispose();

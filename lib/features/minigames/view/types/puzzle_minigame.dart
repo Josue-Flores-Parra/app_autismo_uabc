@@ -1050,7 +1050,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                                           return _buildDraggablePiece(
                                             pieceId,
                                             size: cellSize,
-                                            knobRatio: 0.08, // 0.08 para evitar que la pestaña corten mucha imagen
+                                            knobRatio: 0.08, // 0.1 para evitar que la pestaña corten mucha imagen
                                           );
                                         },
                                       );
