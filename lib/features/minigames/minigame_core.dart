@@ -24,10 +24,19 @@ abstract class MinigameBase extends StatefulWidget {
   /// Los datos específicos para esta instancia del minijuego
   final Map<String, dynamic> minigameData;
 
+  /// Señal idempotente cuando la actividad está lista para uso.
+  final VoidCallback? onReady;
+
+  /// Señal idempotente cuando se alcanza el objetivo pedagógico/umbral,
+  /// emitida antes de celebración/TTS/delays.
+  final VoidCallback? onObjectiveMet;
+
   const MinigameBase({
     super.key,
     required this.onComplete,
     required this.minigameData,
+    this.onReady,
+    this.onObjectiveMet,
   });
 }
 
@@ -36,6 +45,8 @@ typedef MinigameBuilder =
     Widget Function({
       required MinigameCompleteCallback onComplete,
       required Map<String, dynamic> minigameData,
+      VoidCallback? onReady,
+      VoidCallback? onObjectiveMet,
     });
 
 /// Clase Factory para crear instancias de minijuegos
@@ -55,11 +66,18 @@ class MinigameFactory {
     required MinigameType type,
     required MinigameCompleteCallback onComplete,
     required Map<String, dynamic> minigameData,
+    VoidCallback? onReady,
+    VoidCallback? onObjectiveMet,
   }) {
     final builder = _builders[type];
     if (builder == null) return null;
 
-    return builder(onComplete: onComplete, minigameData: minigameData);
+    return builder(
+      onComplete: onComplete,
+      minigameData: minigameData,
+      onReady: onReady,
+      onObjectiveMet: onObjectiveMet,
+    );
   }
 
   /// Verificar si un tipo de minijuego está registrado

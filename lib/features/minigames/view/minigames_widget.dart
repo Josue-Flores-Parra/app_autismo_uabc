@@ -14,11 +14,19 @@ class MinigamesWidget extends StatelessWidget {
   /// Callback cuando el minijuego se completa
   final MinigameCompleteCallback onComplete;
 
+  /// Señal idempotente cuando la actividad está lista.
+  final VoidCallback? onReady;
+
+  /// Señal idempotente cuando se alcanza el objetivo.
+  final VoidCallback? onObjectiveMet;
+
   const MinigamesWidget({
     super.key,
     required this.minigameType,
     required this.minigameData,
     required this.onComplete,
+    this.onReady,
+    this.onObjectiveMet,
   });
 
   @override
@@ -28,6 +36,8 @@ class MinigamesWidget extends StatelessWidget {
       type: minigameType,
       onComplete: onComplete,
       minigameData: minigameData,
+      onReady: onReady,
+      onObjectiveMet: onObjectiveMet,
     );
 
     // Si el minijuego no está registrado, mostrar un placeholder

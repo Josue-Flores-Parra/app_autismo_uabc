@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
 import 'popup_preview.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
+import '../../telemetry/model/activity_telemetry_session.dart';
+import '../../telemetry/model/telemetry_enums.dart';
+import '../../telemetry/model/telemetry_signals.dart';
+import '../../telemetry/service/activity_telemetry_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -284,6 +290,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     }
 
     // Para el rompecabezas se pide elegir la dificultad antes de entrar.
+    // La selección de dificultad nunca marca `started` ni crea sesión.
     int? puzzleGridSize;
     if (activityType == 'puzzle') {
       puzzleGridSize = await _showPuzzleDifficultyDialog();
@@ -296,22 +303,35 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       data['gridSize'] = puzzleGridSize;
     }
 
+    // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
+    // elegido dificultad. El consentimiento se captura en este instante.
+    final telemetryHandle = await _requestTelemetryLaunch(
+      activityType: activityType,
+      gridSize: puzzleGridSize,
+    );
+
     // La actividad real inicia únicamente después de la
     // confirmación del popup (no al abrir la vista previa).
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LevelPlayScreen(
-          levelTitle: widget.levelTitle ?? widget.levelName,
-          minigameData: data,
-          actividadType: activityType,
-          levelId: widget.levelId ?? '',
-          moduleId: widget.moduleId ?? '',
-          videoUrl: widget.videoUrl,
-          launchSimpleSelectionFromCard: activityType == 'simple_selection',
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LevelPlayScreen(
+            levelTitle: widget.levelTitle ?? widget.levelName,
+            minigameData: data,
+            actividadType: activityType,
+            levelId: widget.levelId ?? '',
+            moduleId: widget.moduleId ?? '',
+            videoUrl: widget.videoUrl,
+            launchSimpleSelectionFromCard: activityType == 'simple_selection',
+            telemetryHandle: telemetryHandle,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (_) {
+      // Error de navegación antes de llegar a la actividad → launch_error.
+      telemetryHandle?.onLaunchError(TerminalReason.navigationFailed);
+    }
     if (!mounted) return;
 
     // Recargar datos después de regresar
@@ -322,6 +342,64 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         forceReload: true,
       );
     }
+  }
+
+  /// Solicita un contexto de sesión de telemetría si el consentimiento está
+  /// listo/activo. Devuelve un handle opaco o `null` sin telemetría.
+  Future<ActivitySessionHandle?> _requestTelemetryLaunch({
+    required String activityType,
+    int? gridSize,
+  }) async {
+    final type = TelemetryActivityType.normalize(activityType);
+    final moduleId = widget.moduleId;
+    final levelId = widget.levelId;
+    if (type == null || moduleId == null || levelId == null) return null;
+
+    final service = context.read<ActivityTelemetryService>();
+    return service.requestLaunch(
+      moduleId: moduleId,
+      levelId: levelId,
+      activityType: type,
+      difficulty: type == TelemetryActivityType.puzzle
+          ? _difficultyLabelForGrid(gridSize)
+          : null,
+      gridSize: type == TelemetryActivityType.puzzle ? gridSize : null,
+      client: await _buildTelemetryClient(),
+    );
+  }
+
+  Future<TelemetryClient> _buildTelemetryClient() async {
+    // Leer contexto antes del await para evitar uso tras gap asíncrono.
+    final locale = Localizations.maybeLocaleOf(context)?.languageCode ?? 'es';
+    var version = '';
+    var build = '';
+    try {
+      final info = await PackageInfo.fromPlatform();
+      version = info.version;
+      build = info.buildNumber;
+    } catch (_) {}
+    final platform = switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'android',
+      TargetPlatform.iOS => 'ios',
+      _ => 'web',
+    };
+    return TelemetryClient(
+      platform: platform,
+      appVersion: version,
+      buildNumber: build,
+      locale: locale,
+    );
+  }
+
+  /// Etiqueta de dificultad controlada (sin texto libre).
+  String? _difficultyLabelForGrid(int? grid) {
+    return switch (grid) {
+      2 => 'muy_facil',
+      3 => 'facil',
+      4 => 'normal',
+      5 => 'dificil',
+      _ => null,
+    };
   }
 
   void _onFocusedNodePressed(int _) {

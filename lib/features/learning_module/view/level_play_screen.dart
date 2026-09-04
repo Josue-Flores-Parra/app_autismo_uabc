@@ -7,6 +7,8 @@ import '../../../shared/services/tts_service.dart';
 import '../../../shared/services/celebration_helper.dart';
 import '../../../shared/services/level_completion_service.dart';
 import '../viewmodel/video_viewmodel.dart';
+import '../../telemetry/model/telemetry_signals.dart';
+import '../../telemetry/model/telemetry_enums.dart';
 
 /// Pantalla de juego de nivel
 /// Se muestra cuando el usuario presiona "JUGAR" en un nivel del timeline
@@ -22,6 +24,9 @@ class LevelPlayScreen extends StatefulWidget {
   // Permite abrir seleccion simple de forma explicita al tocar la tarjeta del carrusel.
   final bool launchSimpleSelectionFromCard;
 
+  /// Handle opaco de telemetría (null si no hay consentimiento activo).
+  final ActivitySessionHandle? telemetryHandle;
+
   const LevelPlayScreen({
     super.key,
     required this.levelTitle,
@@ -31,6 +36,7 @@ class LevelPlayScreen extends StatefulWidget {
     this.moduleId,
     this.videoUrl,
     this.launchSimpleSelectionFromCard = false,
+    this.telemetryHandle,
   });
 
   @override
@@ -79,6 +85,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   /// Reinicia el minigame con opciones mezcladas y intentos reducidos
   void _restartMinigame() {
     if (_retriesLeft > 0) {
+      // Conservar la misma sesión y acumulados; solo incrementar runCount.
+      widget.telemetryHandle?.onStartRetryRun();
       setState(() {
         _retriesLeft--;
         _minigameKey = UniqueKey(); // Esto fuerza la recreación del widget
@@ -148,6 +156,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         levelId: widget.levelId,
         moduleId: widget.moduleId,
         previewImageUrl: widget.minigameData?['pictogramaUrl'] as String?,
+        telemetryHandle: widget.telemetryHandle,
         onCompleted: (success) {
           _handleMinigameComplete(context, success, 1);
         },
@@ -183,19 +192,33 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   }
 
   Widget _buildMinigameScaffold(MinigameType minigameType) {
-    return Scaffold(
-      body: MinigamesWidget(
-        key: _minigameKey,
-        minigameType: minigameType,
-        minigameData: widget.minigameData ?? _getDefaultMinigameData(),
-        onComplete: (success, attempts) {
-          _handleMinigameComplete(context, success, attempts);
-        },
+    final handle = widget.telemetryHandle;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Salir explícito de una actividad ya iniciada sin completar.
+        handle?.onAbandon(TerminalReason.userBack);
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        body: MinigamesWidget(
+          key: _minigameKey,
+          minigameType: minigameType,
+          minigameData: widget.minigameData ?? _getDefaultMinigameData(),
+          onReady: () => handle?.onActivityReady(),
+          onObjectiveMet: () => handle?.onObjectiveMet(),
+          onComplete: (success, attempts) {
+            _handleMinigameComplete(context, success, attempts);
+          },
+        ),
       ),
     );
   }
 
   Widget _buildUnavailableActivityScreen() {
+    // Actividad no disponible: nunca llega a `started` → launch_error.
+    widget.telemetryHandle?.onLaunchError(TerminalReason.activityUnavailable);
     return Scaffold(
       body: Center(
         child: Padding(
@@ -296,6 +319,24 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     bool success,
     int attempts,
   ) async {
+    final handle = widget.telemetryHandle;
+    if (handle != null) {
+      final tipo = widget.actividadType?.toLowerCase().trim();
+      if (tipo == 'simple_selection' || tipo == 'puzzle') {
+        // El resultado del run registra intentos una sola vez; el servicio
+        // decide si continúa o termina (el objetivo ya detuvo el reloj).
+        handle.onRecordAttempts(attempts);
+        if (success) {
+          handle.onComplete();
+        } else if (_retriesLeft <= 0) {
+          handle.onFail();
+        }
+      } else if (success) {
+        // Observación/media: objectiveMet ya emitido; completar.
+        handle.onComplete();
+      }
+    }
+
     final tipo = widget.actividadType?.toLowerCase().trim();
     final isObservation = tipo == 'pictogram' || tipo == 'video';
 
@@ -465,6 +506,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
             TextButton(
               onPressed: () {
                 _ttsService.stop();
+                // Hay reintentos disponibles pero el usuario elige Volver → abandon.
+                widget.telemetryHandle?.onAbandon(TerminalReason.userExit);
                 Navigator.of(context).pop(); // Cerrar diálogo
                 Navigator.of(context).pop(); // Volver al timeline
               },
@@ -555,6 +598,7 @@ class _LevelVideoPlayerScreen extends StatefulWidget {
   final String? moduleId;
   final String? previewImageUrl;
   final void Function(bool success) onCompleted;
+  final ActivitySessionHandle? telemetryHandle;
 
   const _LevelVideoPlayerScreen({
     required this.videoUrl,
@@ -563,6 +607,7 @@ class _LevelVideoPlayerScreen extends StatefulWidget {
     this.levelId,
     this.moduleId,
     this.previewImageUrl,
+    this.telemetryHandle,
   });
 
   @override
@@ -577,6 +622,7 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
   bool _isCompleted = false;
   bool _hasStartedPlaying = false;
   bool _isFinishing = false;
+  bool _readyEmitted = false;
 
   // Mantiene la UI de portada sincronizada con controladores compartidos:
   // si el video ya avanzó o ya está reproduciéndose en otra ruta,
@@ -631,6 +677,8 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
       // Logica para marcar como completado
       if (progress >= 0.9 || isAtEnd) {
         _hasNotifiedCompletion = true;
+        // Señal de objetivo al cruzar por primera vez el 90% (no terminaliza).
+        widget.telemetryHandle?.onObjectiveMet();
         setState(() => _isCompleted = true);
       }
     } catch (_) {}
@@ -650,6 +698,8 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
   Future<void> _pauseAndPop() async {
     // Si el usuario intenta salir con el botón de back, nos aseguramos de pausar el video antes de cerrar la pantalla.
     await _pauseBeforeExit();
+    // Abandona sólo si `started` y no terminal (el servicio guarda la guarda).
+    widget.telemetryHandle?.onAbandon(TerminalReason.userBack);
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -681,6 +731,29 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
               final ready =
                   snapshot.connectionState == ConnectionState.done &&
                   snapshot.error == null;
+
+              // Actividad lista cuando el video inicializó correctamente.
+              if (ready && !_readyEmitted) {
+                _readyEmitted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    widget.telemetryHandle?.onActivityReady();
+                  }
+                });
+              }
+              // Error de inicialización antes de ready → launch_error.
+              if (snapshot.connectionState == ConnectionState.done &&
+                  snapshot.error != null &&
+                  !_readyEmitted) {
+                _readyEmitted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    widget.telemetryHandle?.onLaunchError(
+                      TerminalReason.resourceInitializationFailed,
+                    );
+                  }
+                });
+              }
 
               return Stack(
                 children: [
@@ -898,6 +971,9 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                                   // Replay
                                   GestureDetector(
                                     onTap: () {
+                                      // Tap explícito de replay → métrica.
+                                      widget.telemetryHandle
+                                          ?.onRecordVideoReplay();
                                       _viewModel.replay();
                                       setState(() {
                                         _hasStartedPlaying = true;
@@ -951,6 +1027,10 @@ class _LevelVideoPlayerScreenState extends State<_LevelVideoPlayerScreen> {
                                             setState(() {
                                               _isFinishing = true;
                                             });
+
+                                            // Terminalizar telemetría antes de resetear,
+                                            // celebrar y esperar 1.5s.
+                                            widget.telemetryHandle?.onComplete();
 
                                             // Resetear el progreso compartido para que
                                             // al salir del flujo el video no quede en 100%.

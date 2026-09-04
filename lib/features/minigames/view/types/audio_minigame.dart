@@ -12,6 +12,8 @@ class AudioMinigame extends MinigameBase {
     super.key,
     required super.onComplete,
     required super.minigameData,
+    super.onReady,
+    super.onObjectiveMet,
   });
 
   @override
@@ -66,6 +68,8 @@ class _AudioMinigameState extends State<AudioMinigame> {
 
             // Iniciar el timer solo si el audio se cargó correctamente
             _startPositionTimer();
+            // Controles utilizables: audio inicializado.
+            widget.onReady?.call();
           }
         })
         .catchError((error) {
@@ -417,6 +421,8 @@ class _AudioMinigameState extends State<AudioMinigame> {
                                 setState(() {
                                   _isCompleted = true;
                                 });
+                                // Señal de objetivo en COMPLETAR, antes de celebración/delay.
+                                widget.onObjectiveMet?.call();
                                 _celebrationHelper.playCelebration();
                                 await Future.delayed(
                                   const Duration(milliseconds: 1500),
@@ -518,7 +524,12 @@ class _AudioMinigameState extends State<AudioMinigame> {
 void registerAudioMinigame() {
   MinigameFactory.register(
     MinigameType.audio,
-    ({required onComplete, required minigameData}) =>
-        AudioMinigame(onComplete: onComplete, minigameData: minigameData),
+    ({required onComplete, required minigameData, onReady, onObjectiveMet}) =>
+        AudioMinigame(
+          onComplete: onComplete,
+          minigameData: minigameData,
+          onReady: onReady,
+          onObjectiveMet: onObjectiveMet,
+        ),
   );
 }
