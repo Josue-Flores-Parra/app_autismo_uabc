@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appy/l10n/gen/app_localizations.dart';
 
 // Firebase
@@ -31,6 +34,11 @@ import 'features/minigames/view/types/audio_minigame.dart';
 import 'features/minigames/view/types/puzzle_minigame.dart';
 import 'core/app_theme.dart';
 
+// Telemetry
+import 'features/telemetry/data/telemetry_repository.dart';
+import 'features/telemetry/service/activity_telemetry_service.dart';
+import 'features/telemetry/service/pending_session_store.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -42,11 +50,20 @@ void main() async {
   registerAudioMinigame();
   registerPuzzleMinigame();
 
-  runApp(const MyApp());
+  final prefs = await SharedPreferences.getInstance();
+  final telemetryService = ActivityTelemetryService(
+    repository: TelemetryRepository(FirebaseFirestore.instance),
+    pendingStore: PendingSessionStore(prefs),
+    uidProvider: () => FirebaseAuth.instance.currentUser?.uid,
+  );
+
+  runApp(MyApp(telemetryService: telemetryService));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.telemetryService});
+
+  final ActivityTelemetryService telemetryService;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +101,22 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => LearningViewModel()),
         ChangeNotifierProvider(create: (_) => LoadingService()),
+        ProxyProvider2<SettingsViewModel, AuthViewModel, ActivityTelemetryService>(
+          create: (_) => telemetryService,
+          update: (context, settings, auth, previous) {
+            final service = previous ?? telemetryService;
+            // El servicio no evalúa `sendMetrics` hasta que Settings esté listo.
+            service.updateConsent(
+              ready: settings.isReady,
+              enabled: settings.sendMetrics,
+            );
+            // Reconciliar marcador pendiente sólo después de Auth y Settings listos.
+            if (settings.isReady && auth.currentUser != null) {
+              service.reconcilePending(consentEnabled: settings.sendMetrics);
+            }
+            return service;
+          },
+        ),
       ],
       child: Consumer<SettingsViewModel>(
         builder: (context, settings, _) {

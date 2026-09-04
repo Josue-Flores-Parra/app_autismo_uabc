@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_services.dart';
 import '../../features/learning_module/data/video_controller_manager.dart';
+import '../../features/telemetry/service/activity_telemetry_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -40,6 +41,10 @@ class AuthService {
 
   // Logout
   Future<void> logout() async {
+    // Cierre best-effort de una sesión de telemetría iniciada mientras el UID
+    // sigue autorizado (antes de signOut).
+    await ActivityTelemetryService.instance?.closeActiveSessionForLogout();
+
     // Liberar todos los controladores de video antes de cerrar sesión
     // para evitar fugas de memoria y decodificadores de hardware huérfanos
     VideoControllerManager().disposeAll();
