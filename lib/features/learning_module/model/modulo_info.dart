@@ -10,10 +10,12 @@ class ModuloInfo {
   final int estrellas;
   final int nivel;
   final String imagenPath;
-  final String? lvlBackgroundImageUrl; // campo para la imagen de fondo del nivel, apunta a asset local de momento
+  final String?
+  lvlBackgroundImageUrl; // campo para la imagen de fondo del nivel, apunta a asset local de momento
   final Color color;
   final bool bloqueado;
   final String? descripcion;
+  final int nivelesCompletados;
 
   ModuloInfo({
     required this.id,
@@ -25,6 +27,7 @@ class ModuloInfo {
     required this.color,
     this.bloqueado = false,
     this.descripcion,
+    this.nivelesCompletados = 0,
   });
 
   /*

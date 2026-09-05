@@ -47,7 +47,9 @@ class VideoViewModel extends ChangeNotifier {
         // Inicialización compartida para evitar carreras entre:
         // - precarga en background desde el carrusel
         // - apertura inmediata de la tarjeta/popup de video
-        _initializeVideoFuture = manager.initializeController(videoPath).then((_) {
+        _initializeVideoFuture = manager.initializeController(videoPath).then((
+          _,
+        ) {
           if (!_isDisposed) _videoController.setLooping(false);
         });
       }

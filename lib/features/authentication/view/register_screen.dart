@@ -155,7 +155,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.person, color: Colors.black54),
+                              prefixIcon: Icon(
+                                Icons.person,
+                                color: Colors.black54,
+                              ),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -176,7 +179,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.email, color: Colors.black54),
+                              prefixIcon: Icon(
+                                Icons.email,
+                                color: Colors.black54,
+                              ),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -200,7 +206,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.lock, color: Colors.black54),
+                              prefixIcon: Icon(
+                                Icons.lock,
+                                color: Colors.black54,
+                              ),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {

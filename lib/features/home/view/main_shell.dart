@@ -52,9 +52,12 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsViewModel>();
-    final animationDuration =
-        settings.reduceAnimations ? Duration.zero : const Duration(milliseconds: 600);
-    final fadeCurve = settings.reduceAnimations ? Curves.linear : Curves.easeInOutCubic;
+    final animationDuration = settings.reduceAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 600);
+    final fadeCurve = settings.reduceAnimations
+        ? Curves.linear
+        : Curves.easeInOutCubic;
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -67,35 +70,31 @@ class _MainShellState extends State<MainShell> {
             opacity: Tween<double>(
               begin: 0.0,
               end: 1.0,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: fadeCurve,
-            )),
+            ).animate(CurvedAnimation(parent: animation, curve: fadeCurve)),
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.1, 0.0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0.1, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: ScaleTransition(
-                scale: Tween<double>(
-                  begin: 0.95,
-                  end: 1.0,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                )),
+                scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
                 child: child,
               ),
             ),
           );
         },
-        child: Container(
-          key: ValueKey(_selectedIndex),
-          child: activeScreen,
-        ),
+        child: Container(key: ValueKey(_selectedIndex), child: activeScreen),
       ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
@@ -118,13 +117,11 @@ class _MainShellState extends State<MainShell> {
     if (pin.split('').every((d) => d == pin[0])) return true;
     // Ascendente consecutivo
     final asc = pin.codeUnits;
-    final isAsc = asc[1] == asc[0] + 1 &&
-        asc[2] == asc[1] + 1 &&
-        asc[3] == asc[2] + 1;
+    final isAsc =
+        asc[1] == asc[0] + 1 && asc[2] == asc[1] + 1 && asc[3] == asc[2] + 1;
     // Descendente consecutivo
-    final isDesc = asc[1] == asc[0] - 1 &&
-        asc[2] == asc[1] - 1 &&
-        asc[3] == asc[2] - 1;
+    final isDesc =
+        asc[1] == asc[0] - 1 && asc[2] == asc[1] - 1 && asc[3] == asc[2] - 1;
     if (isAsc || isDesc) return true;
     // Patrones comunes
     const blacklist = {'0000', '1234', '4321', '1111', '2222', '3333'};
@@ -158,8 +155,9 @@ class _MainShellState extends State<MainShell> {
                     obscureText: true,
                     keyboardType: TextInputType.number,
                     maxLength: 4,
-                    decoration:
-                        const InputDecoration(labelText: 'Confirmar PIN'),
+                    decoration: const InputDecoration(
+                      labelText: 'Confirmar PIN',
+                    ),
                   ),
                   if (error != null)
                     Padding(
@@ -185,8 +183,10 @@ class _MainShellState extends State<MainShell> {
                       return;
                     }
                     if (_isWeakPin(pin)) {
-                      setState(() => error =
-                          'PIN inválido. No uses secuencias ni repeticiones.');
+                      setState(
+                        () => error =
+                            'PIN inválido. No uses secuencias ni repeticiones.',
+                      );
                       return;
                     }
                     Navigator.of(context).pop(pin);
@@ -309,8 +309,9 @@ class _MainShellState extends State<MainShell> {
               TextField(
                 controller: controller,
                 obscureText: true,
-                decoration:
-                    const InputDecoration(labelText: 'Contraseña de la cuenta'),
+                decoration: const InputDecoration(
+                  labelText: 'Contraseña de la cuenta',
+                ),
               ),
             ],
           ),
@@ -332,8 +333,6 @@ class _MainShellState extends State<MainShell> {
 
   void _showMessage(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

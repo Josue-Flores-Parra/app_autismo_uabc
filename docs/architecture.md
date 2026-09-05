@@ -268,20 +268,8 @@ Detalles reales:
 - ViewModels: `*_viewmodel.dart`.
 - Services compartidos: `lib/shared/services/` o `lib/data/services/`.
 - Repositories especificos de feature: `features/*/data/`.
-- Modelos serializables generales: `lib/data/models/`.
 - Modelos de UI de feature: `features/*/model/`.
 - Assets nuevos deben declararse o quedar cubiertos por `pubspec.yaml`.
-
-## Componentes existentes pero no principales
-
-Estos archivos existen y compilan como parte del proyecto, pero no son el camino
-principal descrito arriba:
-
-- `lib/features/learning_module/viewmodel/module_list_viewmodel.dart`: carga modulos de Firestore, pero `ModuleListScreen` usa `LearningViewModel`.
-- `lib/features/learning_module/data/level_repository.dart`: convierte niveles a `LevelStepInfo`, pero el timeline actual usa `LearningViewModel` y `LevelTimelineViewModel`.
-- `lib/features/learning_module/view/fullscreen_view.dart`: implementa un `PageView` fullscreen para contenido, pero el flujo actual de preview usa carrusel radial + popup + `LevelPlayScreen`.
-- `lib/features/learning_module/viewmodel/video_player_viewmodel.dart`: maneja un `VideoPlayerController` propio con looping, pero el flujo actual usa principalmente `VideoViewModel` y `VideoControllerManager`.
-- `lib/features/learning_module/view/barrel_preview_selector.dart.example`: archivo de ejemplo, no forma parte del build.
 
 ## Reglas para agregar funcionalidad
 
@@ -298,5 +286,4 @@ principal descrito arriba:
 - Hay logica de Firebase en algunas Views/ViewModels fuera de `data/services`.
 - No hay abstracciones mockeables para `FirebaseAuth` o `FirebaseFirestore`.
 - Hay textos hardcodeados en varias pantallas aunque existe l10n.
-- Hay dos estructuras de progreso historicas bajo `users/{uid}/progress`.
 - El proyecto incluye plataformas desktop generadas, pero Firebase no esta configurado para desktop.

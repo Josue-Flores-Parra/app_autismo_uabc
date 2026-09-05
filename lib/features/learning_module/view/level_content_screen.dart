@@ -6,7 +6,6 @@ import 'popup_preview.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
-import '../../../shared/services/level_completion_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -52,27 +51,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
   final Set<String> _retainedPreloadedVideoPaths = <String>{};
 
-  // Rastrear condiciones para habilitar el botón "COMPLETAR"
-  bool _videoCompleted = false;
-  bool _pictogramViewed = false;
-  bool _audioCompleted = false;
-  bool _isCompletingObservationLevel = false;
-
-  // Verificar qué tipos de contenido hay
-  bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
-
-  bool get _hasPictogram =>
-      widget.contents.any((c) => c.type == ContentType.pictogram);
-
-  bool get _hasAudio => widget.contents.any((c) => c.type == ContentType.audio);
-
-  // El botón está habilitado si se cumplen todas las condiciones necesarias
-  bool get _canComplete {
-    bool videoOk = !_hasVideo || _videoCompleted;
-    bool pictogramOk = !_hasPictogram || _pictogramViewed;
-    bool audioOk = !_hasAudio || _audioCompleted;
-    return videoOk && pictogramOk && audioOk;
-  }
+  // Referencia a la animación de la ruta para poder desregistrar el listener
+  // en dispose y evitar registros duplicados en didChangeDependencies.
+  Animation<double>? _routeAnimation;
+  bool _isRouteStatusListenerAttached = false;
 
   bool get _isSimpleSelectionEnabled {
     return _asBool(widget.minigameData?['isSimpleSelectionEnabled']);
@@ -201,13 +183,42 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
+      // Salida rápida: al iniciar el pop de esta ruta desvanecemos el carrusel
+      // en 120ms para que no lingering durante la transición de página (~300ms).
+      reverseDuration: const Duration(milliseconds: 120),
     );
     _animController.forward();
     _preloadSelectedVideoInBackground();
   }
 
   @override
+  void didChangeDependencies() {
+    // El listener de estado de animación de la ruta se registra aquí en lugar de initState
+    // porque ModalRoute.of(context) no está disponible en initState.
+    super.didChangeDependencies();
+    if (_isRouteStatusListenerAttached) return;
+    final routeAnimation = ModalRoute.of(context)?.animation;
+    if (routeAnimation == null) return;
+    _routeAnimation = routeAnimation;
+    routeAnimation.addStatusListener(_onRouteAnimationStatus);
+    _isRouteStatusListenerAttached = true;
+  }
+
+  // Reacciona al ciclo de vida de la ruta:
+  // - reverse: inició el pop (botón atrás o gesto del sistema) → desvanecer carrusel.
+  // - forward: el pop fue cancelado (ej. back-swipe incompleto) → restaurar carrusel.
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    if (!mounted) return;
+    if (status == AnimationStatus.reverse) {
+      _animController.reverse();
+    } else if (status == AnimationStatus.forward) {
+      _animController.forward();
+    }
+  }
+
+  @override
   void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
     _releaseRetainedPreloadedVideos();
     _animController.dispose();
     super.dispose();
@@ -311,13 +322,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         forceReload: true,
       );
     }
-    if (!mounted || _isCompletingObservationLevel || !_canComplete) {
-      return;
-    }
-
-    _isCompletingObservationLevel = true;
-    await _handleCompleteObservationLevel(context);
-    _isCompletingObservationLevel = false;
   }
 
   void _onFocusedNodePressed(int _) {
@@ -325,13 +329,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }
 
   // Muestra el diálogo de selección de dificultad del rompecabezas.
-  // Devuelve el tamaño de cuadrícula elegido (3/4/5) o null si se cancela.
+  // Devuelve el tamaño de cuadrícula elegido (2/4/5/6) o null si se cancela.
   Future<int?> _showPuzzleDifficultyDialog() async {
     return showDialog<int>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        int selectedGrid = 3;
+        int selectedGrid = 2;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -360,24 +364,31 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildDifficultyOption(
-                    value: 4,
+                    value: 2,
+                    groupValue: selectedGrid,
+                    title: 'Muy Fácil',
+                    subtitle: '4 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
+                  _buildDifficultyOption(
+                    value: 3,
                     groupValue: selectedGrid,
                     title: 'Fácil',
+                    subtitle: '9 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
+                  _buildDifficultyOption(
+                    value: 4,
+                    groupValue: selectedGrid,
+                    title: 'Normal',
                     subtitle: '16 piezas',
                     onChanged: (v) => setDialogState(() => selectedGrid = v),
                   ),
                   _buildDifficultyOption(
                     value: 5,
                     groupValue: selectedGrid,
-                    title: 'Normal',
-                    subtitle: '25 piezas',
-                    onChanged: (v) => setDialogState(() => selectedGrid = v),
-                  ),
-                  _buildDifficultyOption(
-                    value: 6,
-                    groupValue: selectedGrid,
                     title: 'Difícil',
-                    subtitle: '36 piezas',
+                    subtitle: '25 piezas',
                     onChanged: (v) => setDialogState(() => selectedGrid = v),
                   ),
                 ],
@@ -681,58 +692,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         });
       },
     );
-  }
-
-  /// Guarda el progreso para niveles de solo observación (sin minijuego)
-  /// Otorga 2 estrellas y 20 monedas por completar el nivel
-  Future<void> _handleCompleteObservationLevel(BuildContext context) async {
-    final result = await LevelCompletionService.completeObservationLevel(
-      context: context,
-      moduleId: widget.moduleId,
-      levelId: widget.levelId,
-    );
-
-    if (!context.mounted) return;
-
-    if (result == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al guardar el progreso'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '¡Nivel completado! +${result.stars} +${result.coins}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF05E995),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-
-    Future.delayed(const Duration(seconds: 1), () {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
-    });
   }
 
   /// Helper function para construir imágenes desde URLs

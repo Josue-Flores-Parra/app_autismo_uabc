@@ -30,10 +30,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _showSuccess = false);
 
-    final authViewModel = Provider.of<AuthViewModel>(
-      context,
-      listen: false,
-    );
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
 
     final success = await authViewModel.resetPassword(
       _emailController.text.trim(),

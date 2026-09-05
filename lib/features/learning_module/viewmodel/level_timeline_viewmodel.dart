@@ -34,12 +34,19 @@ class LevelTimelineViewModel extends ChangeNotifier {
     _loadModuleData(_moduleId);
   }
 
-  /// Recarga los datos del módulo (útil después de completar un nivel)
+  /// Recarga los datos del módulo (útil después de completar un nivel).
+  /// Fuerza una relectura del progreso en Firestore para que las estrellas y el
+  /// estado (check) de cada nodo se refresquen al volver al timeline.
+  ///
+  /// Primero limpia la caché del módulo (niveles, progreso y cargas pendientes)
+  /// y después reconstruye los datos, de modo que la recarga sea determinista y
+  /// no devuelva un Future en vuelo con progreso obsoleto.
   Future<void> reloadModuleData() async {
+    await _learningViewModel.reloadModuleLevels(_moduleId);
     await _loadModuleData(_moduleId);
   }
 
-  Future<void> _loadModuleData(String moduleId) async {
+  Future<void> _loadModuleData(String moduleId, {bool forceReload = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -48,7 +55,7 @@ class LevelTimelineViewModel extends ChangeNotifier {
       // Obtener título y niveles en paralelo para reducir latencia
       final results = await Future.wait([
         _learningViewModel.getModuleTitle(moduleId),
-        _learningViewModel.getModuleLevels(moduleId),
+        _learningViewModel.getModuleLevels(moduleId, forceReload: forceReload),
       ]);
 
       _moduleTitle = results[0] as String;
@@ -69,7 +76,10 @@ class LevelTimelineViewModel extends ChangeNotifier {
             previewTitle: titleWithPrefix,
             whatState: level.estado,
             stars: level.estrellas,
-            posibleImagePreview: (level.actividadData?['pictogramaUrl'] as String?)?.isNotEmpty == true
+            posibleImagePreview:
+                (level.actividadData?['pictogramaUrl'] as String?)
+                        ?.isNotEmpty ==
+                    true
                 ? level.actividadData!['pictogramaUrl'] as String
                 : level.pictogramaUrl,
             minigameData: _mergeMinigameData(level),
@@ -91,7 +101,6 @@ class LevelTimelineViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   void calculateNodePositions(Size screenSize, double itemHeight) {
     final List<Offset> positions = [];
