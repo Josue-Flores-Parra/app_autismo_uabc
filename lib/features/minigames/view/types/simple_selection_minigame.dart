@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import '../../../../shared/services/tts_service.dart';
 import '../../../../shared/services/celebration_helper.dart';
+import '../../../../shared/services/negative_feedback_helper.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Selección Simple
@@ -46,7 +45,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   _InlineFeedbackType _inlineFeedback = _InlineFeedbackType.none;
 
   late final CelebrationHelper _celebrationHelper;
-  final AudioPlayer _negativeBeepPlayer = AudioPlayer();
+  // Servicio reutilizable que reproduce el sonido de fallo (negative beep).
+  late final NegativeFeedbackHelper _negativeFeedbackHelper;
   final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
 
@@ -61,6 +61,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   void initState() {
     super.initState();
     _celebrationHelper = CelebrationHelper();
+    _negativeFeedbackHelper = NegativeFeedbackHelper();
     _initTts();
     _initializeGameData();
     _loadCurrentQuestion();
@@ -74,7 +75,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   void dispose() {
     _ttsService.dispose();
     _celebrationHelper.dispose();
-    _negativeBeepPlayer.dispose();
+    _negativeFeedbackHelper.dispose();
     super.dispose();
   }
 
@@ -416,7 +417,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       _celebrateCompletion();
     } else {
       _inlineFeedback = _InlineFeedbackType.incorrect;
-      _playNegativeBeepSound();
+      // Sonido de fallo, ahora delegado al helper reutilizable.
+      _negativeFeedbackHelper.playNegativeBeep();
     }
 
     // Mantener un pequeño delay para que se vea el feedback/celebración.
@@ -425,34 +427,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     });
   }
 
-  Future<void> _configureAudioSession() async {
-    try {
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
-      await session.setActive(true);
-    } catch (_) {}
-  }
-
   void _celebrateCompletion() {
     _celebrationHelper.playCelebration();
-  }
-
-  Future<void> _playNegativeBeepSound() async {
-    try {
-      await _configureAudioSession();
-      await _negativeBeepPlayer.setAudioSource(
-        AudioSource.asset('assets/audio/negative_beeps.mp3'),
-      );
-      await _negativeBeepPlayer.setVolume(1.0);
-      if (_negativeBeepPlayer.processingState == ProcessingState.loading) {
-        await _negativeBeepPlayer.playerStateStream
-            .timeout(const Duration(seconds: 3))
-            .firstWhere(
-          (state) => state.processingState != ProcessingState.loading,
-        );
-      }
-      await _negativeBeepPlayer.play();
-    } catch (_) {}
   }
 
   @override

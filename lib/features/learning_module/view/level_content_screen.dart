@@ -12,12 +12,14 @@ class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
   final String? bgLevelImg;
   final List<ContentCardData> contents;
+
   // Parámetros opcionales para el minijuego (cuando se presiona "JUGAR")
   final Map<String, dynamic>? minigameData;
   final String? actividadType;
   final String? levelId;
   final String? moduleId;
   final String? levelTitle;
+
   /// URL del video para niveles de tipo 'video' (desde Firebase Storage)
   final String? videoUrl;
 
@@ -43,7 +45,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   int _selectedCarouselIndex = 0;
-  bool _isCarouselDragging = false; // Flag necesario en radial_focus_preview_selector para controlar hints de scroll
+  bool _isCarouselDragging =
+      false; // Flag necesario en radial_focus_preview_selector para controlar hints de scroll
   // Cache en memoria por pantalla: retenemos los videos que el usuario ya
   // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
@@ -54,12 +57,15 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   bool _pictogramViewed = false;
   bool _audioCompleted = false;
   bool _isCompletingObservationLevel = false;
-  
+
   // Verificar qué tipos de contenido hay
   bool get _hasVideo => widget.contents.any((c) => c.type == ContentType.video);
-  bool get _hasPictogram => widget.contents.any((c) => c.type == ContentType.pictogram);
+
+  bool get _hasPictogram =>
+      widget.contents.any((c) => c.type == ContentType.pictogram);
+
   bool get _hasAudio => widget.contents.any((c) => c.type == ContentType.audio);
-  
+
   // El botón está habilitado si se cumplen todas las condiciones necesarias
   bool get _canComplete {
     bool videoOk = !_hasVideo || _videoCompleted;
@@ -67,14 +73,17 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     bool audioOk = !_hasAudio || _audioCompleted;
     return videoOk && pictogramOk && audioOk;
   }
-  
+
   bool get _isSimpleSelectionEnabled {
     return _asBool(widget.minigameData?['isSimpleSelectionEnabled']);
   }
 
   ContentCardData? get _selectedContent {
     if (widget.contents.isEmpty) return null;
-    final safeIndex = _selectedCarouselIndex.clamp(0, widget.contents.length - 1);
+    final safeIndex = _selectedCarouselIndex.clamp(
+      0,
+      widget.contents.length - 1,
+    );
     return widget.contents[safeIndex];
   }
 
@@ -88,9 +97,11 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
     switch (selected.type) {
       case ContentType.video:
-        final hasVideo = (selected.videoPath?.isNotEmpty == true) ||
+        final hasVideo =
+            (selected.videoPath?.isNotEmpty == true) ||
             (widget.videoUrl?.isNotEmpty == true) ||
-            ((widget.minigameData?['videoUrl'] as String?)?.isNotEmpty == true) ||
+            ((widget.minigameData?['videoUrl'] as String?)?.isNotEmpty ==
+                true) ||
             ((widget.minigameData?['url'] as String?)?.isNotEmpty == true);
         return hasVideo;
       case ContentType.pictogram:
@@ -139,7 +150,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     if (selected.imagePath.trim().isNotEmpty) {
       return selected.imagePath;
     }
-    if (selected.type == ContentType.miniGame && selected.miniGameType == 'puzzle') {
+    if (selected.type == ContentType.miniGame &&
+        selected.miniGameType == 'puzzle') {
       final puzzleUrl = widget.minigameData?['puzzleImageUrl'] as String?;
       if (puzzleUrl != null && puzzleUrl.trim().isNotEmpty) return puzzleUrl;
       final fallbackUrl = widget.minigameData?['pictogramaUrl'] as String?;
@@ -236,7 +248,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   Future<void> _openSelectedPreviewFlow() async {
     final selected = _selectedContent;
     final activityType = _selectedActivityType;
-    if (activityType == null || selected == null || !_canPlaySelectedContent) return;
+    if (activityType == null || selected == null || !_canPlaySelectedContent)
+      return;
 
     final shouldLaunch = await showDialog<bool>(
       context: context,
@@ -259,6 +272,19 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       return;
     }
 
+    // Para el rompecabezas se pide elegir la dificultad antes de entrar.
+    int? puzzleGridSize;
+    if (activityType == 'puzzle') {
+      puzzleGridSize = await _showPuzzleDifficultyDialog();
+      if (puzzleGridSize == null || !mounted) return;
+    }
+
+    // Inyectar la dificultad elegida en los datos del minijuego.
+    final data = Map<String, dynamic>.from(widget.minigameData ?? const {});
+    if (puzzleGridSize != null) {
+      data['gridSize'] = puzzleGridSize;
+    }
+
     // La actividad real inicia únicamente después de la
     // confirmación del popup (no al abrir la vista previa).
     await Navigator.push(
@@ -266,7 +292,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       MaterialPageRoute(
         builder: (context) => LevelPlayScreen(
           levelTitle: widget.levelTitle ?? widget.levelName,
-          minigameData: widget.minigameData,
+          minigameData: data,
           actividadType: activityType,
           levelId: widget.levelId ?? '',
           moduleId: widget.moduleId ?? '',
@@ -280,7 +306,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     // Recargar datos después de regresar
     if (widget.moduleId != null) {
       final learningViewModel = context.read<LearningViewModel>();
-      await learningViewModel.getModuleLevels(widget.moduleId!, forceReload: true);
+      await learningViewModel.getModuleLevels(
+        widget.moduleId!,
+        forceReload: true,
+      );
     }
     if (!mounted || _isCompletingObservationLevel || !_canComplete) {
       return;
@@ -293,6 +322,145 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
   void _onFocusedNodePressed(int _) {
     _openSelectedPreviewFlow();
+  }
+
+  // Muestra el diálogo de selección de dificultad del rompecabezas.
+  // Devuelve el tamaño de cuadrícula elegido (3/4/5) o null si se cancela.
+  Future<int?> _showPuzzleDifficultyDialog() async {
+    return showDialog<int>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        int selectedGrid = 3;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1A3D52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.extension, color: Color(0xFF00E5FF), size: 32),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Elige la dificultad',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDifficultyOption(
+                    value: 4,
+                    groupValue: selectedGrid,
+                    title: 'Fácil',
+                    subtitle: '16 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
+                  _buildDifficultyOption(
+                    value: 5,
+                    groupValue: selectedGrid,
+                    title: 'Normal',
+                    subtitle: '25 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
+                  _buildDifficultyOption(
+                    value: 6,
+                    groupValue: selectedGrid,
+                    title: 'Difícil',
+                    subtitle: '36 piezas',
+                    onChanged: (v) => setDialogState(() => selectedGrid = v),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(selectedGrid),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF05E995),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: const Text(
+                    'Empezar',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Construye una opción de dificultad como radio button.
+  Widget _buildDifficultyOption({
+    required int value,
+    required int groupValue,
+    required String title,
+    required String subtitle,
+    required ValueChanged<int> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            Radio<int>(
+              value: value,
+              groupValue: groupValue,
+              activeColor: const Color(0xFF05E995),
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 13, color: Colors.white70),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -312,7 +480,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               Positioned.fill(
                 child: Opacity(
                   opacity: 0.3,
-                  child: _buildImageFromUrl(widget.bgLevelImg!, fit: BoxFit.cover),
+                  child: _buildImageFromUrl(
+                    widget.bgLevelImg!,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
 
@@ -340,7 +511,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                   // Así el usuario controla la actividad desde el carrusel + botón principal.
                   if (_canPlaySelectedContent)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                       child: ElevatedButton.icon(
                         onPressed: _openSelectedPreviewFlow,
                         icon: Icon(
@@ -359,8 +533,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF92C5BC),
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 15,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
                           elevation: 10,
                           shadowColor: const Color.fromARGB(180, 170, 163, 163),
                         ),
@@ -408,14 +587,18 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               Align(
                 alignment: Alignment.center,
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 30), // Mueve el botón un poco más abajo
+                  padding: const EdgeInsets.only(top: 30),
+                  // Mueve el botón un poco más abajo
                   child: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
                       color: const Color(0x33FFFFFF),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0x4DFFFFFF), width: 1),
+                      border: Border.all(
+                        color: const Color(0x4DFFFFFF),
+                        width: 1,
+                      ),
                     ),
                     child: Material(
                       color: Colors.transparent,
@@ -432,9 +615,9 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 12),
-              
+
               // Título del nivel (centrado)
               Expanded(
                 child: Center(
@@ -445,13 +628,14 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 0.8,
-                      height: 1.2, // Ajustar altura de línea para mejor alineación
+                      height:
+                          1.2, // Ajustar altura de línea para mejor alineación
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ),
               ),
-              
+
               // Espaciador para balancear el botón de regreso (mismo ancho que el botón + padding)
               const SizedBox(width: 52),
             ],
@@ -484,6 +668,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       // para mantener respuesta fluida del popup de preview.
       _preloadSelectedVideoInBackground();
     }
+
     return RadialFocusPreviewSelector(
       contents: widget.contents,
       initialIndex: _selectedCarouselIndex,
@@ -528,7 +713,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
             Expanded(
               child: Text(
                 '¡Nivel completado! +${result.stars} +${result.coins}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -566,9 +754,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         },
       );
     }

@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../minigame_core.dart';
 import '../../../../shared/services/celebration_helper.dart';
+import '../../../../shared/services/negative_feedback_helper.dart';
 import '../../../../shared/widgets/loading_screen.dart';
 
 class PuzzleMinigame extends MinigameBase {
@@ -18,10 +21,10 @@ class PuzzleMinigame extends MinigameBase {
 }
 
 class _PuzzleMinigameState extends State<PuzzleMinigame> {
-  static const int _gridSize = 5;
+  late final int _gridSize;
   static const double _knobRatio = 0.15;
   static const Duration _feedbackDuration = Duration(seconds: 3);
-  static const Duration _celebrationDuration = Duration(seconds: 3);
+  static const Duration _celebrationDuration = Duration(milliseconds: 1500);
   static const double _minTraySize = 0.14;
   static const double _maxTraySize = 0.5;
   static const double _initialTraySize = 0.18;
@@ -38,18 +41,29 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final math.Random _random = math.Random();
   final Set<int> _lockedPieces = <int>{};
   final Map<int, bool> _feedbackSlots = <int, bool>{};
-  final DraggableScrollableController _trayController = DraggableScrollableController();
-  final CelebrationHelper _celebrationHelper = CelebrationHelper(duration: _celebrationDuration);
+  final DraggableScrollableController _trayController =
+      DraggableScrollableController();
+  final CelebrationHelper _celebrationHelper = CelebrationHelper();
+    //duration: _celebrationDuration,
+  //);
+  final AudioPlayer _placeSoundPlayer = AudioPlayer();
+  // Servicio reutilizable que reproduce el sonido de fallo (negative beep).
+  final NegativeFeedbackHelper _negativeFeedbackHelper = NegativeFeedbackHelper();
 
   int _attempts = 0;
+  // Intentos restantes antes de fallar el rompecabezas. Se inicializa con
+  // _maxAttempts y se decrementa en cada "COMPROBAR" con piezas incorrectas.
+  late int _remainingAttempts;
   bool _isCompleted = false;
   bool _isChecking = false;
   bool _isTrayHovering = false;
   double _trayExtent = _initialTraySize;
   bool _isImageReady = false;
   bool _hasImage = true;
+  bool _isPreviewExpanded = false;
 
   bool get _isTrayOpen => _trayExtent >= ((_minTraySize + _maxTraySize) / 2);
+
   bool get _isGridFull => _gridSlots.every((slot) => slot != null);
 
   // Inicializa datos, piezas y precarga la imagen.
@@ -58,7 +72,10 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     super.initState();
     _imagePath = _resolveImagePath(widget.minigameData);
     _hasImage = _imagePath.isNotEmpty;
-    _maxAttempts = _resolveMaxAttempts(widget.minigameData);
+    _gridSize = _resolveGridSize(widget.minigameData);
+    _maxAttempts = _resolveMaxAttempts(_gridSize);
+    // Los intentos restantes arrancan en el máximo según la dificultad.
+    _remainingAttempts = _maxAttempts;
     _gridSlots = List<int?>.filled(_gridSize * _gridSize, null);
     _trayPieces = Set<int>.from(
       List<int>.generate(_gridSize * _gridSize, (index) => index),
@@ -74,6 +91,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   @override
   void dispose() {
     _celebrationHelper.dispose();
+    _placeSoundPlayer.dispose();
+    _negativeFeedbackHelper.dispose();
     super.dispose();
   }
 
@@ -143,13 +162,33 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return '';
   }
 
-  // Resuelve el número máximo de intentos permitido.
-  int _resolveMaxAttempts(Map<String, dynamic> data) {
-    final value = data['maxAttempts'];
+  // Resuelve el número máximo de intentos a partir de la dificultad (gridSize).
+  // La dificultad la elige el usuario en el diálogo previo al minijuego:
+  //   Fácil (gridSize 4)  -> 5 intentos
+  //   Normal (gridSize 5) -> 4 intentos
+  //   Difícil (gridSize 6)-> 3 intentos
+  // El valor de `maxAttempts` del mapa de datos se ignora a propósito: los
+  // intentos derivan exclusivamente de la dificultad seleccionada.
+  int _resolveMaxAttempts(int gridSize) {
+    switch (gridSize) {
+      case 4:
+        return 5; // Fácil
+      case 5:
+        return 4; // Normal
+      case 6:
+        return 3; // Difícil
+      default:
+        return 999; // Fallback (gridSize heredado) → sin límite.
+    }
+  }
+
+  // Resuelve el tamaño de la cuadrícula según la dificultad elegida.
+  int _resolveGridSize(Map<String, dynamic> data) {
+    final value = data['gridSize'];
     if (value is int) return value;
     if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 999;
-    return 999;
+    if (value is String) return int.tryParse(value) ?? 3;
+    return 3;
   }
 
   // Alterna la bandeja entre abierta y cerrada.
@@ -201,11 +240,9 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       if (denominator == 0) return 0;
       return (2 * desiredOffset / denominator) - 1;
     }
+
     // El resultado es un Alignment que posiciona la imagen dentro del OverflowBox de manera que la celda base de la pieza quede correctamente recortada, incluso con las pestañas/encajes.
-    return Alignment(
-      toAlignment(desiredOffsetX),
-      toAlignment(desiredOffsetY),
-    );
+    return Alignment(toAlignment(desiredOffsetX), toAlignment(desiredOffsetY));
   }
 
   // Construye el fragmento visual recortado de la imagen.
@@ -306,7 +343,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   // Maneja cuando una pieza se suelta en una celda de la cuadrícula.
   void _handleGridAccept(int slotIndex, _PuzzleDragData data) {
     if (_isChecking) return; // No permitir mover piezas durante la validación.
-    if (_gridSlots[slotIndex] != null) return; // Protección extra, aunque DragTarget ya lo previene.
+    if (_gridSlots[slotIndex] != null)
+      return; // Protección extra, aunque DragTarget ya lo previene.
 
     setState(() {
       // Si la pieza viene de otra celda, se libera esa celda. Si viene de la bandeja, se elimina de la bandeja.
@@ -319,11 +357,14 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _gridSlots[slotIndex] = data.pieceId;
       _feedbackSlots.remove(slotIndex);
     });
+
+    _playPlaceSound();
   }
 
   // Maneja cuando una pieza se devuelve a la bandeja.
   void _handleTrayAccept(_PuzzleDragData data) {
-    if (_isChecking) return; // No permitir devolver piezas durante la validación.
+    if (_isChecking)
+      return; // No permitir devolver piezas durante la validación.
     setState(() {
       // Si la pieza viene de una celda, se libera esa celda. Si viene de la bandeja, no hay nada que liberar.
       if (data.fromSlot != null) {
@@ -332,6 +373,34 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _addToTray(data.pieceId, shuffle: true);
       _feedbackSlots.remove(data.fromSlot);
     });
+  }
+
+  // Configura la sesión de audio para reproducir sonidos de feedback.
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+    } catch (_) {}
+  }
+
+  // Reproduce el sonido de feedback al colocar una pieza en la cuadrícula.
+  Future<void> _playPlaceSound() async {
+    try {
+      await _configureAudioSession();
+      await _placeSoundPlayer.setAudioSource(
+        AudioSource.asset('assets/audio/puzzle_piece_placed.mp3'),
+      );
+      await _placeSoundPlayer.setVolume(1.0);
+      if (_placeSoundPlayer.processingState == ProcessingState.loading) {
+        await _placeSoundPlayer.playerStateStream
+            .timeout(const Duration(seconds: 3))
+            .firstWhere(
+              (state) => state.processingState != ProcessingState.loading,
+            );
+      }
+      await _placeSoundPlayer.play();
+    } catch (_) {}
   }
 
   // Valida el tablero, muestra feedback y procesa el resultado.
@@ -354,6 +423,11 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
 
     setState(() {
       _attempts++;
+      // Solo se consume un intento cuando el tablero NO es correcto. Un
+      // "COMPROBAR" acertado no reduce los intentos restantes.
+      if (incorrectSlots.isNotEmpty) {
+        _remainingAttempts--;
+      }
       _isChecking = true;
       // Actualizar el feedback para cada celda: verde para correcto, rojo para incorrecto.
       _feedbackSlots
@@ -391,7 +465,10 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       for (final slot in incorrectSlots) {
         final pieceId = _gridSlots[slot];
         if (pieceId != null) {
-          _addToTray(pieceId, shuffle: false); // Devolver a bandeja sin mezclar para que el jugador pueda encontrarla fácilmente.
+          _addToTray(
+            pieceId,
+            shuffle: false,
+          ); // Devolver a bandeja sin mezclar para que el jugador pueda encontrarla fácilmente.
         }
         _gridSlots[slot] = null;
       }
@@ -400,10 +477,16 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _isChecking = false;
     });
 
-    if (_attempts >= _maxAttempts && !_isCompleted) {
+    // Si los intentos restantes se agotaron, el juego termina sin éxito:
+    // reproduce el sonido de fallo (negative beep) y espera un instante antes
+    // de notificar el resultado para que el feedback sea perceptible.
+    if (_remainingAttempts <= 0 && !_isCompleted) {
       setState(() {
         _isCompleted = true;
       });
+      _negativeFeedbackHelper.playNegativeBeep();
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
       widget.onComplete(false, _attempts);
     }
   }
@@ -412,7 +495,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   Widget _buildTopBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.only(left: 20, right: 8, top: 16, bottom: 16),
+      // padding derecho reducido para dar espacio a la imagen del preview, sin que estorbe al titulo/instrucciones
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -459,8 +543,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              children: const [
-                Text(
+              children: [
+                const Text(
                   'Rompecabezas',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -471,8 +555,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 6),
-                Text(
+                const SizedBox(height: 6),
+                const Text(
                   'Arrastra las piezas para completar la imagen.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -482,10 +566,27 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                     letterSpacing: 0.4,
                   ),
                 ),
+                const SizedBox(height: 6),
+                // Indicador de intentos restantes, alimentado por _remainingAttempts.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.flag, color: Color(0xFFFFD700), size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Intentos: $_remainingAttempts',
+                      style: const TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 52),
+          _buildPreview(),
         ],
       ),
     );
@@ -494,6 +595,98 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   // Mantiene compatibilidad; la instrucción ya está en el encabezado.
   Widget _buildInstruction() {
     return const SizedBox.shrink();
+  }
+
+  // Miniatura de referencia que muestra el resultado final del rompecabezas.
+  Widget _buildPreview() {
+    if (!_hasImage) return const SizedBox(width: 56);
+    return GestureDetector(
+      onTap: () => setState(() => _isPreviewExpanded = true),
+      child: Container(
+        width: 68,
+        height: 68,
+        decoration: BoxDecoration(
+          color: const Color(0x33FFFFFF),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0x99FFFFFF), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Image(
+            image: _imageProvider(),
+            width: 68,
+            height: 68,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                const ColoredBox(color: Color(0x332C5F7A)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Vista ampliada de la imagen de referencia; se cierra al tocar en cualquier parte.
+  Widget _buildExpandedPreview(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Positioned.fill(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _isPreviewExpanded = false),
+        child: Container(
+          color: const Color(0xB3000000),
+          alignment: Alignment.topCenter,
+          padding: EdgeInsets.only(top: size.height * 0.06),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image(
+                  image: _imageProvider(),
+                  width: size.width * 0.8,
+                  height: size.height * 0.3,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const ColoredBox(color: Color(0x332C5F7A)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => setState(() => _isPreviewExpanded = false),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF92C5BC),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 8,
+                  shadowColor: const Color(0x80000000),
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.1,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // Construye la cuadrícula del rompecabezas con drag targets.
@@ -772,7 +965,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                                   ),
                                   sliver: SliverGrid(
                                     gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                        SliverGridDelegateWithFixedCrossAxisCount(
                                           crossAxisCount: _gridSize,
                                           mainAxisSpacing: 8,
                                           crossAxisSpacing: 8,
@@ -883,13 +1076,11 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                 bottom: trayOffset,
                 child: _buildCheckButton(),
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: _buildTray(),
-              ),
+              Align(alignment: Alignment.bottomCenter, child: _buildTray()),
               CelebrationHelper.buildTopConfettiOverlay(
                 controller: _celebrationHelper.confettiController,
               ),
+              if (_isPreviewExpanded) _buildExpandedPreview(context),
             ],
           );
 
@@ -1014,10 +1205,10 @@ class _JigsawShape {
   });
 
   const _JigsawShape.empty()
-      : top = _EdgeType.flat,
-        right = _EdgeType.flat,
-        bottom = _EdgeType.flat,
-        left = _EdgeType.flat;
+    : top = _EdgeType.flat,
+      right = _EdgeType.flat,
+      bottom = _EdgeType.flat,
+      left = _EdgeType.flat;
 }
 
 class _JigsawClipper extends CustomClipper<Path> {
