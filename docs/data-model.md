@@ -192,7 +192,7 @@ telemetryActivitySessions/{sessionId}
 Cada ejecución instrumentada de una actividad genera un único documento
 idempotente con `sessionId` UUID v4. Es una fuente de datos separada del
 progreso de módulos: el progreso **no** se reconstruye desde telemetría (ver
-`docs/telemetry-implementation.md` y `docs/telemetry-kpi-queries.md`).
+`decisions/telemetry-implementation.md` y `db/telemetry-kpi-queries.md`).
 
 Campos destacados (esquema v1):
 

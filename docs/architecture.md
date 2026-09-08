@@ -307,5 +307,5 @@ View -> ActivityTelemetryService -> TelemetryRepository -> Cloud Firestore
 - El consentimiento vive en `SettingsViewModel.sendMetrics`; el servicio no
   evalúa `sendMetrics` hasta que `SettingsViewModel.isReady == true`.
 
-Detalle completo en `docs/telemetry-implementation.md` y consultas en
-`docs/telemetry-kpi-queries.md`.
+Detalle completo en `decisions/telemetry-implementation.md` y consultas en
+`db/telemetry-kpi-queries.md`.

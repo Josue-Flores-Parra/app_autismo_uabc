@@ -158,8 +158,8 @@ telemetryActivitySessions/{sessionId}
 `sessionId` es un UUID v4. El contrato completo (esquema, estados, razones
 terminales, consentimiento, KPIs y reglas de seguridad) está en:
 
-- `docs/telemetry-implementation.md` — diseño e instrumentación.
-- `docs/telemetry-kpi-queries.md` — consultas de dashboard.
+- `decisions/telemetry-implementation.md` — diseño e instrumentación.
+- `db/telemetry-kpi-queries.md` — consultas de dashboard.
 - `firestore.rules` y `firestore.indexes.json` — seguridad e índices.
 
 La colección **no** almacena PII (ni nombre, correo ni `displayName`); la

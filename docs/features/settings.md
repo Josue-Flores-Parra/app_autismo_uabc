@@ -90,7 +90,7 @@ conecta a `SettingsViewModel` vía `ProxyProvider2` en `lib/main.dart`:
 - `main.dart` llama `reconcilePending` tras Auth y Settings listos para cerrar
   marcadores locales de procesos muertos.
 
-El contrato completo está en `docs/telemetry-implementation.md`.
+El contrato completo está en `../decisions/telemetry-implementation.md`.
 
 ## Integracion global
 

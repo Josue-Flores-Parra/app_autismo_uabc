@@ -371,7 +371,7 @@ consentimiento no está activo). Cuando hay handle:
 - El reproductor de video dedicado instrumenta ready, 90% (objetivo), replay
   explícito y `COMPLETAR`.
 
-Detalle completo en `docs/telemetry-implementation.md`.
+Detalle completo en `../decisions/telemetry-implementation.md`.
 
 ### TTS
 
