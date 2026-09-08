@@ -74,6 +74,9 @@ class AuthService {
   Future<bool> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) return false;
+    // Cierre best-effort de la sesión de telemetría activa mientras el UID
+    // sigue autorizado (antes de eliminar la cuenta).
+    await ActivityTelemetryService.instance?.closeActiveSessionForLogout();
     await _firestoreService.setUserData(user.uid, {
       'deletedAt': DateTime.now().toIso8601String(),
     });

@@ -389,7 +389,15 @@ En `../../lib/features/minigames/view/types/video_minigame.dart`, aplicar el mis
 
 ## 8. Consentimiento `sendMetrics`
 
-La preferencia existente vive en `SettingsViewModel` (`../../lib/features/settings/viewmodel/settings_viewmodel.dart`) y se carga asíncronamente desde `SharedPreferences`.
+La preferencia vive en `SettingsViewModel` (`../../lib/features/settings/viewmodel/settings_viewmodel.dart`) y se carga asíncronamente desde `SharedPreferences`.
+
+El consentimiento es **por cuenta**: `SettingsViewModel` persiste
+`sendMetrics_{uid}` y `telemetryOnboardingShown_{uid}` (namespaced por UID) y los
+carga con `setAccount(uid)` al cambiar de usuario (wired en `../../lib/main.dart`
+vía `ChangeNotifierProxyProvider<AuthViewModel, SettingsViewModel>`). Al crear
+una cuenta se muestra una sola vez un diálogo informativo de telemetría; la
+decisión queda asociada a esa cuenta y puede ajustarse en cualquier momento desde
+Ajustes.
 
 Reglas obligatorias:
 

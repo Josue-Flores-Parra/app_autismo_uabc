@@ -52,8 +52,12 @@ Estado y persistencia:
 | `hapticFeedback` | `bool` | `hapticFeedback` | `true` |
 | `remindersEnabled` | `bool` | `remindersEnabled` | `false` |
 | `reminderTime` | `TimeOfDay` | `reminderTime` | `18:00` |
-| `sendMetrics` | `bool` | `sendMetrics` | `false` |
+| `sendMetrics` | `bool` | `sendMetrics_{uid}` | `false` |
 | `parentalMinLevel` | `int` | `parentalMinLevel` | `0` |
+
+El consentimiento de telemetría (`sendMetrics`) y el flag de onboarding
+(`telemetryOnboardingShown`) se guardan **por cuenta** (UID), no del dispositivo;
+ver sección `Telemetria sendMetrics`.
 
 Escalas reales:
 
@@ -77,11 +81,20 @@ level.clamp(0, 10)
 
 ## Telemetria sendMetrics
 
-`sendMetrics` es el consentimiento de telemetría. `ActivityTelemetryService` se
-conecta a `SettingsViewModel` vía `ProxyProvider2` en `lib/main.dart`:
+`sendMetrics` es el consentimiento de telemetría y es **por cuenta**. Se
+persiste en SharedPreferences como `sendMetrics_{uid}` (y
+`telemetryOnboardingShown_{uid}`) y se carga con `SettingsViewModel.setAccount`
+al cambiar de usuario, conectado en `lib/main.dart` vía
+`ChangeNotifierProxyProvider<AuthViewModel, SettingsViewModel>`.
+
+`ActivityTelemetryService` se conecta a `SettingsViewModel` vía `ProxyProvider2`
+en `lib/main.dart`:
 
 - El servicio **no** evalúa `sendMetrics` hasta que `SettingsViewModel.isReady`.
   Antes de eso, el estado efectivo es deshabilitado.
+- Al crear una cuenta se muestra **una sola vez** un diálogo informativo de
+  telemetría; la decisión queda asociada a esa cuenta. `sendMetrics` puede
+  ajustarse en cualquier momento desde Ajustes.
 - El consentimiento se captura en el instante de `requestLaunch`; activarlo a
   mitad de una actividad no crea sesión para esa actividad (sólo para la
   siguiente).

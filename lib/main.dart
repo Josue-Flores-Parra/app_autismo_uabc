@@ -87,8 +87,16 @@ class MyApp extends StatelessWidget {
     );
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SettingsViewModel()),
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProxyProvider<AuthViewModel, SettingsViewModel>(
+          create: (_) => SettingsViewModel(),
+          update: (context, auth, previous) {
+            // El consentimiento de telemetría es por cuenta: al cambiar de
+            // usuario se carga su preferencia (sendMetrics/onboarding).
+            previous!.setAccount(auth.currentUser?.uid);
+            return previous;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>(
           create: (_) => AvatarViewModel(estadoInicial),
           update: (context, auth, previous) {

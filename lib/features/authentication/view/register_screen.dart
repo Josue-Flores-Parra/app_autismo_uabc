@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
+import '../../settings/viewmodel/settings_viewmodel.dart';
+import '../../telemetry/view/telemetry_consent_dialog.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -46,6 +48,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // exitoso el usuario queda signed-out, así que volvemos al LoginScreen del
     // gate donde se muestra el cue de éxito.
     if (success && mounted) {
+      // Consentimiento de telemetría: se informa una sola vez por cuenta,
+      // inmediatamente después de crearla. El consentimiento se guarda con el
+      // UID de la cuenta recién creada (no del dispositivo).
+      final settings = Provider.of<SettingsViewModel>(context, listen: false);
+      if (!settings.telemetryOnboardingShown) {
+        final accepted = await showTelemetryConsentDialog(context);
+        await settings.completeTelemetryOnboarding(
+          accepted: accepted,
+          uid: authViewModel.lastRegisteredUid,
+        );
+      }
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }

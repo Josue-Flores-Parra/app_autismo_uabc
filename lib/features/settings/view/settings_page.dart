@@ -89,7 +89,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     subtitle: Text(
                       l10n?.deleteAccountConfirmBody ??
-                          'Se borrará tu cuenta y datos almacenados. Escribe BORRAR para continuar.',
+                          'Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.',
                       style: const TextStyle(color: Colors.redAccent),
                     ),
                     onTap: () => _confirmDeleteAccount(context),
@@ -478,7 +478,7 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               Text(
                 l10n?.deleteAccountConfirmBody ??
-                    'Se borrará tu cuenta y datos almacenados. Escribe BORRAR para continuar.',
+                    'Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.',
               ),
               const SizedBox(height: 12),
               TextField(
