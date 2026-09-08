@@ -136,6 +136,7 @@ users/{uid}/progress/{moduleId}
 users/{uid}/progress/{moduleId}/levels/{levelId}
 modules/{moduleId}
 modules/{moduleId}/levels/{levelId}
+telemetryActivitySessions/{sessionId}
 ```
 
 El progreso del learning module vive agrupado por modulo:
@@ -145,6 +146,26 @@ users/{uid}/progress/{moduleId}/levels/{levelId}
 ```
 
 Usado por `LearningViewModel` y `LevelCompletionService`.
+
+## Telemetría de actividades
+
+Las sesiones de actividad se persisten de forma idempotente en la colección raíz:
+
+```text
+telemetryActivitySessions/{sessionId}
+```
+
+`sessionId` es un UUID v4. El contrato completo (esquema, estados, razones
+terminales, consentimiento, KPIs y reglas de seguridad) está en:
+
+- `docs/telemetry-implementation.md` — diseño e instrumentación.
+- `docs/telemetry-kpi-queries.md` — consultas de dashboard.
+- `firestore.rules` y `firestore.indexes.json` — seguridad e índices.
+
+La colección **no** almacena PII (ni nombre, correo ni `displayName`); la
+identidad se resuelve visiblemente vía `users/{learnerId}` sólo por un rol
+privilegiado. El cliente móvil no puede listar la colección (sólo get puntual
+propio) y no puede borrar documentos.
 
 ## users/{uid}
 

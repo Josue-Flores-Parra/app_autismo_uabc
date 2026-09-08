@@ -75,6 +75,23 @@ level.clamp(0, 10)
 - `PaintingBinding.instance.imageCache.clearLiveImages()`.
 - `SharedPreferences.reload()`.
 
+## Telemetria sendMetrics
+
+`sendMetrics` es el consentimiento de telemetría. `ActivityTelemetryService` se
+conecta a `SettingsViewModel` vía `ProxyProvider2` en `lib/main.dart`:
+
+- El servicio **no** evalúa `sendMetrics` hasta que `SettingsViewModel.isReady`.
+  Antes de eso, el estado efectivo es deshabilitado.
+- El consentimiento se captura en el instante de `requestLaunch`; activarlo a
+  mitad de una actividad no crea sesión para esa actividad (sólo para la
+  siguiente).
+- Al desactivar, se intenta **una sola vez** un cierre `telemetry_opt_out` de la
+  sesión activa; no se reintenta ni se conserva payload, y no se borra histórico.
+- `main.dart` llama `reconcilePending` tras Auth y Settings listos para cerrar
+  marcadores locales de procesos muertos.
+
+El contrato completo está en `docs/telemetry-implementation.md`.
+
 ## Integracion global
 
 `main.dart` consume `SettingsViewModel` con `Consumer` y configura:

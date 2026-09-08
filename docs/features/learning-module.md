@@ -357,6 +357,22 @@ Si un minijuego falla:
 - Si quedan reintentos, boton `Reintentar` recrea el minijuego con nueva key y decrementa `_retriesLeft`.
 - Si no quedan, boton sale al timeline.
 
+### Telemetría de sesión
+
+`LevelPlayScreen` recibe un `ActivitySessionHandle?` opcional (null si el
+consentimiento no está activo). Cuando hay handle:
+
+- `onReady`/`onObjectiveMet` se cablean al `MinigamesWidget`.
+- El resultado del run (`success`, `attempts`) se reporta una sola vez al
+  servicio, que decide si continúa (`started`), completa o falla.
+- `Reintentar` llama `onStartRetryRun()` antes de recrear la UI (conserva la
+  misma sesión y acumulados).
+- Back con reintentos disponibles → `abandon`; salir tras agotarlos → `failed`.
+- El reproductor de video dedicado instrumenta ready, 90% (objetivo), replay
+  explícito y `COMPLETAR`.
+
+Detalle completo en `docs/telemetry-implementation.md`.
+
 ### TTS
 
 Usa `TtsService.initializeDefaultEsMx()`.

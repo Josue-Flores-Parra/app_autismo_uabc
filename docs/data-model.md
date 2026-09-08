@@ -181,6 +181,34 @@ Campos escritos por `completeObservationLevel`:
 | `updatedAt` | `String` ISO 8601 | Momento de guardado. |
 | `type` | `String` | `observation` |
 
+## Firestore: telemetryActivitySessions
+
+Ruta (colección raíz, sin subcolecciones):
+
+```text
+telemetryActivitySessions/{sessionId}
+```
+
+Cada ejecución instrumentada de una actividad genera un único documento
+idempotente con `sessionId` UUID v4. Es una fuente de datos separada del
+progreso de módulos: el progreso **no** se reconstruye desde telemetría (ver
+`docs/telemetry-implementation.md` y `docs/telemetry-kpi-queries.md`).
+
+Campos destacados (esquema v1):
+
+| Campo | Tipo | Nota |
+| --- | --- | --- |
+| `subject.learnerId` / `subject.actorId` | `String` | Ambos = UID de Auth mientras rige `account_as_learner`. Sin PII. |
+| `activity.activityId` | `String` | `{moduleId}:{levelId}:{activityType}`. |
+| `outcome.hasStarted` | `bool` | Base de los denominadores KPI; `true` sólo tras `onReady`. |
+| `timing.activeDurationMs` | `int` | Tiempo activo monotónico (no resta de timestamps). |
+| `lifecycle.status` | `String` | Estado canónico (`launch_requested`, `started`, `completed`, `abandoned`, `failed`, `launch_error`). |
+| `interaction.attempts` | `int?` | `null` para observación/media. |
+| `video.replayCount` | `int` | Taps explícitos de replay. |
+
+La escritura de telemetría la hace `ActivityTelemetryService` vía
+`TelemetryRepository`; las vistas sólo emiten señales semánticas.
+
 ## SharedPreferences
 
 ### SettingsViewModel

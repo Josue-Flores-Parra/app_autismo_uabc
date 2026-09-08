@@ -287,3 +287,25 @@ Detalles reales:
 - No hay abstracciones mockeables para `FirebaseAuth` o `FirebaseFirestore`.
 - Hay textos hardcodeados en varias pantallas aunque existe l10n.
 - El proyecto incluye plataformas desktop generadas, pero Firebase no esta configurado para desktop.
+
+## Telemetría de actividades
+
+Existe una feature `lib/features/telemetry/` que instrumenta sesiones de
+actividad con la siguiente separación:
+
+```text
+View -> ActivityTelemetryService -> TelemetryRepository -> Cloud Firestore
+```
+
+- Las vistas emiten **señales semánticas** (`ActivitySessionHandle`) y no
+  construyen mapas de Firestore ni calculan KPI.
+- `ActivityTelemetryService` (provisto por `ProxyProvider2`) mantiene la máquina
+  de estados, consentimiento, lifecycle y persistencia serializada.
+- `TelemetryRepository` recibe `FirebaseFirestore` por constructor (inyectable y
+  testeable) y propaga errores tipados; **no** reutiliza el patrón silencioso de
+  `FirestoreService`.
+- El consentimiento vive en `SettingsViewModel.sendMetrics`; el servicio no
+  evalúa `sendMetrics` hasta que `SettingsViewModel.isReady == true`.
+
+Detalle completo en `docs/telemetry-implementation.md` y consultas en
+`docs/telemetry-kpi-queries.md`.
