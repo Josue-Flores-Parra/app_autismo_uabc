@@ -20,18 +20,18 @@ class AudioViewModel extends ChangeNotifier {
   AudioViewModel() {
     _audioPlayer = AudioPlayer();
     _initializeAudioFuture = Future.value();
-    
+
     // Configurar sesión de audio para Android
     _configureAudioSession();
-    
+
     // Asegurar que el volumen inicial sea 1.0 (100%)
     _audioPlayer.setVolume(1.0);
-    
+
     // Escuchar cambios en el estado del audio
     _audioPlayer.positionStream.listen((_) {
       notifyListeners();
     });
-    
+
     _audioPlayer.playerStateStream.listen((_) {
       notifyListeners();
     });
@@ -56,16 +56,16 @@ class AudioViewModel extends ChangeNotifier {
       } else {
         // Para assets locales, usar AudioSource.asset()
         String assetPath = audioPath;
-        
+
         // Asegurarse de que tenga el prefijo "assets/" si no lo tiene
         if (!assetPath.startsWith('assets/')) {
           assetPath = 'assets/$assetPath';
         }
-        
+
         await _audioPlayer.setAudioSource(AudioSource.asset(assetPath));
         await _audioPlayer.setVolume(1.0);
       }
-      
+
       _initializeAudioFuture = Future.value();
       notifyListeners();
     } catch (e) {
@@ -86,8 +86,8 @@ class AudioViewModel extends ChangeNotifier {
           await _audioPlayer.playerStateStream
               .timeout(const Duration(seconds: 10))
               .firstWhere(
-            (state) => state.processingState != ProcessingState.loading,
-          );
+                (state) => state.processingState != ProcessingState.loading,
+              );
         } catch (_) {}
       }
       await _audioPlayer.play();
@@ -160,4 +160,3 @@ class AudioViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
-

@@ -74,20 +74,20 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   /// Esto evita que las imágenes tarden en cargar cuando el usuario hace scroll
   Future<void> _precacheAllImages() async {
     if (!mounted) return;
-    
+
     // Obtener todas las URLs que se van a mostrar
     final pictogramaUrl = widget.minigameData['pictogramaUrl'] as String?;
     final List<String> urlsToPrecache = [];
-    
+
     // Si hay steps, usar esos
     if (_steps.isNotEmpty) {
       urlsToPrecache.addAll(_steps.map((item) => item.url));
-    } 
+    }
     // Si no hay steps pero hay un pictogramaUrl único, usar ese
     else if (pictogramaUrl != null && pictogramaUrl.isNotEmpty) {
       urlsToPrecache.add(pictogramaUrl);
     }
-    
+
     // Si no hay imágenes que precargar, marcar como listo
     if (urlsToPrecache.isEmpty) {
       if (mounted) {
@@ -106,8 +106,10 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
     try {
       // Precargar todas las imágenes en paralelo esperando a que se completen completamente
-      final futures = urlsToPrecache.map((url) => _precacheImageCompletely(url));
-      
+      final futures = urlsToPrecache.map(
+        (url) => _precacheImageCompletely(url),
+      );
+
       // Esperar a que todas las imágenes se carguen completamente
       // Usar Future.wait con eagerError: false para que continúe aunque algunas fallen
       await Future.wait(futures, eagerError: false);
@@ -132,7 +134,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       // Para assets locales: solo precargar en memoria
       await _precacheLocalAsset(url);
     }
-    
+
     // Actualizar el contador
     if (mounted) {
       setState(() {
@@ -146,21 +148,25 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     try {
       // Obtener el directorio de caché
       final cacheDir = await getTemporaryDirectory();
-      final imageCacheDir = Directory(path.join(cacheDir.path, 'pictogram_images'));
-      
+      final imageCacheDir = Directory(
+        path.join(cacheDir.path, 'pictogram_images'),
+      );
+
       // Crear el directorio si no existe
       if (!await imageCacheDir.exists()) {
         await imageCacheDir.create(recursive: true);
       }
-      
+
       // Generar un nombre de archivo único basado en la URL
       final uri = Uri.parse(url);
       final fileName = path.basename(uri.path);
-      final fileExtension = path.extension(fileName).isEmpty ? '.jpg' : path.extension(fileName);
+      final fileExtension = path.extension(fileName).isEmpty
+          ? '.jpg'
+          : path.extension(fileName);
       final cacheFileName = '${_urlToHash(url)}$fileExtension';
       final cachedImagePath = path.join(imageCacheDir.path, cacheFileName);
       final cachedImageFile = File(cachedImagePath);
-      
+
       // Si ya existe en caché, verificar que esté completo
       if (await cachedImageFile.exists()) {
         final fileSize = await cachedImageFile.length();
@@ -170,19 +176,21 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
           return;
         }
       }
-      
+
       // Descargar la imagen
-      final response = await http.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Timeout al descargar imagen');
-        },
-      );
-      
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw TimeoutException('Timeout al descargar imagen');
+            },
+          );
+
       if (response.statusCode == 200) {
         // Guardar la imagen en el archivo
         await cachedImageFile.writeAsBytes(response.bodyBytes);
-        
+
         // Precargar la imagen desde el archivo local
         await _precacheCachedFile(cachedImagePath);
       } else {
@@ -226,7 +234,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     try {
       final imageProvider = FileImage(File(filePath));
       await precacheImage(imageProvider, context);
-      
+
       // Esperar a que el ImageStream se complete
       final stream = imageProvider.resolve(ImageConfiguration.empty);
       final completer = Completer<void>();
@@ -248,8 +256,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       stream.addListener(listener);
       await completer.future.timeout(const Duration(seconds: 10));
       stream.removeListener(listener);
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Precarga un asset local
@@ -258,7 +265,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     try {
       final imageProvider = AssetImage(url);
       await precacheImage(imageProvider, context);
-      
+
       // Esperar a que el ImageStream se complete
       final stream = imageProvider.resolve(ImageConfiguration.empty);
       final completer = Completer<void>();
@@ -280,8 +287,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
       stream.addListener(listener);
       await completer.future.timeout(const Duration(seconds: 10));
       stream.removeListener(listener);
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Convierte una URL a un hash para usarlo como nombre de archivo
@@ -296,19 +302,20 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     final pictogramaUrl = widget.minigameData['pictogramaUrl'] as String?;
 
     // Título/descripcion
-    final title = widget.minigameData['title'] as String? ??
+    final title =
+        widget.minigameData['title'] as String? ??
         widget.minigameData['titulo'] as String? ??
         'Pictograma';
     final description =
         widget.minigameData['description'] as String? ??
-            widget.minigameData['descripcion'] as String?;
+        widget.minigameData['descripcion'] as String?;
 
     final hasSequence = _steps.isNotEmpty;
     final images = hasSequence
         ? _steps
         : (pictogramaUrl != null && pictogramaUrl.isNotEmpty
-            ? [ _StepItem(url: pictogramaUrl) ]
-            : <_StepItem>[]);
+              ? [_StepItem(url: pictogramaUrl)]
+              : <_StepItem>[]);
 
     if (images.isEmpty) {
       return Scaffold(
@@ -325,10 +332,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
               const SizedBox(height: 16),
               const Text(
                 'No se encontró el pictograma',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 18),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -353,25 +357,17 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(
-                color: Color(0xFF5B8DB3),
-              ),
+              const CircularProgressIndicator(color: Color(0xFF5B8DB3)),
               const SizedBox(height: 24),
               const Text(
                 'Cargando imágenes...',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 18),
               ),
               if (_totalImagesCount > 0) ...[
                 const SizedBox(height: 16),
                 Text(
                   '$_imagesLoadedCount / $_totalImagesCount',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -379,7 +375,9 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
                   child: LinearProgressIndicator(
                     value: progress,
                     backgroundColor: Colors.white24,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5B8DB3)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF5B8DB3),
+                    ),
                   ),
                 ),
               ],
@@ -405,194 +403,206 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
         children: [
           SafeArea(
             child: Column(
-          children: [
-            // Header con título
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-                ),
-                border: Border(
-                  bottom: BorderSide(
-                    color: Color(0x66FFFFFF),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        if (description != null && description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            description,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
+              children: [
+                // Header con título
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+                    ),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0x66FFFFFF), width: 1.5),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // Pictograma a pantalla completa (único o secuencia)
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: images.length,
-                onPageChanged: (index) {
-                  setState(() => _currentIndex = index);
-                  _speakCaption(index);
-                },
-                itemBuilder: (context, index) {
-                  final item = images[index];
-                  return Semantics(
-                    label: item.caption ??
-                        'Paso ${index + 1}${title.isNotEmpty ? " - $title" : ""}',
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: _buildImageFromUrl(
-                            item.url,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        if (item.caption != null && item.caption!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4.0, left: 12.0, right: 12.0, bottom: 8.0),
-                            child: Text(
-                              item.caption!,
-                              textAlign: TextAlign.center,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
                               style: const TextStyle(
-                                color: Colors.white,
                                 fontSize: 22,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            if (images.length > 1)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(images.length, (index) {
-                    final active = index == _currentIndex;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: active ? 12 : 8,
-                      height: active ? 12 : 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: active
-                            ? const Color(0xFF5B8DB3)
-                            : Colors.white54,
+                            if (description != null &&
+                                description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                description,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    );
-                  }),
-                ),
-              ),
-
-            // Botón Escuchar abajo
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: ElevatedButton.icon(
-                onPressed: _ttsReady ? () => _speakCaption(_currentIndex) : null,
-                icon: const Icon(Icons.volume_up, size: 28),
-                label: const Text(
-                  'Escuchar',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    ],
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
+
+                // Pictograma a pantalla completa (único o secuencia)
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: images.length,
+                    onPageChanged: (index) {
+                      setState(() => _currentIndex = index);
+                      _speakCaption(index);
+                    },
+                    itemBuilder: (context, index) {
+                      final item = images[index];
+                      return Semantics(
+                        label:
+                            item.caption ??
+                            'Paso ${index + 1}${title.isNotEmpty ? " - $title" : ""}',
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: _buildImageFromUrl(
+                                item.url,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            if (item.caption != null &&
+                                item.caption!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 4.0,
+                                  left: 12.0,
+                                  right: 12.0,
+                                  bottom: 8.0,
+                                ),
+                                child: Text(
+                                  item.caption!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                if (images.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(images.length, (index) {
+                        final active = index == _currentIndex;
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: active ? 12 : 8,
+                          height: active ? 12 : 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: active
+                                ? const Color(0xFF5B8DB3)
+                                : Colors.white54,
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+
+                // Botón Escuchar abajo
+                Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+                    horizontal: 20,
+                    vertical: 12,
                   ),
-                  minimumSize: const Size(double.infinity, 56),
+                  child: ElevatedButton.icon(
+                    onPressed: _ttsReady
+                        ? () => _speakCaption(_currentIndex)
+                        : null,
+                    icon: const Icon(Icons.volume_up, size: 28),
+                    label: const Text(
+                      'Escuchar',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                      minimumSize: const Size(double.infinity, 56),
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            // Botón Completar - Solo se muestra en la última imagen
-            if (_currentIndex == images.length - 1)
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: ElevatedButton.icon(
-                  onPressed: _isCompleted
-                      ? null
-                      : () async {
-                          setState(() {
-                            _isCompleted = true;
-                          });
-                          // Reproducir sonido de felicitación y mostrar confettis
-                          _celebrateCompletion(); // No esperar para que no bloquee la UI
-                          // Esperar un momento antes de completar para que se vea la celebración
-                          await Future.delayed(const Duration(milliseconds: 1500));
-                          widget.onComplete(true, 1);
-                        },
-                  icon: const Icon(Icons.check_circle_rounded, size: 32),
-                  label: const Text(
-                    'COMPLETAR',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                // Botón Completar - Solo se muestra en la última imagen
+                if (_currentIndex == images.length - 1)
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: ElevatedButton.icon(
+                      onPressed: _isCompleted
+                          ? null
+                          : () async {
+                              setState(() {
+                                _isCompleted = true;
+                              });
+                              // Reproducir sonido de felicitación y mostrar confettis
+                              _celebrateCompletion(); // No esperar para que no bloquee la UI
+                              // Esperar un momento antes de completar para que se vea la celebración
+                              await Future.delayed(
+                                const Duration(milliseconds: 1500),
+                              );
+                              widget.onComplete(true, 1);
+                            },
+                      icon: const Icon(Icons.check_circle_rounded, size: 32),
+                      label: const Text(
+                        'COMPLETAR',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isCompleted
+                            ? Colors.grey
+                            : const Color(0xFF05E995),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 15,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 10,
+                        shadowColor: const Color.fromARGB(204, 5, 233, 149),
+                      ),
                     ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isCompleted
-                        ? Colors.grey
-                        : const Color(0xFF05E995),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 15,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 10,
-                    shadowColor: const Color.fromARGB(204, 5, 233, 149),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
           // Confettis overlay
           CelebrationHelper.buildTopConfettiOverlay(
             controller: _celebrationHelper.confettiController,
@@ -611,37 +621,37 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
   Future<String?> _getCachedImagePath(String url) async {
     try {
       final cacheDir = await getTemporaryDirectory();
-      final imageCacheDir = Directory(path.join(cacheDir.path, 'pictogram_images'));
-      
+      final imageCacheDir = Directory(
+        path.join(cacheDir.path, 'pictogram_images'),
+      );
+
       if (!await imageCacheDir.exists()) {
         return null;
       }
-      
+
       final uri = Uri.parse(url);
       final fileName = path.basename(uri.path);
-      final fileExtension = path.extension(fileName).isEmpty ? '.jpg' : path.extension(fileName);
+      final fileExtension = path.extension(fileName).isEmpty
+          ? '.jpg'
+          : path.extension(fileName);
       final cacheFileName = '${_urlToHash(url)}$fileExtension';
       final cachedImagePath = path.join(imageCacheDir.path, cacheFileName);
       final cachedImageFile = File(cachedImagePath);
-      
+
       if (await cachedImageFile.exists()) {
         final fileSize = await cachedImageFile.length();
         if (fileSize > 0) {
           return cachedImagePath;
         }
       }
-    } catch (e) {
-    }
+    } catch (e) {}
     return null;
   }
 
   /// Helper function para construir imágenes desde URLs
   /// Detecta automáticamente si es un asset local o URL externa
   /// Para URLs de red, intenta usar la versión en caché primero
-  Widget _buildImageFromUrl(
-    String url, {
-    BoxFit fit = BoxFit.contain,
-  }) {
+  Widget _buildImageFromUrl(String url, {BoxFit fit = BoxFit.contain}) {
     // Si la URL es una URL externa (http/https), intentar usar la versión en caché
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return FutureBuilder<String?>(
@@ -674,7 +684,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
               );
             }
           }
-          
+
           // Si no hay caché o está cargando, usar NetworkImage
           return Image.network(
             url,
@@ -752,9 +762,7 @@ class _StepItem {
 void registerPictogramMinigame() {
   MinigameFactory.register(
     MinigameType.pictogram,
-    ({required onComplete, required minigameData}) => PictogramMinigame(
-      onComplete: onComplete,
-      minigameData: minigameData,
-    ),
+    ({required onComplete, required minigameData}) =>
+        PictogramMinigame(onComplete: onComplete, minigameData: minigameData),
   );
 }

@@ -52,24 +52,22 @@ class AppTheme {
     required bool highContrast,
     required bool reduceMotion,
   }) {
-    final base = ThemeData(
-      useMaterial3: true,
-      brightness: brightness,
-    );
+    final base = ThemeData(useMaterial3: true, brightness: brightness);
 
     // Use explicit Material typography to guarantee font sizes are present
     final defaultTypography = brightness == Brightness.dark
         ? Typography.material2021().white
         : Typography.material2021().black;
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: highContrast ? _highContrastSeed : _seedColor,
-      brightness: brightness,
-    ).copyWith(
-      surface: highContrast ? Colors.black : null,
-      onSurface: highContrast ? Colors.white : null,
-      outline: highContrast ? Colors.white70 : null,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: highContrast ? _highContrastSeed : _seedColor,
+          brightness: brightness,
+        ).copyWith(
+          surface: highContrast ? Colors.black : null,
+          onSurface: highContrast ? Colors.white : null,
+          outline: highContrast ? Colors.white70 : null,
+        );
 
     final textTheme = defaultTypography.apply(
       // Dejar el escalado de texto al MediaQuery.textScaler para evitar asserts
@@ -78,8 +76,9 @@ class AppTheme {
     );
 
     final buttonStyle = ElevatedButton.styleFrom(
-      backgroundColor:
-          highContrast ? colorScheme.onSurface : const Color(0xFF50C878),
+      backgroundColor: highContrast
+          ? colorScheme.onSurface
+          : const Color(0xFF50C878),
       foregroundColor: highContrast ? colorScheme.surface : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -113,7 +112,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: BorderSide(
-            color: highContrast ? colorScheme.onSurface : colorScheme.outlineVariant,
+            color: highContrast
+                ? colorScheme.onSurface
+                : colorScheme.outlineVariant,
             width: highContrast ? 2 : 1,
           ),
         ),

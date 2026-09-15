@@ -24,7 +24,8 @@ class RadialFocusPreviewSelector extends StatefulWidget {
   });
 
   @override
-  State<RadialFocusPreviewSelector> createState() => _RadialFocusPreviewSelectorState();
+  State<RadialFocusPreviewSelector> createState() =>
+      _RadialFocusPreviewSelectorState();
 }
 
 class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
@@ -106,28 +107,31 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     // Se anima solo el acumulador de arrastre (no el indice logico directamente)
     // para mantener continuidad visual durante el snap sin disparar cambios de
     // contenido intermedios.
-    _snapController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    )..addListener(() {
-        final animation = _snapAnimation;
-        if (animation == null || !mounted) return;
-        setState(() {
-          _dragAccumulator = animation.value;
+    _snapController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 180),
+        )..addListener(() {
+          final animation = _snapAnimation;
+          if (animation == null || !mounted) return;
+          setState(() {
+            _dragAccumulator = animation.value;
+          });
         });
-      });
   }
 
   @override
   void didUpdateWidget(covariant RadialFocusPreviewSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (_length == 0) { // Si el widget se actualiza a un estado sin contenido, reseteamos el indice virtual para evitar inconsistencias.
+    if (_length == 0) {
+      // Si el widget se actualiza a un estado sin contenido, reseteamos el indice virtual para evitar inconsistencias.
       _virtualIndex = _virtualAnchor;
       return;
     }
 
-    if (oldWidget.contents != widget.contents && _selectedLogicalIndex >= _length) {
+    if (oldWidget.contents != widget.contents &&
+        _selectedLogicalIndex >= _length) {
       // Si cambia la fuente de datos y el indice actual queda invalido,
       // volvemos a inicio para garantizar estado consistente y notificacion unica.
       // También usamos anchor alineado para no reintroducir el desfase inicial.
@@ -149,6 +153,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     // mezclar dos fuentes de movimiento (animacion + dedo) sobre el mismo estado.
     _setDragging(true);
   }
+
   // Durante el arrastre, acumulamos el delta angular y lo convertimos en pasos discretos para cambiar el item seleccionado.
   void _onPanUpdate(DragUpdateDetails details) {
     if (_length <= 1) return;
@@ -160,7 +165,8 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     // Acumula desplazamiento horizontal y lo convierte en pasos discretos por item.
     // Diseno: separar acumulador continuo + indice discreto evita jitter visual
     // y notificaciones excesivas al ViewModel.
-    _dragAccumulator += (horizontalDelta / 140.0) * _stepAngle * _dragSensitivity;
+    _dragAccumulator +=
+        (horizontalDelta / 140.0) * _stepAngle * _dragSensitivity;
     final steps = (_dragAccumulator / _stepAngle).truncate();
 
     if (steps != 0) {
@@ -211,10 +217,10 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       return;
     }
 
-    _snapAnimation = Tween<double>(
-      begin: _dragAccumulator,
-      end: targetAccumulator,
-    ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic));
+    _snapAnimation =
+        Tween<double>(begin: _dragAccumulator, end: targetAccumulator).animate(
+          CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+        );
 
     // easeOutCubic prioriza respuesta rapida inicial y frenado suave al final,
     // percepcion alineada con controles tactiles "fisicos".
@@ -302,13 +308,15 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
 
                 for (int offset = 0; offset < orbitCount; offset++) {
                   final logical = _logicalFromVirtual(_virtualIndex + offset);
-                  final angle = (-math.pi / 2) + ((offset + _dragPhase) * _stepAngle);
+                  final angle =
+                      (-math.pi / 2) + ((offset + _dragPhase) * _stepAngle);
                   final topness = ((-math.sin(angle) + 1) / 2).clamp(0.0, 1.0);
 
                   // topness modela "cercania" al frente: 1 arriba (foco), 0 abajo (fondo).
                   // Sobre esa variable se mapean opacidad y blur para dar lectura espacial.
                   final opacity = 0.16 + (topness * 0.48);
-                  final blurSigma = 0.2 + ((1 - topness) * 2.2) + (_isDragging ? 0.25 : 0.0);
+                  final blurSigma =
+                      0.2 + ((1 - topness) * 2.2) + (_isDragging ? 0.25 : 0.0);
                   final center = Offset(
                     orbitCenter.dx + math.cos(angle) * orbitRadiusX,
                     orbitCenter.dy + math.sin(angle) * orbitRadiusY,
@@ -342,7 +350,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                         top: radialNode.center.dy - (nodeSize / 2),
                         child: Opacity(
                           opacity: radialNode.opacity,
-                          
+
                           // Para acercar la experiencia a preview_cards, cada nodo puede
                           // renderizar miniatura cuando el contenido lo permite.
                           child: _RadialNode(
@@ -365,7 +373,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                         behavior: HitTestBehavior.translucent,
                         onTap: () {
                           if (_isDragging) return;
-                          widget.onFocusedNodePressed?.call(_selectedLogicalIndex);
+                          widget.onFocusedNodePressed?.call(
+                            _selectedLogicalIndex,
+                          );
                         },
                         child: SizedBox(width: nodeSize, height: nodeSize),
                       ),
@@ -416,11 +426,13 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
       return 'assets/icons/minigame_video.png';
     }
 
-    if (content.type == ContentType.miniGame && content.miniGameType == 'simple_selection') {
+    if (content.type == ContentType.miniGame &&
+        content.miniGameType == 'simple_selection') {
       return 'assets/icons/minigame_simple_selection.png';
     }
 
-    if (content.type == ContentType.miniGame && content.miniGameType == 'puzzle') {
+    if (content.type == ContentType.miniGame &&
+        content.miniGameType == 'puzzle') {
       return 'assets/icons/minigame_puzzle.png';
     }
 
@@ -499,16 +511,8 @@ class _SelectorRing extends StatelessWidget {
         // pesada sobre el item principal para no contaminar contraste del icono.
         border: Border.all(color: const Color(0xFF9EDFFF), width: 3),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0xAA66C6FF),
-            blurRadius: 18,
-            spreadRadius: 2,
-          ),
-          BoxShadow(
-            color: Color(0x5548A8E6),
-            blurRadius: 28,
-            spreadRadius: 4,
-          ),
+          BoxShadow(color: Color(0xAA66C6FF), blurRadius: 18, spreadRadius: 2),
+          BoxShadow(color: Color(0x5548A8E6), blurRadius: 28, spreadRadius: 4),
         ],
       ),
     );
@@ -572,7 +576,8 @@ class _RadialNode extends StatelessWidget {
             child: SizedBox(
               width: size * 0.72,
               height: size * 0.72,
-              child: _shouldShowPictogramImage // Checar si la actividad es pictograma para mostrar su preview, si no, se usara el icono personalizado
+              child:
+                  _shouldShowPictogramImage // Checar si la actividad es pictograma para mostrar su preview, si no, se usara el icono personalizado
                   ? ClipOval(
                       child: _buildNodeImage(
                         content.imagePath,
@@ -607,11 +612,8 @@ class _RadialNode extends StatelessWidget {
       width: size * 0.42,
       height: size * 0.42,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => Icon(
-        fallbackIcon,
-        size: size * 0.4,
-        color: const Color(0xE6FFFFFF),
-      ),
+      errorBuilder: (_, __, ___) =>
+          Icon(fallbackIcon, size: size * 0.4, color: const Color(0xE6FFFFFF)),
     );
   }
 }
@@ -685,7 +687,12 @@ class _RadialNodeShimmerState extends State<_RadialNodeShimmer>
         final b = (widget.baseColor.b * 255.0).clamp(0, 255).round();
         final brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
         final highlightColor = brightness > 0.5
-            ? Color.fromARGB(255, (r * 0.85).round(), (g * 0.85).round(), (b * 0.85).round())
+            ? Color.fromARGB(
+                255,
+                (r * 0.85).round(),
+                (g * 0.85).round(),
+                (b * 0.85).round(),
+              )
             : Color.fromARGB(
                 255,
                 (r + (255 - r) ~/ 2).clamp(0, 255),
@@ -765,13 +772,19 @@ class RadialScrollHint extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.keyboard_double_arrow_left_rounded,
-                    size: 18, color: Color(0xCCFFFFFF)),
+                Icon(
+                  Icons.keyboard_double_arrow_left_rounded,
+                  size: 18,
+                  color: Color(0xCCFFFFFF),
+                ),
                 SizedBox(width: 2),
                 Icon(Icons.circle, size: 6, color: Color(0xAAFFFFFF)),
                 SizedBox(width: 2),
-                Icon(Icons.keyboard_double_arrow_right_rounded,
-                    size: 18, color: Color(0xCCFFFFFF)),
+                Icon(
+                  Icons.keyboard_double_arrow_right_rounded,
+                  size: 18,
+                  color: Color(0xCCFFFFFF),
+                ),
               ],
             ),
           ),
@@ -780,4 +793,3 @@ class RadialScrollHint extends StatelessWidget {
     );
   }
 }
-

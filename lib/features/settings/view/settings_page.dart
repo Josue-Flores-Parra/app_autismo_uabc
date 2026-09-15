@@ -31,14 +31,13 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context, settings, _) {
         final auth = _getAuth(context);
         final user = auth?.currentUser;
-        final displayName =
-            user?.displayName?.trim().isNotEmpty == true ? user!.displayName! : 'Usuario';
+        final displayName = user?.displayName?.trim().isNotEmpty == true
+            ? user!.displayName!
+            : 'Usuario';
         final email = user?.email ?? '—';
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(l10n?.settingsTitle ?? 'Ajustes'),
-          ),
+          appBar: AppBar(title: Text(l10n?.settingsTitle ?? 'Ajustes')),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -48,7 +47,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.person),
-                    title: Text(l10n?.displayNameLabel ?? 'Nombre para mostrar'),
+                    title: Text(
+                      l10n?.displayNameLabel ?? 'Nombre para mostrar',
+                    ),
                     subtitle: Text(displayName),
                     trailing: IconButton(
                       icon: const Icon(Icons.edit),
@@ -78,7 +79,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     onTap: () => _logout(context),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.delete_forever, color: Colors.red),
+                    leading: const Icon(
+                      Icons.delete_forever,
+                      color: Colors.red,
+                    ),
                     title: Text(
                       l10n?.deleteAccount ?? 'Eliminar cuenta',
                       style: const TextStyle(color: Colors.red),
@@ -143,7 +147,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -156,9 +163,12 @@ class _SettingsPageState extends State<SettingsPage> {
                           spacing: 8,
                           children: FontScaleOption.values.map((option) {
                             final label = switch (option) {
-                              FontScaleOption.small => l10n?.fontSmall ?? 'Pequeño',
-                              FontScaleOption.medium => l10n?.fontMedium ?? 'Medio',
-                              FontScaleOption.large => l10n?.fontLarge ?? 'Grande',
+                              FontScaleOption.small =>
+                                l10n?.fontSmall ?? 'Pequeño',
+                              FontScaleOption.medium =>
+                                l10n?.fontMedium ?? 'Medio',
+                              FontScaleOption.large =>
+                                l10n?.fontLarge ?? 'Grande',
                             };
                             return ChoiceChip(
                               label: Text(label),
@@ -182,7 +192,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     onChanged: settings.toggleHighContrast,
                   ),
                   SwitchListTile(
-                    title: Text(l10n?.reduceAnimations ?? 'Reducir animaciones'),
+                    title: Text(
+                      l10n?.reduceAnimations ?? 'Reducir animaciones',
+                    ),
                     value: settings.reduceAnimations,
                     onChanged: settings.toggleReduceAnimations,
                   ),
@@ -200,10 +212,15 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               _buildSection(
                 context,
-                title: l10n?.notificationsSection ?? 'Notificaciones y recordatorios',
+                title:
+                    l10n?.notificationsSection ??
+                    'Notificaciones y recordatorios',
                 children: [
                   SwitchListTile(
-                    title: Text(l10n?.enableReminders ?? 'Activar recordatorios de práctica'),
+                    title: Text(
+                      l10n?.enableReminders ??
+                          'Activar recordatorios de práctica',
+                    ),
                     value: settings.remindersEnabled,
                     onChanged: settings.toggleReminders,
                   ),
@@ -214,14 +231,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       settings.remindersEnabled
                           ? settings.reminderTime.format(context)
                           : l10n?.reminderPlaceholder ??
-                              'La programación llegará pronto',
+                                'La programación llegará pronto',
                     ),
                     enabled: settings.remindersEnabled,
                     onTap: settings.remindersEnabled
                         ? () => _pickReminderTime(context)
                         : () => _showSnack(
-                              l10n?.reminderNotImplemented ?? 'La programación llegará pronto',
-                            ),
+                            l10n?.reminderNotImplemented ??
+                                'La programación llegará pronto',
+                          ),
                   ),
                 ],
               ),
@@ -231,14 +249,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.cleaning_services_outlined),
-                    title: Text(l10n?.clearCache ?? 'Limpiar caché de recursos'),
+                    title: Text(
+                      l10n?.clearCache ?? 'Limpiar caché de recursos',
+                    ),
                     onTap: () async {
                       await settings.clearCache();
-                      _showSnack(l10n?.cacheClearedSnackbar ?? 'Caché limpiada');
+                      _showSnack(
+                        l10n?.cacheClearedSnackbar ?? 'Caché limpiada',
+                      );
                     },
                   ),
                   SwitchListTile(
-                    title: Text(l10n?.sendMetrics ?? 'Enviar métricas anónimas'),
+                    title: Text(
+                      l10n?.sendMetrics ?? 'Enviar métricas anónimas',
+                    ),
                     value: settings.sendMetrics,
                     onChanged: settings.toggleSendMetrics,
                   ),
@@ -249,7 +273,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: l10n?.parentalSection ?? 'Control parental',
                 children: [
                   ListTile(
-                    title: Text(l10n?.parentalMinLevel ?? 'Nivel mínimo requerido'),
+                    title: Text(
+                      l10n?.parentalMinLevel ?? 'Nivel mínimo requerido',
+                    ),
                     subtitle: Text('${settings.parentalMinLevel}'),
                     trailing: SizedBox(
                       width: 180,
@@ -259,7 +285,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         max: 10,
                         divisions: 10,
                         label: '${settings.parentalMinLevel}',
-                        onChanged: (value) => settings.setParentalMinLevel(value.toInt()),
+                        onChanged: (value) =>
+                            settings.setParentalMinLevel(value.toInt()),
                       ),
                     ),
                   ),
@@ -283,18 +310,23 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     leading: const Icon(Icons.article_outlined),
                     title: Text(l10n?.termsPrivacy ?? 'Términos y Privacidad'),
-                    onTap: () => _launchUrl('https://policies.google.com/terms'),
+                    onTap: () =>
+                        _launchUrl('https://policies.google.com/terms'),
                   ),
                   ListTile(
                     leading: const Icon(Icons.privacy_tip_outlined),
                     title: Text('Privacy policy'),
-                    onTap: () => _launchUrl('https://policies.google.com/privacy'),
+                    onTap: () =>
+                        _launchUrl('https://policies.google.com/privacy'),
                   ),
                   ListTile(
                     leading: const Icon(Icons.support_agent),
-                    title: Text(l10n?.feedbackSupport ?? 'Enviar feedback / soporte'),
-                    onTap: () =>
-                        _launchUrl('mailto:rosalesq.software@gmail.com?subject=Appy%20Feedback'),
+                    title: Text(
+                      l10n?.feedbackSupport ?? 'Enviar feedback / soporte',
+                    ),
+                    onTap: () => _launchUrl(
+                      'mailto:rosalesq.software@gmail.com?subject=Appy%20Feedback',
+                    ),
                   ),
                 ],
               ),
@@ -355,7 +387,8 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Text(l10n?.cancel ?? 'Cancelar'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: Text(l10n?.confirm ?? 'Confirmar'),
             ),
           ],
@@ -443,8 +476,10 @@ class _SettingsPageState extends State<SettingsPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(l10n?.deleteAccountConfirmBody ??
-                  'Se borrará tu cuenta y datos almacenados. Escribe BORRAR para continuar.'),
+              Text(
+                l10n?.deleteAccountConfirmBody ??
+                    'Se borrará tu cuenta y datos almacenados. Escribe BORRAR para continuar.',
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -478,7 +513,9 @@ class _SettingsPageState extends State<SettingsPage> {
       final success = await auth.deleteAccount();
       if (!mounted) return;
       if (!success) {
-        _showSnack(l10n?.deleteAccountFailed ?? 'No se pudo eliminar la cuenta');
+        _showSnack(
+          l10n?.deleteAccountFailed ?? 'No se pudo eliminar la cuenta',
+        );
       }
     }
   }
@@ -504,9 +541,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
-

@@ -4,6 +4,47 @@
 */
 enum StateOfStep { completed, blocked, inProgress }
 
+/*
+Predicado que determina si un documento de progreso representa un nivel
+completado. Un nivel se considera completado cuando su `status` es
+'completed' o cuando tiene estrellas (> 0).
+
+Mantiene la misma regla usada por `LearningViewModel._determineLevelStates`,
+de modo que el badge de nivel y el estado de los nodos del timeline nunca
+diverjan. `estrellas` se parsea de forma robusta (int o String) igual que en
+`_createModuleLevelInfoWithProgress`.
+*/
+bool isCompletedProgress(Map<String, dynamic>? progress) {
+  if (progress == null) return false;
+  final status = progress['status']?.toString().toLowerCase();
+  final estrellas = parseProgressEstrellas(progress);
+  return status == 'completed' || estrellas > 0;
+}
+
+/*
+Parsea el campo `estrellas` de un documento de progreso como int, aceptando
+int o String (igual que `_createModuleLevelInfoWithProgress`). Cualquier otro
+tipo o valor ausente se trata como 0.
+*/
+int parseProgressEstrellas(Map<String, dynamic> progress) {
+  final value = progress['estrellas'];
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+/*
+Cuenta cuántos niveles están completados a partir de un mapa de progreso
+indexado por levelId (clave = levelId, valor = documento de progreso).
+*/
+int countCompletedLevels(Map<String, Map<String, dynamic>> progressByLevel) {
+  int count = 0;
+  progressByLevel.forEach((_, levelProgress) {
+    if (isCompletedProgress(levelProgress)) count++;
+  });
+  return count;
+}
+
 class LevelStepInfo {
   LevelStepInfo({
     required this.previewTitle,
@@ -38,7 +79,8 @@ class ModuleLevelInfo {
   final String? videoUrl;
   final String? puzzleImageUrl;
   final String? audioUrl;
-  final String? actividadType; // Nullable para detectar cuando no hay actividad interactiva
+  final String?
+  actividadType; // Nullable para detectar cuando no hay actividad interactiva
   final Map<String, dynamic>? actividadData;
   final int estrellas;
   final StateOfStep estado;
@@ -129,12 +171,12 @@ class ModuleLevelInfo {
     if (actividadType == null) {
       return null;
     }
-    
+
     final String str = actividadType.toString().trim();
     if (str.isEmpty || str.toLowerCase() == 'null') {
       return null;
     }
-    
+
     return str;
   }
 

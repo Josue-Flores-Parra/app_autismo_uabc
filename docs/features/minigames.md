@@ -133,7 +133,7 @@ Prioridad para construir preguntas:
 
 1. Si `steps` o `pictogramSteps` tiene al menos 2 pasos validos, genera exactamente 3 preguntas.
 2. Si existe `questions`, usa ese formato y limita a maximo 3 preguntas.
-3. Si no, usa formato legacy de una pregunta (`question`, `correctIndex`, `options`).
+3. Si no, el minijuego usa una pregunta por defecto (`¿Cuál es la imagen correcta?`) con opciones placeholder, evitando un soft-lock.
 
 ### steps / pictogramSteps
 
@@ -194,22 +194,6 @@ Acepta `List` o `Map`:
 ```
 
 `options` tambien puede venir como `Map`; el codigo usa `values.toList()`.
-
-### formato legacy
-
-```json
-{
-  "question": "Selecciona la imagen correcta",
-  "correctIndex": 0,
-  "maxAttempts": 3,
-  "options": [
-    {
-      "imagePath": "assets/images/FELIZ.png",
-      "label": "Opcion 1"
-    }
-  ]
-}
-```
 
 Si no hay opciones validas, usa placeholders:
 

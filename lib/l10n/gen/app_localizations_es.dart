@@ -18,7 +18,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navAvatar => 'Avatar';
 
   @override
-  String get navSettings => 'Ajustes';
+  String get navSettings => 'PIN';
 
   @override
   String get settingsTitle => 'Ajustes';

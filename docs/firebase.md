@@ -121,49 +121,30 @@ Metodos reales:
 | --- | --- | --- |
 | `setUserData(uid, data)` | `users/{uid}` | `set(data, SetOptions(merge: true))`. |
 | `getUserData(uid)` | `users/{uid}` | Retorna `Map<String, dynamic>?`. |
-| `saveUserProgress(userId, levelId, result)` | `users/{uid}/progress/{levelId}` | Escribe progreso por `levelId` directo. Si falla, relanza. |
-| `getUserProgress(userId)` | `users/{uid}/progress` | Lee documentos directos y retorna map por doc id o `null`. |
 | `getModuleData(moduleId)` | `modules/{moduleId}` | Lee un modulo y agrega `id` desde doc id. |
 | `getAllModules()` | `modules` | Lee todos los modulos y agrega `id`. Si falla retorna `[]`. |
-| `getModules()` | `modules` | Duplicado funcional de `getAllModules()`. |
 | `getModuleLevels(moduleId)` | `modules/{moduleId}/levels` | Ordena por `orden`; si `moduleId` vacio retorna `[]`. |
-| `getLevelsForModule(moduleId)` | `modules/{moduleId}/levels` | Lee sin ordenar por `orden`. |
-| `getModuleLevel(moduleId, levelId)` | `modules/{moduleId}/levels/{levelId}` | Lee un nivel y agrega `id`. |
 | `updateUserLevelProgress(uid, moduleId, levelId, data)` | `users/{uid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; si falla lo silencia. |
-| `getUserModuleProgress(uid, moduleId)` | `users/{uid}/progress/{moduleId}` | Lee el documento de modulo. |
 | `getUserLevelsProgress(uid, moduleId)` | `users/{uid}/progress/{moduleId}/levels` | Retorna map por `levelId`; si falla retorna `{}`. |
-| `getUserLevelProgress(uid, moduleId, levelId)` | `users/{uid}/progress/{moduleId}/levels/{levelId}` | Retorna progreso de un nivel o `null`. |
 | `getUserLevel(uid)` | `users/{uid}.nivel` | Lee `nivel` como `int` o `String`; default `1`. |
 
 ## Rutas Firestore usadas
 
 ```text
 users/{uid}
-users/{uid}/progress/{levelId}
 users/{uid}/progress/{moduleId}
 users/{uid}/progress/{moduleId}/levels/{levelId}
 modules/{moduleId}
 modules/{moduleId}/levels/{levelId}
 ```
 
-Hay dos estructuras de progreso coexistiendo:
-
-1. Progreso directo por nivel:
-
-```text
-users/{uid}/progress/{levelId}
-```
-
-Usado por `saveUserProgress()` y `getUserProgress()`.
-
-2. Progreso agrupado por modulo:
+El progreso del learning module vive agrupado por modulo:
 
 ```text
 users/{uid}/progress/{moduleId}/levels/{levelId}
 ```
 
-Usado por `LearningViewModel` y `LevelCompletionService`. Este es el camino
-principal del learning module actual.
+Usado por `LearningViewModel` y `LevelCompletionService`.
 
 ## users/{uid}
 
@@ -184,9 +165,6 @@ Campos leidos por el codigo actual:
 | `name` | `AvatarViewModel` | Fallback para nombre del avatar. |
 | `nivel` | `FirestoreService.getUserLevel` y `LearningViewModel` | Puede ser `int` o `String`; default `1`. |
 | `avatarConfig` | `AvatarViewModel` | Se castea a `Map<String, dynamic>`. |
-
-`UserModel` tambien define `displayName`, `monedas`, `role`, `createdAt` y
-`updatedAt`, pero esos campos no son todos escritos por `AuthService`.
 
 ## modules/{moduleId}
 

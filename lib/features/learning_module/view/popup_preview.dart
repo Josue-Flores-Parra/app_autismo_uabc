@@ -38,7 +38,8 @@ class PopupPreview extends StatelessWidget {
 
   // Helper para detectar casos específicos de minijuegos sin imagen de preview válida.
   bool get _isPuzzleMissingImage {
-    if (content.type != ContentType.miniGame || content.miniGameType != 'puzzle') {
+    if (content.type != ContentType.miniGame ||
+        content.miniGameType != 'puzzle') {
       return false;
     }
     final source = (previewImageUrl ?? content.imagePath).trim();
@@ -48,7 +49,10 @@ class PopupPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.sizeOf(context);
-    final maxPopupHeight = (screenSize.height - 48).clamp(280.0, screenSize.height);
+    final maxPopupHeight = (screenSize.height - 48).clamp(
+      280.0,
+      screenSize.height,
+    );
 
     return Material(
       type: MaterialType.transparency,
@@ -77,7 +81,10 @@ class PopupPreview extends StatelessWidget {
                     // de foco la produce el blur del fondo + bordes/sombra.
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0x8CFFFFFF), width: 1.4),
+                    border: Border.all(
+                      color: const Color(0x8CFFFFFF),
+                      width: 1.4,
+                    ),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x4D000000),
@@ -102,103 +109,125 @@ class PopupPreview extends StatelessWidget {
                           (!isVideo ? 64.0 : 0.0);
 
                       final availablePreviewHeight =
-                          (constraints.maxHeight - controlsHeight)
-                              .clamp(minPreviewHeight, maxPreviewHeight);
+                          (constraints.maxHeight - controlsHeight).clamp(
+                            minPreviewHeight,
+                            maxPreviewHeight,
+                          );
 
                       return SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                          Align(
-                            alignment: Alignment.topRight,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0x66000000),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0x55FFFFFF), width: 1),
-                              ),
-                              child: IconButton(
-                                icon: const Icon(Icons.close, color: Colors.white),
-                                onPressed: () => Navigator.of(context).pop(false),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: availablePreviewHeight,
-                            child: _buildPopupPreviewBody(),
-                          ),
-                          if (!isVideo) ...[
-                            const SizedBox(height: 16),
-                            Text(
-                              content.title,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: canLaunch ? onLaunch : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: content.type == ContentType.video
-                                    ? const Color(0xFF5A97B8)
-                                    : const Color(0xFF00E5FF),
-                                disabledBackgroundColor: const Color(0x553A5160),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                elevation: 10,
-                                shadowColor: const Color.fromARGB(204, 0, 229, 255),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    content.type == ContentType.video
-                                        ? Icons.play_circle_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: Colors.white,
-                                    size: 28,
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0x66000000),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0x55FFFFFF),
+                                    width: 1,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      launchLabel,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        letterSpacing: 1.2,
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              height: availablePreviewHeight,
+                              child: _buildPopupPreviewBody(),
+                            ),
+                            if (!isVideo) ...[
+                              const SizedBox(height: 16),
+                              Text(
+                                content.title,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: canLaunch ? onLaunch : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      content.type == ContentType.video
+                                      ? const Color(0xFF5A97B8)
+                                      : const Color(0xFF00E5FF),
+                                  disabledBackgroundColor: const Color(
+                                    0x553A5160,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  elevation: 10,
+                                  shadowColor: const Color.fromARGB(
+                                    204,
+                                    0,
+                                    229,
+                                    255,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      content.type == ContentType.video
+                                          ? Icons.play_circle_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        launchLabel,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 1.2,
+                                        ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (!canLaunch)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  _isPuzzleMissingImage
+                                      ? 'Imagen no disponible para este rompecabezas'
+                                      : 'Actividad no disponible para este contenido.',
+                                  style: const TextStyle(
+                                    color: Color(0xCCFFFFFF),
+                                    fontSize: 13,
                                   ),
-                                ],
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
-                            ),
-                          ),
-                          if (!canLaunch)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                _isPuzzleMissingImage
-                                    ? 'Imagen no disponible para este rompecabezas'
-                                    : 'Actividad no disponible para este contenido.',
-                                style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 13),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
                           ],
                         ),
                       );
@@ -259,7 +288,8 @@ class PopupPreview extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                     child: Center(
                       child: FractionallySizedBox(
-                        widthFactor: 0.78, // escala ligeramente menor para que quede centrado dentro del marco decorativo
+                        widthFactor:
+                            0.78, // escala ligeramente menor para que quede centrado dentro del marco decorativo
                         heightFactor: 0.78,
                         child: _buildPreviewImage(),
                       ),
@@ -279,8 +309,8 @@ class PopupPreview extends StatelessWidget {
     // Evita depender de miniGameType exacto y de rutas dinámicas inconsistentes.
     final source = (content.type == ContentType.miniGame)
         ? (content.miniGameType == 'simple_selection'
-            ? 'assets/imgs/simple_selection_preview.png'
-            : (previewImageUrl ?? content.imagePath).trim())
+              ? 'assets/imgs/simple_selection_preview.png'
+              : (previewImageUrl ?? content.imagePath).trim())
         : (previewImageUrl ?? content.imagePath).trim();
     if (source.isEmpty) {
       // Fallback explícito para recursos ausentes o no mapeados.
@@ -321,10 +351,7 @@ class _PopupMediaWithTypeLabel extends StatelessWidget {
   final Widget child;
   final String label;
 
-  const _PopupMediaWithTypeLabel({
-    required this.child,
-    required this.label,
-  });
+  const _PopupMediaWithTypeLabel({required this.child, required this.label});
 
   @override
   Widget build(BuildContext context) {

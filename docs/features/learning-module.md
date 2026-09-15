@@ -423,16 +423,6 @@ Guarda progreso y recompensas.
 - Otorga 2 estrellas y 20 monedas.
 - Escribe `type: observation`.
 
-## Componentes existentes no principales
-
-| Archivo | Estado |
-| --- | --- |
-| `viewmodel/module_list_viewmodel.dart` | ViewModel alternativo/legado. `ModuleListScreen` no lo usa. |
-| `data/level_repository.dart` | Convierte niveles a steps. No es el camino principal del timeline actual. |
-| `view/fullscreen_view.dart` | PageView fullscreen con callbacks. No es el flujo principal de launch actual. |
-| `viewmodel/video_player_viewmodel.dart` | Controller propio con looping. El flujo actual usa principalmente `VideoViewModel`. |
-| `view/barrel_preview_selector.dart.example` | Archivo de ejemplo. |
-
 ## Reglas de mantenimiento
 
 - `modules/{moduleId}/levels` debe tener `orden` para ordenar timeline.

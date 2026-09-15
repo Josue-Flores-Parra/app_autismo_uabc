@@ -60,7 +60,8 @@ class SettingsViewModel extends ChangeNotifier {
     _remindersEnabled = _prefs?.getBool('remindersEnabled') ?? false;
     _sendMetrics = _prefs?.getBool('sendMetrics') ?? false;
     _parentalMinLevel = _prefs?.getInt('parentalMinLevel') ?? 0;
-    _reminderTime = _parseStoredTime(_prefs?.getString('reminderTime')) ??
+    _reminderTime =
+        _parseStoredTime(_prefs?.getString('reminderTime')) ??
         const TimeOfDay(hour: 18, minute: 0);
     _loading = false;
     notifyListeners();
@@ -179,4 +180,3 @@ class SettingsViewModel extends ChangeNotifier {
     return TimeOfDay(hour: hour, minute: minute);
   }
 }
-

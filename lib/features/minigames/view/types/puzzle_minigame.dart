@@ -44,11 +44,12 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final DraggableScrollableController _trayController =
       DraggableScrollableController();
   final CelebrationHelper _celebrationHelper = CelebrationHelper();
-    //duration: _celebrationDuration,
+  //duration: _celebrationDuration,
   //);
   final AudioPlayer _placeSoundPlayer = AudioPlayer();
   // Servicio reutilizable que reproduce el sonido de fallo (negative beep).
-  final NegativeFeedbackHelper _negativeFeedbackHelper = NegativeFeedbackHelper();
+  final NegativeFeedbackHelper _negativeFeedbackHelper =
+      NegativeFeedbackHelper();
 
   int _attempts = 0;
   // Intentos restantes antes de fallar el rompecabezas. Se inicializa con
@@ -171,11 +172,13 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   // intentos derivan exclusivamente de la dificultad seleccionada.
   int _resolveMaxAttempts(int gridSize) {
     switch (gridSize) {
-      case 4:
+      case 2:
+        return 6; // Muy facil
+      case 3:
         return 5; // Fácil
-      case 5:
+      case 4:
         return 4; // Normal
-      case 6:
+      case 5:
         return 3; // Difícil
       default:
         return 999; // Fallback (gridSize heredado) → sin límite.
@@ -220,7 +223,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return AssetImage(_imagePath);
   }
 
-  Alignment _alignmentForPiece(int pieceId, double baseSize) {
+  Alignment _alignmentForPiece(int pieceId, double baseSize, {double knobRatio = _knobRatio}) {
     // Convierte la posición de la pieza en la cuadrícula al espacio de alineación del OverflowBox.
     final row = pieceId ~/ _gridSize; // División entera para obtener la fila.
     final col = pieceId % _gridSize; // Módulo para obtener la columna.
@@ -228,8 +231,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     // Calcula el offset ideal en pixeles para que la celda base quede alineada bajo el clip.
     // Y evitar que las pestañas/encajes se distorsionen al recortar la imagen.
     final imageSize = baseSize * _gridSize;
-    final pieceExtent = baseSize * (1 + (_knobRatio * 2));
-    final knobSize = baseSize * _knobRatio;
+    final pieceExtent = baseSize * (1 + (knobRatio * 2));
+    final knobSize = baseSize * knobRatio;
     final desiredOffsetX = knobSize - (col * baseSize);
     final desiredOffsetY = knobSize - (row * baseSize);
 
@@ -245,20 +248,44 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     return Alignment(toAlignment(desiredOffsetX), toAlignment(desiredOffsetY));
   }
 
+  // Alineación lineal para piezas "solo celda" (bandeja con cuadrícula pequeña):
+  // la celda base llena exactamente el marco, mostrando 1/N de la imagen sin
+  // contenido de los vecinos — cada pieza se ve como una división limpia, sin
+  // "sangrar" hacia las adyacentes.
+  Alignment _alignmentForCell(int pieceId) {
+    final row = pieceId ~/ _gridSize;
+    final col = pieceId % _gridSize;
+    return Alignment(
+      (2 * col / (_gridSize - 1)) - 1,
+      (2 * row / (_gridSize - 1)) - 1,
+    );
+  }
+
   // Construye el fragmento visual recortado de la imagen.
-  Widget _buildPieceImage(int pieceId, double baseSize) {
+  Widget _buildPieceImage(
+    int pieceId,
+    double baseSize, {
+    bool onlyCell = false,
+    double knobRatio = _knobRatio,
+  }) {
     // Tamaño total de la imagen del rompecabezas según el tamaño base de una pieza.
     final imageSize = baseSize * _gridSize;
     // Tamaño expandido para incluir las pestañas/encajes alrededor de la celda base.
-    final pieceExtent = baseSize * (1 + (_knobRatio * 2));
+    final pieceExtent = baseSize * (1 + (knobRatio * 2));
+    // En modo "solo celda" el marco es exactamente el de la celda
+    // (sin margen de
+    // pestañas), así la pieza muestra únicamente su celda y no a sus vecinas.
+    final windowSize = onlyCell ? baseSize : pieceExtent;
 
     return SizedBox(
-      width: pieceExtent,
-      height: pieceExtent,
+      width: windowSize,
+      height: windowSize,
       child: OverflowBox(
         maxWidth: imageSize,
         maxHeight: imageSize,
-        alignment: _alignmentForPiece(pieceId, baseSize),
+        alignment: onlyCell
+            ? _alignmentForCell(pieceId)
+            : _alignmentForPiece(pieceId, baseSize, knobRatio: knobRatio),
         child: Image(
           image: _imageProvider(),
           width: imageSize,
@@ -278,11 +305,30 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     required Color borderColor,
     double borderWidth = 1.2,
     Color? shadowColor,
+    bool onlyCell = false,
+    double knobRatio = _knobRatio,
   }) {
+    if (onlyCell) {
+      // Pieza "solo celda": se muestra únicamente el contenido de la celda, sin
+      // pestañas/encajes, recortando cualquier desbordamiento de la imagen.
+      return Container(
+        width: baseSize,
+        height: baseSize,
+        decoration: BoxDecoration(
+          border: Border.all(color: borderColor, width: borderWidth),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: _buildPieceImage(pieceId, baseSize, onlyCell: true, knobRatio: knobRatio),
+        ),
+      );
+    }
+
     // Amplía el contenedor para mostrar las pestañas/encajes fuera de la celda base.
-    final pieceExtent = baseSize * (1 + (_knobRatio * 2));
+    final pieceExtent = baseSize * (1 + (knobRatio * 2));
     // Tamaño físico de la pestaña usado por el clipper/painter.
-    final knobSize = baseSize * _knobRatio;
+    final knobSize = baseSize * knobRatio;
 
     return SizedBox(
       width: pieceExtent,
@@ -297,14 +343,20 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
         ),
         child: ClipPath(
           clipper: _JigsawClipper(shape: shape, knobSize: knobSize),
-          child: _buildPieceImage(pieceId, baseSize),
+          child: _buildPieceImage(pieceId, baseSize, knobRatio: knobRatio),
         ),
       ),
     );
   }
 
   // Crea una pieza draggable desde bandeja o cuadrícula.
-  Widget _buildDraggablePiece(int pieceId, {int? fromSlot, double size = 56}) {
+  Widget _buildDraggablePiece(
+    int pieceId, {
+    int? fromSlot,
+    double size = 56,
+    bool onlyCell = false,
+    double knobRatio = _knobRatio,
+  }) {
     final shape = _pieceShapes[pieceId];
     final piece = _buildPieceSurface(
       pieceId,
@@ -312,6 +364,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       baseSize: size,
       borderColor: const Color(0xCCFFFFFF),
       shadowColor: const Color(0x55000000),
+      onlyCell: onlyCell,
+      knobRatio: knobRatio,
     );
 
     // El Draggable envuelve la pieza para permitir arrastrarla, proporcionando feedback
@@ -327,6 +381,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
           borderColor: const Color(0xFF00E5FF),
           borderWidth: 2,
           shadowColor: const Color(0xAA000000),
+          onlyCell: onlyCell,
+          knobRatio: knobRatio,
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: piece),
@@ -650,9 +706,9 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                 borderRadius: BorderRadius.circular(16),
                 child: Image(
                   image: _imageProvider(),
-                  width: size.width * 0.8,
-                  height: size.height * 0.3,
-                  fit: BoxFit.cover,
+                  width: size.width * 0.8, // 80% del ancho la pantalla
+                  height: size.height * 0.5, // 50% del alto de la pantalla
+                  fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
                       const ColoredBox(color: Color(0x332C5F7A)),
                 ),
@@ -975,9 +1031,28 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                                       index,
                                     ) {
                                       final pieceId = _trayOrder[index];
-                                      return _buildDraggablePiece(
-                                        pieceId,
-                                        size: 64,
+                                      // Se usa LayoutBuilder para leer el tamaño
+                                      // real que el SliverGrid asigna a la celda
+                                      // (constraints tight). Pasar ese valor como
+                                      // baseSize garantiza que la alineación de la
+                                      // imagen sea correcta y las pestañas jigsaw
+                                      // se dibujen con las proporciones adecuadas
+                                      // para cualquier gridSize, incluido 3.
+                                      return LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final cellSize =
+                                              constraints.maxWidth > 0
+                                                  ? constraints.maxWidth
+                                                  : 64.0;
+                                          // Las pestañas se escalan con la celda;
+                                          // se usa un knobRatio reducido para que
+                                          // luzcan más planas en la bandeja.
+                                          return _buildDraggablePiece(
+                                            pieceId,
+                                            size: cellSize,
+                                            knobRatio: 0.08, // 0.08 para evitar que la pestaña corten mucha imagen
+                                          );
+                                        },
                                       );
                                     }, childCount: _trayOrder.length),
                                   ),

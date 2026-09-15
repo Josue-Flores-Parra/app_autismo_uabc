@@ -20,4 +20,3 @@ class PinService {
     await prefs.remove(_pinKey);
   }
 }
-

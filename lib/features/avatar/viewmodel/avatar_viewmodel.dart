@@ -29,41 +29,30 @@ Usa ChangeNotifier para notificar cambios a la UI
 
 */
 
-class AvatarViewModel
-    extends ChangeNotifier {
+class AvatarViewModel extends ChangeNotifier {
   // Estado privado
   bool _showEditPanel = false;
   late AvatarEstado _currentEstado;
   bool _isInitialized = false; // Prevenir múltiples inicializaciones
 
   // Datos del Repository (cached)
-  late final List<SkinInfo>
-  _availableSkins;
-  late final List<AccesorioGeneral>
-  _availableAccesorios;
-  late final List<String>
-  _availableBackgrounds;
+  late final List<SkinInfo> _availableSkins;
+  late final List<AccesorioGeneral> _availableAccesorios;
+  late final List<String> _availableBackgrounds;
 
   /* Nuevo AÑADIDO issue #63
   Método para guardar la configuración del avatar en Firestore
   */
 
-  final FirestoreService
-  _firestoreService =
-      FirestoreService();
+  final FirestoreService _firestoreService = FirestoreService();
 
   // Constructor
-  AvatarViewModel(
-    AvatarEstado initialEstado,
-  ) {
+  AvatarViewModel(AvatarEstado initialEstado) {
     _currentEstado = initialEstado;
     // Cargar datos del repository
-    _availableSkins =
-        AvatarRepository.obtenerSkinsDisponibles();
-    _availableAccesorios =
-        AvatarRepository.obtenerAccesoriosGenerales();
-    _availableBackgrounds =
-        AvatarRepository.obtenerBackgroundsDisponibles();
+    _availableSkins = AvatarRepository.obtenerSkinsDisponibles();
+    _availableAccesorios = AvatarRepository.obtenerAccesoriosGenerales();
+    _availableBackgrounds = AvatarRepository.obtenerBackgroundsDisponibles();
   }
 
   Future<void> initialize() async {
@@ -74,145 +63,82 @@ class AvatarViewModel
     _isInitialized = true;
   }
 
-  Future<void>
-  saveAvatarConfigToFirestore() async {
+  Future<void> saveAvatarConfigToFirestore() async {
     try {
-      final User? user = FirebaseAuth
-          .instance
-          .currentUser;
+      final User? user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        throw Exception(
-          'No user is currently signed in.',
-        );
+        throw Exception('No user is currently signed in.');
       }
       final userId = user.uid;
 
       final giveCurrentDataToAvatarConfigMap = {
         'nombre': _currentEstado.nombre,
-        'felicidad':
-            _currentEstado.felicidad,
-        'energia':
-            _currentEstado.energia,
-        'skinActual': _currentEstado
-            .skinActual
-            .nombre,
-        'expresionActual':
-            _currentEstado
-                .expresionActual,
-        'accesorioActualPath':
-            _currentEstado
-                .accesorioActual
-                ?.imagenPath,
-        'backgroundActual':
-            _currentEstado
-                .backgroundActual,
-        'monedas':
-            _currentEstado.monedas,
-        'accesoriosDesbloqueados':
-            _currentEstado
-                .accesoriosDesbloqueados
-                .toList(),
+        'felicidad': _currentEstado.felicidad,
+        'energia': _currentEstado.energia,
+        'skinActual': _currentEstado.skinActual.nombre,
+        'expresionActual': _currentEstado.expresionActual,
+        'accesorioActualPath': _currentEstado.accesorioActual?.imagenPath,
+        'backgroundActual': _currentEstado.backgroundActual,
+        'monedas': _currentEstado.monedas,
+        'accesoriosDesbloqueados': _currentEstado.accesoriosDesbloqueados
+            .toList(),
       };
 
       // Guardar en Firestore
       try {
-        await _firestoreService
-            .setUserData(userId, {
-              'avatarConfig':
-                  giveCurrentDataToAvatarConfigMap,
-            });
+        await _firestoreService.setUserData(userId, {
+          'avatarConfig': giveCurrentDataToAvatarConfigMap,
+        });
       } catch (e) {
-        throw Exception(
-          'Error saving avatar config to Firestore: $e',
-        );
+        throw Exception('Error saving avatar config to Firestore: $e');
       }
     } catch (e) {
-      throw Exception(
-        'Error in saveAvatarConfigToFirestore: $e',
-      );
+      throw Exception('Error in saveAvatarConfigToFirestore: $e');
     }
   }
 
   /* Funcion para cargar el estado actual del avatar desde Firestore
   */
 
-  Future<void>
-  loadAvatarConfigFromFirestore() async {
-    final user = FirebaseAuth
-        .instance
-        .currentUser;
+  Future<void> loadAvatarConfigFromFirestore() async {
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) return;
 
     final userId = user.uid;
 
     try {
-      final userData =
-          await _firestoreService
-              .getUserData(userId);
+      final userData = await _firestoreService.getUserData(userId);
 
-      final nombreEnFirestore =
-          userData?['name'] as String?;
+      final nombreEnFirestore = userData?['name'] as String?;
 
-      if (userData != null &&
-          userData.containsKey(
-            'avatarConfig',
-          )) {
-        final configMap =
-            userData['avatarConfig']
-                as Map<String, dynamic>;
+      if (userData != null && userData.containsKey('avatarConfig')) {
+        final configMap = userData['avatarConfig'] as Map<String, dynamic>;
 
-        final skinNombre =
-            configMap['skinActual']
-                as String?;
-        final expresionPath =
-            configMap['expresionActual']
-                as String?;
-        final accesorioActualPath =
-            configMap['accesorioActualPath']
-                as String?;
-        final backgroundPath =
-            configMap['backgroundActual']
-                as String?;
-        final nombre =
-            configMap['nombre']
-                as String?;
-        final felicidad =
-            configMap['felicidad']
-                as int?;
-        final energia =
-            configMap['energia']
-                as int?;
-        final monedas =
-            configMap['monedas']
-                as int?;
+        final skinNombre = configMap['skinActual'] as String?;
+        final expresionPath = configMap['expresionActual'] as String?;
+        final accesorioActualPath = configMap['accesorioActualPath'] as String?;
+        final backgroundPath = configMap['backgroundActual'] as String?;
+        final nombre = configMap['nombre'] as String?;
+        final felicidad = configMap['felicidad'] as int?;
+        final energia = configMap['energia'] as int?;
+        final monedas = configMap['monedas'] as int?;
         final desbloqueadosGuardados =
-            (configMap['accesoriosDesbloqueados']
-                    as List?)
+            (configMap['accesoriosDesbloqueados'] as List?)
                 ?.cast<String>()
                 .toSet();
 
-        final skinActual =
-            _availableSkins.firstWhere(
-              (s) =>
-                  s.nombre ==
-                  skinNombre,
-              orElse: () =>
-                  _availableSkins.first,
-            );
+        final skinActual = _availableSkins.firstWhere(
+          (s) => s.nombre == skinNombre,
+          orElse: () => _availableSkins.first,
+        );
 
-        AccesorioGeneral?
-        accesorioActual;
-        if (accesorioActualPath !=
-            null) {
+        AccesorioGeneral? accesorioActual;
+        if (accesorioActualPath != null) {
           try {
-            accesorioActual =
-                _availableAccesorios
-                    .firstWhere(
-                      (a) =>
-                          a.imagenPath ==
-                          accesorioActualPath,
-                    );
+            accesorioActual = _availableAccesorios.firstWhere(
+              (a) => a.imagenPath == accesorioActualPath,
+            );
           } catch (e) {
             accesorioActual = null;
           }
@@ -220,43 +146,27 @@ class AvatarViewModel
 
         // Si no hay nombre en avatarConfig o es el valor por defecto "nombre",
         // usar el nombre de la cuenta (displayName o Firestore "name") como en Módulos.
-        final nombreFinal = (nombre != null && nombre.trim().isNotEmpty && nombre != 'nombre')
+        final nombreFinal =
+            (nombre != null && nombre.trim().isNotEmpty && nombre != 'nombre')
             ? nombre
             : (user.displayName?.trim().isNotEmpty == true
-                ? user.displayName!
-                : (nombreEnFirestore?.trim().isNotEmpty == true
-                    ? nombreEnFirestore!
-                    : _currentEstado.nombre));
+                  ? user.displayName!
+                  : (nombreEnFirestore?.trim().isNotEmpty == true
+                        ? nombreEnFirestore!
+                        : _currentEstado.nombre));
 
-        _currentEstado = _currentEstado
-            .copyWith(
-              skinActual: skinActual,
-              expresionActual:
-                  expresionPath,
-              accesorioActual:
-                  accesorioActual,
-              backgroundActual:
-                  backgroundPath ??
-                  _currentEstado
-                      .backgroundActual,
-              nombre: nombreFinal,
-              felicidad:
-                  felicidad ??
-                  _currentEstado
-                      .felicidad,
-              energia:
-                  energia ??
-                  _currentEstado
-                      .energia,
-              monedas:
-                  monedas ??
-                  _currentEstado
-                      .monedas,
-              accesoriosDesbloqueados:
-                  desbloqueadosGuardados ??
-                  _currentEstado
-                      .accesoriosDesbloqueados,
-            );
+        _currentEstado = _currentEstado.copyWith(
+          skinActual: skinActual,
+          expresionActual: expresionPath,
+          accesorioActual: accesorioActual,
+          backgroundActual: backgroundPath ?? _currentEstado.backgroundActual,
+          nombre: nombreFinal,
+          felicidad: felicidad ?? _currentEstado.felicidad,
+          energia: energia ?? _currentEstado.energia,
+          monedas: monedas ?? _currentEstado.monedas,
+          accesoriosDesbloqueados:
+              desbloqueadosGuardados ?? _currentEstado.accesoriosDesbloqueados,
+        );
 
         notifyListeners();
       } else {
@@ -264,9 +174,9 @@ class AvatarViewModel
         final nombreAUsar = user.displayName?.trim().isNotEmpty == true
             ? user.displayName!
             : (nombreEnFirestore?.trim().isNotEmpty == true
-                ? nombreEnFirestore!
-                : null);
-        if (nombreAUsar != null && _currentEstado.nombre == 'MRBEAST') {
+                  ? nombreEnFirestore!
+                  : null);
+        if (nombreAUsar != null && _currentEstado.nombre == 'nombre') {
           _currentEstado = _currentEstado.copyWith(nombre: nombreAUsar);
           notifyListeners();
           await saveAvatarConfigToFirestore();
@@ -276,20 +186,13 @@ class AvatarViewModel
   }
 
   // Getters públicos
-  bool get showEditPanel =>
-      _showEditPanel;
-  AvatarEstado get currentEstado =>
-      _currentEstado;
+  bool get showEditPanel => _showEditPanel;
+  AvatarEstado get currentEstado => _currentEstado;
 
   // Getters para datos del Repository
-  List<SkinInfo> get availableSkins =>
-      _availableSkins;
-  List<AccesorioGeneral>
-  get availableAccesorios =>
-      _availableAccesorios;
-  List<String>
-  get availableBackgrounds =>
-      _availableBackgrounds;
+  List<SkinInfo> get availableSkins => _availableSkins;
+  List<AccesorioGeneral> get availableAccesorios => _availableAccesorios;
+  List<String> get availableBackgrounds => _availableBackgrounds;
 
   /* 
   Alterna la visibilidad del panel de edición
@@ -304,12 +207,10 @@ class AvatarViewModel
   Automáticamente limpia la expresión cuando cambias de skin
   */
   Future<void> updateSkin(SkinInfo newSkin) async {
-    _currentEstado = _currentEstado
-        .copyWith(
-          skinActual: newSkin,
-          resetExpresion:
-              true, // Limpiar expresión al cambiar skin
-        );
+    _currentEstado = _currentEstado.copyWith(
+      skinActual: newSkin,
+      resetExpresion: true, // Limpiar expresión al cambiar skin
+    );
     notifyListeners();
     await saveAvatarConfigToFirestore();
   }
@@ -318,19 +219,11 @@ class AvatarViewModel
   Actualiza la expresión del avatar
   Si se pasa null, limpia la expresión actual
   */
-  Future<void> updateExpresion(
-    String? expresion,
-  ) async {
+  Future<void> updateExpresion(String? expresion) async {
     if (expresion == null) {
-      _currentEstado = _currentEstado
-          .copyWith(
-            resetExpresion: true,
-          );
+      _currentEstado = _currentEstado.copyWith(resetExpresion: true);
     } else {
-      _currentEstado = _currentEstado
-          .copyWith(
-            expresionActual: expresion,
-          );
+      _currentEstado = _currentEstado.copyWith(expresionActual: expresion);
     }
     notifyListeners();
     await saveAvatarConfigToFirestore();
@@ -340,19 +233,11 @@ class AvatarViewModel
   Actualiza el accesorio del avatar
   Si se pasa null, quita el accesorio actual
   */
-  Future<void> updateAccesorio(
-    AccesorioGeneral? accesorio,
-  ) async {
+  Future<void> updateAccesorio(AccesorioGeneral? accesorio) async {
     if (accesorio == null) {
-      _currentEstado = _currentEstado
-          .copyWith(
-            resetAccesorio: true,
-          );
+      _currentEstado = _currentEstado.copyWith(resetAccesorio: true);
     } else {
-      _currentEstado = _currentEstado
-          .copyWith(
-            accesorioActual: accesorio,
-          );
+      _currentEstado = _currentEstado.copyWith(accesorioActual: accesorio);
     }
     notifyListeners();
     await saveAvatarConfigToFirestore();
@@ -361,13 +246,8 @@ class AvatarViewModel
   /* 
   Actualiza el background del avatar
   */
-  Future<void> updateBackground(
-    String background,
-  ) async {
-    _currentEstado = _currentEstado
-        .copyWith(
-          backgroundActual: background,
-        );
+  Future<void> updateBackground(String background) async {
+    _currentEstado = _currentEstado.copyWith(backgroundActual: background);
     notifyListeners();
     await saveAvatarConfigToFirestore();
   }
@@ -375,20 +255,15 @@ class AvatarViewModel
   /* 
   Actualiza el nombre del avatar
   */
-  Future<void> updateNombre(
-    String nuevoNombre,
-  ) async {
-    _currentEstado = _currentEstado
-        .copyWith(nombre: nuevoNombre);
+  Future<void> updateNombre(String nuevoNombre) async {
+    _currentEstado = _currentEstado.copyWith(nombre: nuevoNombre);
     notifyListeners();
     await saveAvatarConfigToFirestore();
   }
 
   /// Sincroniza el nombre del avatar con el displayName del usuario.
   /// Si falla el guardado remoto, al menos mantiene el estado local actualizado.
-  Future<void> updateNombreDesdeDisplayName(
-    String nuevoNombre,
-  ) async {
+  Future<void> updateNombreDesdeDisplayName(String nuevoNombre) async {
     _currentEstado = _currentEstado.copyWith(nombre: nuevoNombre);
     notifyListeners();
     try {
@@ -401,19 +276,11 @@ class AvatarViewModel
   /* 
   Actualiza la felicidad del avatar (0-100)
   */
-  Future<void> updateFelicidad(
-    int nuevaFelicidad,
-  ) async {
-    if (nuevaFelicidad < 0 ||
-        nuevaFelicidad > 100) {
-      throw ArgumentError(
-        'La felicidad debe estar entre 0 y 100',
-      );
+  Future<void> updateFelicidad(int nuevaFelicidad) async {
+    if (nuevaFelicidad < 0 || nuevaFelicidad > 100) {
+      throw ArgumentError('La felicidad debe estar entre 0 y 100');
     }
-    _currentEstado = _currentEstado
-        .copyWith(
-          felicidad: nuevaFelicidad,
-        );
+    _currentEstado = _currentEstado.copyWith(felicidad: nuevaFelicidad);
     notifyListeners();
     await saveAvatarConfigToFirestore();
   }
@@ -422,16 +289,10 @@ class AvatarViewModel
   Actualiza la energía del avatar (0-100)
   */
   Future<void> updateEnergia(int nuevaEnergia) async {
-    if (nuevaEnergia < 0 ||
-        nuevaEnergia > 100) {
-      throw ArgumentError(
-        'La energía debe estar entre 0 y 100',
-      );
+    if (nuevaEnergia < 0 || nuevaEnergia > 100) {
+      throw ArgumentError('La energía debe estar entre 0 y 100');
     }
-    _currentEstado = _currentEstado
-        .copyWith(
-          energia: nuevaEnergia,
-        );
+    _currentEstado = _currentEstado.copyWith(energia: nuevaEnergia);
     notifyListeners();
     await saveAvatarConfigToFirestore();
   }
@@ -439,50 +300,35 @@ class AvatarViewModel
   /* 
   Verifica si un accesorio está desbloqueado
   */
-  bool isAccesorioDesbloqueado(
-    String nombreAccesorio,
-  ) {
-    return _currentEstado
-        .accesoriosDesbloqueados
-        .contains(nombreAccesorio);
+  bool isAccesorioDesbloqueado(String nombreAccesorio) {
+    return _currentEstado.accesoriosDesbloqueados.contains(nombreAccesorio);
   }
 
   /* 
   Intenta desbloquear un accesorio con monedas
   Retorna true si se desbloqueó exitosamente, false si no hay suficientes monedas
   */
-  Future<bool> desbloquearAccesorio(
-    AccesorioGeneral accesorio,
-  ) async {
+  Future<bool> desbloquearAccesorio(AccesorioGeneral accesorio) async {
     // Verificar si ya está desbloqueado
-    if (isAccesorioDesbloqueado(
-      accesorio.nombre,
-    )) {
+    if (isAccesorioDesbloqueado(accesorio.nombre)) {
       return true; // Ya está desbloqueado
     }
 
     // Verificar si tiene suficientes monedas
-    if (_currentEstado.monedas <
-        accesorio.costoMonedas) {
+    if (_currentEstado.monedas < accesorio.costoMonedas) {
       return false; // No hay suficientes monedas
     }
 
     // Desbloquear el accesorio
-    final nuevasMonedas =
-        _currentEstado.monedas -
-        accesorio.costoMonedas;
-    final nuevosDesbloqueados =
-        Set<String>.from(
-          _currentEstado
-              .accesoriosDesbloqueados,
-        )..add(accesorio.nombre);
+    final nuevasMonedas = _currentEstado.monedas - accesorio.costoMonedas;
+    final nuevosDesbloqueados = Set<String>.from(
+      _currentEstado.accesoriosDesbloqueados,
+    )..add(accesorio.nombre);
 
-    _currentEstado = _currentEstado
-        .copyWith(
-          monedas: nuevasMonedas,
-          accesoriosDesbloqueados:
-              nuevosDesbloqueados,
-        );
+    _currentEstado = _currentEstado.copyWith(
+      monedas: nuevasMonedas,
+      accesoriosDesbloqueados: nuevosDesbloqueados,
+    );
     notifyListeners();
     await saveAvatarConfigToFirestore();
     return true;
@@ -492,12 +338,9 @@ class AvatarViewModel
   Agrega monedas al usuario (por completar actividades, etc.)
   */
   Future<void> agregarMonedas(int cantidad) async {
-    _currentEstado = _currentEstado
-        .copyWith(
-          monedas:
-              _currentEstado.monedas +
-              cantidad,
-        );
+    _currentEstado = _currentEstado.copyWith(
+      monedas: _currentEstado.monedas + cantidad,
+    );
     notifyListeners();
     await saveAvatarConfigToFirestore();
   }
@@ -506,9 +349,7 @@ class AvatarViewModel
   Resetea el avatar a un estado específico
   Útil para reiniciar la personalización
   */
-  Future<void> resetEstado(
-    AvatarEstado nuevoEstado,
-  ) async {
+  Future<void> resetEstado(AvatarEstado nuevoEstado) async {
     _currentEstado = nuevoEstado;
     _showEditPanel = false;
     notifyListeners();

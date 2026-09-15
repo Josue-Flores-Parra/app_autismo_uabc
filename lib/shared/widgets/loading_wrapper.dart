@@ -7,10 +7,7 @@ import 'loading_screen.dart';
 class LoadingWrapper extends StatelessWidget {
   final Widget child;
 
-  const LoadingWrapper({
-    super.key,
-    required this.child,
-  });
+  const LoadingWrapper({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -25,21 +22,19 @@ class LoadingWrapper extends StatelessWidget {
                 duration: const Duration(milliseconds: 500),
                 transitionBuilder: (Widget child, Animation<double> animation) {
                   return FadeTransition(
-                    opacity: Tween<double>(
-                      begin: 0.0,
-                      end: 1.0,
-                    ).animate(CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeInOutCubic,
-                    )),
-                    child: ScaleTransition(
-                      scale: Tween<double>(
-                        begin: 0.9,
-                        end: 1.0,
-                      ).animate(CurvedAnimation(
+                    opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                      CurvedAnimation(
                         parent: animation,
-                        curve: Curves.easeOutCubic,
-                      )),
+                        curve: Curves.easeInOutCubic,
+                      ),
+                    ),
+                    child: ScaleTransition(
+                      scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
                       child: child,
                     ),
                   );
