@@ -13,6 +13,8 @@ class PuzzleMinigame extends MinigameBase {
     super.key,
     required super.onComplete,
     required super.minigameData,
+    super.onReady,
+    super.onObjectiveMet,
   });
 
   // Crea el estado del minijuego de rompecabezas.
@@ -85,6 +87,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     _syncTrayOrder(shuffle: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precachePuzzleImage();
+      // Imagen, grid, bandeja y dificultad ya están resueltos.
+      widget.onReady?.call();
     });
   }
 
@@ -499,6 +503,8 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     });
     // Si no hay celdas incorrectas, el rompecabezas está completo.
     if (incorrectSlots.isEmpty) {
+      // Señal de objetivo inmediatamente antes de la celebración/delay.
+      widget.onObjectiveMet?.call();
       setState(() {
         _isCompleted = true;
         _isChecking = false;
@@ -1242,8 +1248,13 @@ class _PuzzleDragData {
 void registerPuzzleMinigame() {
   MinigameFactory.register(
     MinigameType.puzzle,
-    ({required onComplete, required minigameData}) =>
-        PuzzleMinigame(onComplete: onComplete, minigameData: minigameData),
+    ({required onComplete, required minigameData, onReady, onObjectiveMet}) =>
+        PuzzleMinigame(
+          onComplete: onComplete,
+          minigameData: minigameData,
+          onReady: onReady,
+          onObjectiveMet: onObjectiveMet,
+        ),
   );
 }
 

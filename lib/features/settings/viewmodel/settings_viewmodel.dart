@@ -21,8 +21,14 @@ class SettingsViewModel extends ChangeNotifier {
   bool _hapticFeedback = true;
   bool _remindersEnabled = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 18, minute: 0);
-  bool _sendMetrics = false;
   int _parentalMinLevel = 0;
+
+  // Consentimiento de telemetría: es por cuenta (UID), no del dispositivo.
+  // Así la decisión de una cuenta no afecta a otra ni queda bloqueada para
+  // siempre.
+  String? _currentUid;
+  bool _sendMetrics = false;
+  bool _telemetryOnboardingShown = false;
 
   bool get isReady => !_loading;
   ThemeMode get themeMode => _themeMode;
@@ -35,6 +41,10 @@ class SettingsViewModel extends ChangeNotifier {
   bool get remindersEnabled => _remindersEnabled;
   TimeOfDay get reminderTime => _reminderTime;
   bool get sendMetrics => _sendMetrics;
+
+  /// `true` si ya se mostró el diálogo de consentimiento de telemetría para la
+  /// cuenta actual (se muestra una sola vez por cuenta, tras crearla).
+  bool get telemetryOnboardingShown => _telemetryOnboardingShown;
   int get parentalMinLevel => _parentalMinLevel;
 
   double get textScaleFactor {
@@ -58,12 +68,36 @@ class SettingsViewModel extends ChangeNotifier {
     _audioFeedback = _prefs?.getBool('audioFeedback') ?? true;
     _hapticFeedback = _prefs?.getBool('hapticFeedback') ?? true;
     _remindersEnabled = _prefs?.getBool('remindersEnabled') ?? false;
-    _sendMetrics = _prefs?.getBool('sendMetrics') ?? false;
     _parentalMinLevel = _prefs?.getInt('parentalMinLevel') ?? 0;
     _reminderTime =
         _parseStoredTime(_prefs?.getString('reminderTime')) ??
         const TimeOfDay(hour: 18, minute: 0);
     _loading = false;
+    // Aplicar el consentimiento de la cuenta activa (si ya se conoce) una vez
+    // que las preferencias están listas.
+    _loadTelemetryConsent();
+  }
+
+  /// Establece la cuenta activa y carga su consentimiento de telemetría.
+  ///
+  /// Se invoca desde el Provider al cambiar el usuario de Auth.
+  void setAccount(String? uid) {
+    if (_currentUid == uid) return;
+    _currentUid = uid;
+    _loadTelemetryConsent();
+  }
+
+  void _loadTelemetryConsent() {
+    final uid = _currentUid;
+    if (uid == null) {
+      // Sin cuenta autenticada no hay consentimiento efectivo.
+      _sendMetrics = false;
+      _telemetryOnboardingShown = false;
+    } else {
+      _sendMetrics = _prefs?.getBool('sendMetrics_$uid') ?? false;
+      _telemetryOnboardingShown =
+          _prefs?.getBool('telemetryOnboardingShown_$uid') ?? false;
+    }
     notifyListeners();
   }
 
@@ -125,7 +159,29 @@ class SettingsViewModel extends ChangeNotifier {
 
   void toggleSendMetrics(bool value) {
     _sendMetrics = value;
-    _prefs?.setBool('sendMetrics', value);
+    final uid = _currentUid;
+    if (uid != null) {
+      _prefs?.setBool('sendMetrics_$uid', value);
+    }
+    notifyListeners();
+  }
+
+  /// Registra la decisión del diálogo inicial de telemetría para la cuenta
+  /// recién creada ([uid]).
+  ///
+  /// [accepted] `true` habilita `sendMetrics`; `false` lo desactiva. No hay
+  /// bloqueo permanente: el usuario puede reactivarlo luego desde Ajustes.
+  Future<void> completeTelemetryOnboarding({
+    required bool accepted,
+    String? uid,
+  }) async {
+    final targetUid = uid ?? _currentUid;
+    _telemetryOnboardingShown = true;
+    _sendMetrics = accepted;
+    if (targetUid != null) {
+      await _prefs?.setBool('telemetryOnboardingShown_$targetUid', true);
+      await _prefs?.setBool('sendMetrics_$targetUid', accepted);
+    }
     notifyListeners();
   }
 

@@ -15,6 +15,8 @@ class SimpleSelectionMinigame extends MinigameBase {
     super.key,
     required super.onComplete,
     required super.minigameData,
+    super.onReady,
+    super.onObjectiveMet,
   });
 
   @override
@@ -67,6 +69,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     // Precargar todas las imagenes de las 3 preguntas antes de habilitar el juego.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precacheAllQuestionImages();
+      // La primera pregunta ya es utilizable al construirse.
+      widget.onReady?.call();
     });
   }
 
@@ -294,6 +298,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     _ttsService.stop();
 
     if (success) {
+      // Señal de objetivo antes de celebración/TTS/delay para no inflar el reloj.
+      widget.onObjectiveMet?.call();
       _celebrateCompletion();
     } else {
       _inlineFeedback = _InlineFeedbackType.incorrect;
@@ -1000,9 +1006,12 @@ class _SimpleSelectionSkeletonBox extends StatelessWidget {
 void registerSimpleSelectionMinigame() {
   MinigameFactory.register(
     MinigameType.simpleSelection,
-    ({required onComplete, required minigameData}) => SimpleSelectionMinigame(
-      onComplete: onComplete,
-      minigameData: minigameData,
-    ),
+    ({required onComplete, required minigameData, onReady, onObjectiveMet}) =>
+        SimpleSelectionMinigame(
+          onComplete: onComplete,
+          minigameData: minigameData,
+          onReady: onReady,
+          onObjectiveMet: onObjectiveMet,
+        ),
   );
 }

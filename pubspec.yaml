@@ -2,7 +2,7 @@ name: appy
 description: "Appy - Aplicación educativa para autismo"
 publish_to: "none" # Para paquetes privados
 
-version: 1.0.0+4 # Se necesita para la build de iOS
+version: 1.0.0+5 # Se necesita para la build de iOS
 
 environment:
   sdk: ^3.9.2
@@ -30,6 +30,7 @@ dependencies:
   http: ^1.2.2
   path_provider: ^2.1.4
   path: ^1.9.0
+  uuid: ^4.6.0
 
 dev_dependencies:
   flutter_test:

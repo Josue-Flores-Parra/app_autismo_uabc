@@ -55,7 +55,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'This will remove your account and stored data. Type DELETE to confirm.';
+      'Your account and profile data will be removed. Anonymous usage metrics already sent cannot be deleted. Type DELETE to confirm.';
 
   @override
   String get deleteAccountConfirmAction => 'DELETE';
@@ -128,6 +128,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sendMetrics => 'Send anonymous metrics';
+
+  @override
+  String get telemetryConsentTitle => 'Help us improve';
+
+  @override
+  String get telemetryConsentBody =>
+      'To improve the experience, Appy can send anonymous metrics about activity usage. No personal data is sent and you can review it anytime in Settings.';
+
+  @override
+  String get telemetryConsentAccept => 'Accept';
+
+  @override
+  String get telemetryConsentDecline => 'No, thanks';
 
   @override
   String get parentalSection => 'Parental control';

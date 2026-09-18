@@ -68,6 +68,8 @@ lib/features/minigames/minigame_core.dart
 ```dart
 final MinigameCompleteCallback onComplete;
 final Map<String, dynamic> minigameData;
+final VoidCallback? onReady;
+final VoidCallback? onObjectiveMet;
 ```
 
 Callback:
@@ -76,10 +78,28 @@ Callback:
 void Function(bool success, int attempts)
 ```
 
+Señales de telemetría (opcionales, idempotentes):
+
+- `onReady`: la actividad está lista para uso (recursos imprescindibles
+  cargados, controles utilizables). Se emite una sola vez por recreación.
+- `onObjectiveMet`: se alcanzó el objetivo pedagógico/umbral, **antes** de
+  celebración, TTS, persistencia y delays, para no inflar `activeDurationMs`.
+
+El `MinigameBuilder` del factory acepta ambos callbacks y los pasa al widget:
+
+```dart
+Widget Function({
+  required MinigameCompleteCallback onComplete,
+  required Map<String, dynamic> minigameData,
+  VoidCallback? onReady,
+  VoidCallback? onObjectiveMet,
+})
+```
+
 `MinigameFactory` mantiene un `Map<MinigameType, MinigameBuilder>` y expone:
 
 - `register(type, builder)`.
-- `create(type, onComplete, minigameData)`.
+- `create(type, onComplete, minigameData, onReady, onObjectiveMet)`.
 - `isRegistered(type)`.
 
 ## Como se abre un minijuego

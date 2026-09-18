@@ -16,6 +16,8 @@ class PictogramMinigame extends MinigameBase {
     super.key,
     required super.onComplete,
     required super.minigameData,
+    super.onReady,
+    super.onObjectiveMet,
   });
 
   @override
@@ -45,6 +47,8 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
     // Precargar imágenes después del primer frame para asegurar que el contexto esté disponible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precacheAllImages();
+      // Primera imagen/fallback disponible.
+      widget.onReady?.call();
     });
   }
 
@@ -566,6 +570,8 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
                               setState(() {
                                 _isCompleted = true;
                               });
+                              // Señal de objetivo en COMPLETAR, antes de celebración/delay.
+                              widget.onObjectiveMet?.call();
                               // Reproducir sonido de felicitación y mostrar confettis
                               _celebrateCompletion(); // No esperar para que no bloquee la UI
                               // Esperar un momento antes de completar para que se vea la celebración
@@ -762,7 +768,12 @@ class _StepItem {
 void registerPictogramMinigame() {
   MinigameFactory.register(
     MinigameType.pictogram,
-    ({required onComplete, required minigameData}) =>
-        PictogramMinigame(onComplete: onComplete, minigameData: minigameData),
+    ({required onComplete, required minigameData, onReady, onObjectiveMet}) =>
+        PictogramMinigame(
+          onComplete: onComplete,
+          minigameData: minigameData,
+          onReady: onReady,
+          onObjectiveMet: onObjectiveMet,
+        ),
   );
 }

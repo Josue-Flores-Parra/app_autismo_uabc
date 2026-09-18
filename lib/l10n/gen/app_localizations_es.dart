@@ -55,7 +55,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Se borrará tu cuenta y datos almacenados. Escribe BORRAR para continuar.';
+      'Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.';
 
   @override
   String get deleteAccountConfirmAction => 'BORRAR';
@@ -128,6 +128,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get sendMetrics => 'Enviar métricas anónimas';
+
+  @override
+  String get telemetryConsentTitle => 'Ayúdanos a mejorar';
+
+  @override
+  String get telemetryConsentBody =>
+      'Para mejorar la experiencia, Appy puede enviar métricas anónimas sobre el uso de las actividades. No se envían datos personales y puedes revisarlo cuando quieras en Ajustes.';
+
+  @override
+  String get telemetryConsentAccept => 'Aceptar';
+
+  @override
+  String get telemetryConsentDecline => 'No, gracias';
 
   @override
   String get parentalSection => 'Control parental';

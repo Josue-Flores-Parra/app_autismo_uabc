@@ -191,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountConfirmBody.
   ///
   /// In es, this message translates to:
-  /// **'Se borrará tu cuenta y datos almacenados. Escribe BORRAR para continuar.'**
+  /// **'Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.'**
   String get deleteAccountConfirmBody;
 
   /// No description provided for @deleteAccountConfirmAction.
@@ -337,6 +337,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Enviar métricas anónimas'**
   String get sendMetrics;
+
+  /// No description provided for @telemetryConsentTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ayúdanos a mejorar'**
+  String get telemetryConsentTitle;
+
+  /// No description provided for @telemetryConsentBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Para mejorar la experiencia, Appy puede enviar métricas anónimas sobre el uso de las actividades. No se envían datos personales y puedes revisarlo cuando quieras en Ajustes.'**
+  String get telemetryConsentBody;
+
+  /// No description provided for @telemetryConsentAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get telemetryConsentAccept;
+
+  /// No description provided for @telemetryConsentDecline.
+  ///
+  /// In es, this message translates to:
+  /// **'No, gracias'**
+  String get telemetryConsentDecline;
 
   /// No description provided for @parentalSection.
   ///

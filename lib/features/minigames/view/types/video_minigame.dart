@@ -13,6 +13,8 @@ class VideoMinigame extends MinigameBase {
     super.key,
     required super.onComplete,
     required super.minigameData,
+    super.onReady,
+    super.onObjectiveMet,
   });
 
   @override
@@ -23,6 +25,7 @@ class _VideoMinigameState extends State<VideoMinigame> {
   VideoViewModel? _viewModel;
   bool _isCompleted = false;
   bool _hasStartedPlaying = false;
+  bool _objectiveEmitted = false;
   Timer? _completionCheckTimer;
   bool _isDisposed = false;
 
@@ -61,6 +64,8 @@ class _VideoMinigameState extends State<VideoMinigame> {
               setState(() {
                 _hasStartedPlaying = true;
               });
+              // Controlador inicializado: actividad lista.
+              widget.onReady?.call();
             } catch (e) {}
           }
         })
@@ -90,6 +95,11 @@ class _VideoMinigameState extends State<VideoMinigame> {
           if (duration.inMilliseconds > 0) {
             final progress = position.inMilliseconds / duration.inMilliseconds;
             if (progress >= 0.9 && !_isCompleted) {
+              // Señal de objetivo al cruzar por primera vez el 90%.
+              if (!_objectiveEmitted) {
+                _objectiveEmitted = true;
+                widget.onObjectiveMet?.call();
+              }
               // El usuario ha visto al menos el 90% del video
               // No completamos automáticamente, pero habilitamos el botón
               if (mounted && !_isDisposed) {
@@ -118,6 +128,12 @@ class _VideoMinigameState extends State<VideoMinigame> {
     setState(() {
       _isCompleted = true;
     });
+
+    // Asegurar objetivo antes de completar (idempotente en el servicio).
+    if (!_objectiveEmitted) {
+      _objectiveEmitted = true;
+      widget.onObjectiveMet?.call();
+    }
 
     try {
       // Pausar el video
@@ -380,7 +396,12 @@ class _VideoMinigameState extends State<VideoMinigame> {
 void registerVideoMinigame() {
   MinigameFactory.register(
     MinigameType.video,
-    ({required onComplete, required minigameData}) =>
-        VideoMinigame(onComplete: onComplete, minigameData: minigameData),
+    ({required onComplete, required minigameData, onReady, onObjectiveMet}) =>
+        VideoMinigame(
+          onComplete: onComplete,
+          minigameData: minigameData,
+          onReady: onReady,
+          onObjectiveMet: onObjectiveMet,
+        ),
   );
 }

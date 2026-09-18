@@ -11,6 +11,7 @@ class AuthViewModel extends ChangeNotifier {
   String? _errorMessage;
   User? _currentUser;
   bool _registrationSuccess = false;
+  String? _lastRegisteredUid;
 
   AuthViewModel() {
     _currentUser = _authService.currentUser;
@@ -20,6 +21,9 @@ class AuthViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   User? get currentUser => _currentUser;
   bool get registrationSuccess => _registrationSuccess;
+
+  /// UID de la última cuenta creada (válido aunque el registro haga logout).
+  String? get lastRegisteredUid => _lastRegisteredUid;
 
   /// Limpia la bandera de registro exitoso tras haber mostrado el cue.
   void clearRegistrationSuccess() {
@@ -53,10 +57,11 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
-    try {
-      await _authService.register(email, password, name);
+try {
+      final user = await _authService.register(email, password, name);
+      _lastRegisteredUid = user?.uid;
       // Registro exitoso: cerrar la sesión que Firebase abre automáticamente
-      // tras createUserWithEmailAndPassword para que el usuario inicie sesión
+      // para que el usuario inicie sesión
       // manualmente. AuthGate permanece en LoginScreen y muestra el cue.
       await _authService.logout();
       _currentUser = null;
