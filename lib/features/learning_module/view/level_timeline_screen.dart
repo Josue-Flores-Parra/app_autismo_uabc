@@ -9,27 +9,37 @@ import 'package:appy/features/learning_module/viewmodel/level_timeline_viewmodel
 import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
 import 'package:appy/features/learning_module/view/level_content_screen.dart';
 import 'package:appy/features/learning_module/model/content_card_model.dart';
+import 'package:appy/shared/services/haptics_service.dart';
+import 'package:appy/core/app_theme.dart';
+import 'package:appy/shared/widgets/glass_pill.dart';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
   final List<StateOfStep?> nodeStates;
+  final Color baseColor;
+  final Color completedColor;
   /*
   Necesitamos pasarle las posiciones de los nodos y sus estados
   para dibujarlos correctamente.
   */
 
-  PathPainter({required this.nodePositions, required this.nodeStates});
+  PathPainter({
+    required this.nodePositions,
+    required this.nodeStates,
+    required this.baseColor,
+    required this.completedColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (nodePositions.length < 2) return;
     final basePaint = Paint()
-      ..color = const Color.fromARGB(102, 58, 44, 88) /* 40% de opacidad */
+      ..color = baseColor.withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12.0
       ..strokeCap = StrokeCap.round;
     final completedPaint = Paint()
-      ..color = const Color(0xFF05E995)
+      ..color = completedColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 10.0
       ..strokeCap = StrokeCap.round
@@ -125,9 +135,12 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     _animationController!.repeat(reverse: true);
   }
 
+  late LearningViewModel _learningViewModel;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _learningViewModel = context.read<LearningViewModel>();
     final viewModel = context.read<LevelTimelineViewModel>();
 
     // Only generate keys and calculate positions if we have steps
@@ -158,7 +171,7 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     // Liberar los pines del ImageCache al salir del timeline.
     // Mientras la pantalla esté activa los pines mantienen las portadas en
     // memoria; al hacer pop() se liberan para que el GC pueda recuperarlas.
-    context.read<LearningViewModel>().releasePinsForModule(widget.moduleId);
+    _learningViewModel.releasePinsForModule(widget.moduleId);
     _animationController?.dispose();
     _removeOverlay();
     super.dispose();
@@ -211,8 +224,6 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 viewModel.moduleTitle,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              backgroundColor: const Color(0xFF1A3D52),
-              foregroundColor: Colors.white,
             ),
             body: const Center(child: CircularProgressIndicator()),
           );
@@ -226,8 +237,6 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 viewModel.moduleTitle,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              backgroundColor: const Color(0xFF1A3D52),
-              foregroundColor: Colors.white,
             ),
             body: Center(
               child: Padding(
@@ -235,10 +244,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.error_outline,
                       size: 64,
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -285,14 +294,14 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           }
         });
 
+        final colors = context.appColors;
+
         return Scaffold(
+          extendBodyBehindAppBar: true,
           appBar: AppBar(
-            title: Text(
-              viewModel.moduleTitle,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            backgroundColor: const Color(0xFF1A3D52),
-            foregroundColor: Colors.white,
+            automaticallyImplyLeading: false,
+            titleSpacing: 16,
+            title: _buildHeader(context, viewModel.moduleTitle),
           ),
           body: Stack(
             children: [
@@ -304,23 +313,15 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
-                              ),
+                            decoration: BoxDecoration(
+                              gradient: colors.backgroundGradient,
                             ),
                           );
                         },
                       )
                     : Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFF1A3D52), Color(0xFF091F2C)],
-                          ),
+                        decoration: BoxDecoration(
+                          gradient: colors.backgroundGradient,
                         ),
                       ),
               ),
@@ -330,7 +331,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 como fuera de ellos, en caso de que la pantalla sea muy pequeña.
               */
               SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 120.0),
+                padding: EdgeInsets.only(
+                  top: MediaQuery.paddingOf(context).top + kToolbarHeight,
+                  bottom: 120.0,
+                ),
                 child: SizedBox(
                   height: (viewModel.steps.length * _itemHeight),
                   child: Stack(
@@ -344,6 +348,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                             nodeStates: viewModel.steps
                                 .map((e) => e.whatState)
                                 .toList(),
+                            baseColor: colors.ink,
+                            completedColor: colors.success,
                           ),
                         ),
                       ListView.builder(
@@ -367,23 +373,46 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                         },
                       ),
                       if (activeNodePosition != null)
-                        Positioned(
-                          top: activeNodePosition.dy - 1,
-                          left: activeNodePosition.dx - 90,
-                          child: Container(
-                            width: 63,
-                            height: 63,
-                            decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color.fromARGB(150, 6, 185, 176),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 10),
+                        Builder(
+                          builder: (context) {
+                            final screenWidth = MediaQuery.sizeOf(
+                              context,
+                            ).width;
+                            final isLeft = activeStepIndex % 2 == 0;
+
+                            // Ahora activeNodePosition representa el centro exacto del nodo visual
+                            final visualCenterX = activeNodePosition!.dx;
+                            final visualCenterY = activeNodePosition!.dy;
+
+                            // Visual node is a 85x85 circle (radius 42.5).
+                            // Top of the visual node = visualCenterY - 42.5.
+                            // We want the 70x70 character to sit perfectly on top (bottom overlaps by 10px).
+                            // Character bottom = visualCenterY - 42.5 + 10 = visualCenterY - 32.5.
+                            // Character top = visualCenterY - 32.5 - 70 = visualCenterY - 102.5.
+                            // Horizontal center = visualCenterX - 35 (half of 70).
+                            return Positioned(
+                              top: visualCenterY - 102.5,
+                              left: visualCenterX - 35,
+                              child: Container(
+                                width: 70,
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colors.accent.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                      blurRadius: 15,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: Image.asset('assets/images/appysittin.png'),
-                          ),
+                                child: Image.asset(
+                                  'assets/images/appysittin.png',
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
@@ -408,15 +437,50 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
+  // Pastillas opacas: el fondo es una ilustracion clara en cualquier tema y
+  // el vidrio translucido no alcanza contraste en modo oscuro.
+  Widget _buildHeader(BuildContext context, String title) {
+    final colors = context.appColors;
+
+    return Row(
+      children: [
+        GlassPill(
+          onTap: () => Navigator.of(context).pop(),
+          padding: const EdgeInsets.all(10),
+          color: colors.surface,
+          child: Icon(Icons.arrow_back_rounded, color: colors.ink, size: 22),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GlassPill(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            color: colors.surface,
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: AppFonts.display,
+                fontSize: 20,
+                color: colors.ink,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPlayButton(
     BuildContext context,
     LevelTimelineViewModel viewModel,
     int stepIndex,
   ) {
-    const activeColor = Color(0xFF00E5FF);
+    final colors = context.appColors;
     final step = viewModel.steps[stepIndex];
 
-    return ElevatedButton.icon(
+    return FilledButton.icon(
       onPressed: () async {
         // Obtener el nivel completo desde el ViewModel
         final levelInfo = viewModel.moduleLevels.firstWhere(
@@ -452,22 +516,22 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           await viewModel.reloadModuleData();
         }
       },
-      icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
+      icon: const Icon(Icons.play_arrow_rounded, size: 32),
       label: const Text(
         'JUGAR',
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
           letterSpacing: 1.5,
         ),
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: activeColor,
+      style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
         elevation: 10,
-        shadowColor: const Color.fromARGB(204, 0, 229, 255),
+        shadowColor: colors.accent.withValues(alpha: 0.8),
       ),
     );
   }
@@ -487,8 +551,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
 
     final nodeWidget = GestureDetector(
       key: _keys[index],
-      onTap: () => viewModel.handleTap(index),
-      child: _buildStepCircle(step.whatState),
+      onTap: () {
+        HapticsService.selection();
+        viewModel.handleTap(index);
+      },
+      child: _buildStepCircle(context, step.whatState),
     );
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -499,9 +566,9 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
           nodeWidget,
         const SizedBox(height: 6),
         if (step.whatState != StateOfStep.blocked)
-          _buildTimelineStars(step.stars ?? 0),
+          _buildTimelineStars(context, step.stars ?? 0),
         const SizedBox(height: 6),
-        _buildStepTitle(step.previewTitle),
+        _buildStepTitle(context, step.previewTitle),
       ],
     );
     return Opacity(
@@ -510,38 +577,41 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
-  Widget _buildTimelineStars(int starCount) {
+  Widget _buildTimelineStars(BuildContext context, int starCount) {
+    final colors = context.appColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: List.generate(3, (index) {
         final bool earned = index < starCount;
         return Icon(
-          earned ? Icons.star : Icons.star,
+          Icons.star_rounded,
           size: 20,
-          color: earned ? const Color(0xFFFFD700) : Colors.grey.shade800,
+          color: earned ? const Color(0xFFF2B233) : colors.surface,
+          shadows: const [Shadow(color: Color(0x66000000), blurRadius: 4)],
         );
       }),
     );
   }
 
-  Widget _buildStepTitle(String title) {
+  Widget _buildStepTitle(BuildContext context, String title) {
+    final colors = context.appColors;
     return Container(
       // Dimensiones ajustadas para el tamaño de fuente: vertical reducido para compensar el aumento del tamaño de fuente
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color.fromARGB(216, 9, 31, 44),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color.fromARGB(51, 255, 255, 255)),
+        color: colors.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: colors.surfaceBorder),
       ),
       child: Text(
         title,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18, // Tamaño de fuente mas grande para mejor legibilidad
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: colors.ink,
         ),
         textAlign: TextAlign.center,
       ),
@@ -556,19 +626,16 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     LevelStepInfo step,
     LevelTimelineViewModel viewModel,
   ) {
+    final colors = context.appColors;
     return Material(
       color: Colors.transparent,
       child: Container(
         width: 250,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: colors.surfaceBorder, width: 1.5),
           boxShadow: const [
             BoxShadow(color: Color.fromARGB(128, 0, 0, 0), blurRadius: 20),
           ],
@@ -585,10 +652,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                 Expanded(
                   child: Text(
                     step.previewTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: Colors.white,
+                      color: colors.ink,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -604,14 +671,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: colors.accentSoft,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    child: Icon(Icons.close, color: colors.ink, size: 18),
                   ),
                 ),
               ],
@@ -629,10 +692,10 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
               ),
             ],
             const SizedBox(height: 12),
-            if (step.stars != null) _buildStarsPopup(step.stars!),
+            if (step.stars != null) _buildStarsPopup(context, step.stars!),
             const SizedBox(height: 16),
             Center(
-              child: ElevatedButton.icon(
+              child: FilledButton.icon(
                 onPressed: () async {
                   // Cerrar el popup primero
                   viewModel.clearSelection();
@@ -677,18 +740,14 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     await viewModel.reloadModuleData();
                   }
                 },
-                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                icon: const Icon(Icons.play_arrow),
                 label: const Text(
                   'JUGAR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00E5FF),
+                style: FilledButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 30,
@@ -703,29 +762,32 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
     );
   }
 
-  Widget _buildStepCircle(StateOfStep? state) {
+  Widget _buildStepCircle(BuildContext context, StateOfStep? state) {
+    final colors = context.appColors;
     Color neonColor;
+    Color iconColor = colors.ink;
     IconData nodeIcon;
     double size = 65.0;
     double iconSize = 35.0;
 
     switch (state) {
       case StateOfStep.blocked:
-        neonColor = Colors.grey.shade600;
+        neonColor = colors.surfaceBorder;
+        iconColor = colors.inkSoft;
         nodeIcon = Icons.lock_outline;
         break;
       case StateOfStep.inProgress:
-        neonColor = const Color(0xFF00E5FF);
+        neonColor = colors.accent;
         nodeIcon = Icons.play_arrow_rounded;
         size = 75.0;
         iconSize = 45.0;
         break;
       case StateOfStep.completed:
-        neonColor = const Color(0xFF05E995);
+        neonColor = colors.success;
         nodeIcon = Icons.check_circle;
         break;
       default:
-        neonColor = Colors.grey;
+        neonColor = colors.surfaceBorder;
         nodeIcon = Icons.radio_button_unchecked;
     }
 
@@ -736,15 +798,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: colors.surface,
         border: Border.all(color: neonColor, width: 3.0),
         boxShadow: [
           BoxShadow(
-            color: neonColor,
+            color: neonColor.withValues(alpha: isCurrent ? 0.9 : 0.5),
             blurRadius: isCurrent ? 25 : 12,
             spreadRadius: isCurrent ? 5 : 1,
           ),
@@ -756,15 +814,16 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
         ],
       ),
       child: Center(
-        child: Icon(nodeIcon, color: Colors.white, size: iconSize),
+        child: Icon(nodeIcon, color: iconColor, size: iconSize),
       ),
     );
   }
 
-  Widget _buildStarsPopup(int starCount) {
+  Widget _buildStarsPopup(BuildContext context, int starCount) {
     // Mostrar máximo 3 estrellas (el máximo que se puede obtener)
     final maxStars = 3;
     final actualStars = starCount.clamp(0, maxStars);
+    final colors = context.appColors;
 
     return Center(
       child: Row(
@@ -773,12 +832,11 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
         children: List.generate(
           maxStars,
           (index) => Icon(
-            index < actualStars ? Icons.star : Icons.star_border,
-            color: const Color(0xFFFFD700),
-            size: 20,
-            shadows: const [
-              Shadow(color: Color.fromARGB(179, 255, 215, 0), blurRadius: 8),
-            ],
+            Icons.star_rounded,
+            color: index < actualStars
+                ? const Color(0xFFF2B233)
+                : colors.surfaceBorder,
+            size: 22,
           ),
         ),
       ),
@@ -970,6 +1028,7 @@ class _TimelineImageSkeletonState extends State<_TimelineImageSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -979,12 +1038,12 @@ class _TimelineImageSkeletonState extends State<_TimelineImageSkeleton>
             return LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: const [
-                Color(0xFF1E4D6B),
-                Color(0xFF2E7DAA),
-                Color(0xFF3A9AD9),
-                Color(0xFF2E7DAA),
-                Color(0xFF1E4D6B),
+              colors: [
+                colors.accentSoft,
+                colors.accent,
+                colors.accent,
+                colors.accent,
+                colors.accentSoft,
               ],
               stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
             ).createShader(bounds);
@@ -1002,8 +1061,8 @@ class _TimelineImageSkeletonState extends State<_TimelineImageSkeleton>
             aspectRatio: 4 / 3,
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E4D6B),
-                borderRadius: BorderRadius.circular(18),
+                color: colors.accentSoft,
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 // Sombra que replica la profundidad de la imagen de portada real
                 boxShadow: const [
                   BoxShadow(

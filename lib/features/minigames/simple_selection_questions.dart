@@ -158,21 +158,24 @@ List<QuestionData> buildQuestionsFromSteps(
   final questions = <QuestionData>[];
   for (int i = 0; i < 3; i++) {
     final target = shuffledTargets[i % shuffledTargets.length];
-    final distractors =
-        steps
-            .where(
-              (s) =>
-                  s.imagePath != target.imagePath ||
-                  s.caption != target.caption,
-            )
-            .toList()
-          ..shuffle(rnd);
+
+    // Dos pasos distintos pueden compartir la misma imagen; usarlos como
+    // distractores deja opciones imposibles de diferenciar a simple vista.
+    // Por eso se descarta cualquier candidato que repita una imagen ya puesta.
+    final imagenesUsadas = <String>{target.imagePath};
+    final distractors = <_SimpleSelectionStep>[];
+    for (final candidate in List<_SimpleSelectionStep>.from(
+      steps,
+    )..shuffle(rnd)) {
+      if (!imagenesUsadas.add(candidate.imagePath)) continue;
+      distractors.add(candidate);
+    }
 
     final options = <SelectionOption>[
       SelectionOption(imagePath: target.imagePath, label: target.caption),
     ];
 
-    final distractorCount = (steps.length >= 4) ? 3 : (steps.length - 1);
+    final distractorCount = min(3, distractors.length);
     options.addAll(
       distractors
           .take(distractorCount)

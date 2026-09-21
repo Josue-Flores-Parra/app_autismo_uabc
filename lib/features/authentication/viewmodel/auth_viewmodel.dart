@@ -47,18 +47,31 @@ class AuthViewModel extends ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Error inesperado: ${e.toString()}');
+      _reportUnexpected(
+        e,
+        'No pudimos completar la operación. Inténtalo de nuevo en un momento.',
+      );
       return false;
     }
   }
 
   /// Registra un nuevo usuario con email, contraseña y nombre
-  Future<bool> register(String email, String password, String name) async {
+  Future<bool> register(
+    String email,
+    String password,
+    String name, [
+    int? legalVersionAccepted,
+  ]) async {
     _setLoading(true);
     _clearError();
 
-try {
-      final user = await _authService.register(email, password, name);
+    try {
+      final user = await _authService.register(
+        email,
+        password,
+        name,
+        legalVersionAccepted,
+      );
       _lastRegisteredUid = user?.uid;
       // Registro exitoso: cerrar la sesión que Firebase abre automáticamente
       // para que el usuario inicie sesión
@@ -74,7 +87,10 @@ try {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Error inesperado: ${e.toString()}');
+      _reportUnexpected(
+        e,
+        'No pudimos completar la operación. Inténtalo de nuevo en un momento.',
+      );
       return false;
     }
   }
@@ -101,7 +117,10 @@ try {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Error inesperado: ${e.toString()}');
+      _reportUnexpected(
+        e,
+        'No pudimos completar la operación. Inténtalo de nuevo en un momento.',
+      );
       return false;
     }
   }
@@ -115,7 +134,7 @@ try {
       _setLoading(false);
     } catch (e) {
       _setLoading(false);
-      _setError('Error al cerrar sesión: ${e.toString()}');
+      _reportUnexpected(e, 'No se pudo cerrar la sesión. Inténtalo de nuevo.');
     }
   }
 
@@ -145,8 +164,27 @@ try {
           'La autenticación por email/contraseña no está habilitada. Por favor contacta al administrador.',
         );
         break;
+      case 'network-request-failed':
+        _setError('Sin conexión. Revisa tu internet e inténtalo de nuevo.');
+        break;
+      case 'too-many-requests':
+        _setError(
+          'Demasiados intentos seguidos. Espera un momento y vuelve a intentarlo.',
+        );
+        break;
+      case 'requires-recent-login':
+        _setError(
+          'Por seguridad, vuelve a iniciar sesión antes de hacer este cambio.',
+        );
+        break;
       default:
-        _setError('Error de autenticación (${e.code}): ${e.message}');
+        // El código y el mensaje de Firebase describen plomería interna
+        // ("channel-error", nombres de canales pigeon) que no significan nada
+        // para una madre o un padre. Se quedan en el log de depuración.
+        debugPrint('FirebaseAuthException ${e.code}: ${e.message}');
+        _setError(
+          'No pudimos completar la operación. Inténtalo de nuevo en un momento.',
+        );
     }
   }
 
@@ -165,6 +203,15 @@ try {
     notifyListeners();
   }
 
+  /// Muestra un mensaje entendible y deja el detalle técnico solo en el log.
+  ///
+  /// Las excepciones de los plugins traen nombres de canales y clases internas
+  /// que no ayudan a quien usa la app y dan mala impresión en pantalla.
+  void _reportUnexpected(Object error, String message) {
+    debugPrint('AuthViewModel: $error');
+    _setError(message);
+  }
+
   /// Limpia el mensaje de error manualmente
   void clearError() {
     _clearError();
@@ -179,15 +226,21 @@ try {
       return updated;
     } catch (e) {
       _setLoading(false);
-      _setError('No se pudo actualizar el nombre: $e');
+      _reportUnexpected(e, 'No se pudo actualizar el nombre.');
       return false;
     }
   }
 
-  Future<bool> changePassword(String newPassword) async {
+  Future<bool> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     _setLoading(true);
     try {
-      final updated = await _authService.changePassword(newPassword);
+      final updated = await _authService.changePassword(
+        currentPassword,
+        newPassword,
+      );
       _setLoading(false);
       return updated;
     } on FirebaseAuthException catch (e) {
@@ -196,15 +249,15 @@ try {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('No se pudo actualizar la contraseña: $e');
+      _reportUnexpected(e, 'No se pudo actualizar la contraseña.');
       return false;
     }
   }
 
-  Future<bool> deleteAccount() async {
+  Future<bool> deleteAccount(String password) async {
     _setLoading(true);
     try {
-      final deleted = await _authService.deleteAccount();
+      final deleted = await _authService.deleteAccount(password);
       _currentUser = null;
       _setLoading(false);
       return deleted;
@@ -214,7 +267,7 @@ try {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('No se pudo eliminar la cuenta: $e');
+      _reportUnexpected(e, 'No se pudo eliminar la cuenta.');
       return false;
     }
   }

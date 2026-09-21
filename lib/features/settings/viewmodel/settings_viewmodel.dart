@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../shared/services/feedback_preferences.dart';
+
 enum FontScaleOption { small, medium, large }
 
 class SettingsViewModel extends ChangeNotifier {
@@ -21,7 +23,7 @@ class SettingsViewModel extends ChangeNotifier {
   bool _hapticFeedback = true;
   bool _remindersEnabled = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 18, minute: 0);
-  int _parentalMinLevel = 0;
+  int _parentalAllowedModules = 0;
 
   // Consentimiento de telemetría: es por cuenta (UID), no del dispositivo.
   // Así la decisión de una cuenta no afecta a otra ni queda bloqueada para
@@ -45,7 +47,10 @@ class SettingsViewModel extends ChangeNotifier {
   /// `true` si ya se mostró el diálogo de consentimiento de telemetría para la
   /// cuenta actual (se muestra una sola vez por cuenta, tras crearla).
   bool get telemetryOnboardingShown => _telemetryOnboardingShown;
-  int get parentalMinLevel => _parentalMinLevel;
+
+  /// Cuántos módulos, en el orden en que se muestran, puede abrir el niño.
+  /// `0` significa sin límite.
+  int get parentalAllowedModules => _parentalAllowedModules;
 
   double get textScaleFactor {
     switch (_fontScale) {
@@ -68,10 +73,12 @@ class SettingsViewModel extends ChangeNotifier {
     _audioFeedback = _prefs?.getBool('audioFeedback') ?? true;
     _hapticFeedback = _prefs?.getBool('hapticFeedback') ?? true;
     _remindersEnabled = _prefs?.getBool('remindersEnabled') ?? false;
-    _parentalMinLevel = _prefs?.getInt('parentalMinLevel') ?? 0;
+    _parentalAllowedModules = _prefs?.getInt('parentalAllowedModules') ?? 0;
     _reminderTime =
         _parseStoredTime(_prefs?.getString('reminderTime')) ??
         const TimeOfDay(hour: 18, minute: 0);
+    FeedbackPreferences.setAudioEnabled(_audioFeedback);
+    FeedbackPreferences.setHapticsEnabled(_hapticFeedback);
     _loading = false;
     // Aplicar el consentimiento de la cuenta activa (si ya se conoce) una vez
     // que las preferencias están listas.
@@ -134,12 +141,14 @@ class SettingsViewModel extends ChangeNotifier {
   void toggleAudioFeedback(bool value) {
     _audioFeedback = value;
     _prefs?.setBool('audioFeedback', value);
+    FeedbackPreferences.setAudioEnabled(value);
     notifyListeners();
   }
 
   void toggleHapticFeedback(bool value) {
     _hapticFeedback = value;
     _prefs?.setBool('hapticFeedback', value);
+    FeedbackPreferences.setHapticsEnabled(value);
     notifyListeners();
   }
 
@@ -185,9 +194,9 @@ class SettingsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setParentalMinLevel(int level) {
-    _parentalMinLevel = level.clamp(0, 10);
-    _prefs?.setInt('parentalMinLevel', _parentalMinLevel);
+  void setParentalAllowedModules(int count) {
+    _parentalAllowedModules = count.clamp(0, 10);
+    _prefs?.setInt('parentalAllowedModules', _parentalAllowedModules);
     notifyListeners();
   }
 

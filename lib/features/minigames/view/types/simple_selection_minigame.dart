@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../../../core/app_theme.dart';
 import '../../../../shared/services/tts_service.dart';
 import '../../../../shared/services/celebration_helper.dart';
 import '../../../../shared/services/negative_feedback_helper.dart';
@@ -41,7 +42,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
   // Sistema de múltiples preguntas
   late final List<QuestionData> _questions;
   int _currentQuestionIndex = 0;
-  int _totalAttempts = 0; // Intentos totales a través de todas las preguntas
+  // Equivocaciones sumadas de todas las preguntas. Se reporta esto y no el
+  // total de selecciones para que acertar todo a la primera llegue como 0.
+  int _totalErrors = 0;
   bool _isPreloadingImages = true;
   _InlineFeedbackType _inlineFeedback = _InlineFeedbackType.none;
 
@@ -236,7 +239,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     setState(() {
       _selectedIndex = index;
       _attempts++;
-      _totalAttempts++;
+      if (!isCorrect) {
+        _totalErrors++;
+      }
       _isInteractionLocked = true;
       _inlineFeedback = isCorrect
           ? _InlineFeedbackType.correct
@@ -309,7 +314,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 
     // Mantener un pequeño delay para que se vea el feedback/celebración.
     Future.delayed(const Duration(milliseconds: 1500), () {
-      widget.onComplete(success, _totalAttempts);
+      widget.onComplete(success, _totalErrors);
     });
   }
 
@@ -462,16 +467,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
         children: [
           const Icon(Icons.help_outline, color: Color(0xFF00E5FF), size: 32),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _question,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
+          Expanded(child: _buildQuestionText()),
           IconButton(
             onPressed: _ttsReady ? _speakCurrentQuestion : null,
             icon: const Icon(Icons.volume_up_rounded),
@@ -480,6 +476,67 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Separa la frase fija de la parte variable: la instruccion va pequena y
+  /// el nombre del paso grande, para que se lea que es lo que se pregunta.
+  Widget _buildQuestionText() {
+    final colors = context.appColors;
+    if (!_question.startsWith(kSimpleSelectionQuestionPrefix)) {
+      return Text(
+        _question,
+        style: const TextStyle(
+          fontFamily: AppFonts.display,
+          fontSize: 20,
+          color: Colors.white,
+        ),
+      );
+    }
+    final lead = kSimpleSelectionQuestionPrefix.trim().replaceAll('...', '');
+    final focus = _question
+        .substring(kSimpleSelectionQuestionPrefix.length)
+        .trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.help_outline_rounded, color: colors.accent, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '¿$lead?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: colors.accent,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          margin: const EdgeInsets.only(left: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(color: colors.accent.withAlpha(50)),
+          ),
+          child: Text(
+            focus,
+            style: const TextStyle(
+              fontFamily: AppFonts.display,
+              fontSize: 22,
+              color: Colors.white,
+              height: 1.1,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

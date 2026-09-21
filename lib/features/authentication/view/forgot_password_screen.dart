@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/auth_viewmodel.dart';
+import '../../../core/app_theme.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -43,169 +44,162 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF5B8DB3);
-    const Color buttonColor = Color(0xFF5A97B8);
-    const Color backgroundColor = Colors.white;
-    const avatarScale = 0.65;
+    final colors = context.appColors;
+    final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: const Text('Recuperar contraseña'),
-        backgroundColor: primaryColor,
-      ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 16.0,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Recupera tu contraseña',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF5B8DB3),
+    // El degradado envuelve al Scaffold para que la AppBar transparente
+    // quede sobre el mismo fondo que el cuerpo.
+    return Container(
+      decoration: BoxDecoration(gradient: colors.backgroundGradient),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(title: const Text('Recuperar contraseña')),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 16.0,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 16),
+                            Text(
+                              'Appy',
+                              style: TextStyle(
+                                fontFamily: AppFonts.display,
+                                fontSize: 40,
+                                color: colors.ink,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 32),
-                          Center(
-                            child: Image.asset(
-                              'assets/images/forgot-password.png',
-                              width: 400 * avatarScale,
-                              height: 400 * avatarScale,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Recupera tu contraseña',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: colors.inkSoft,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // Mensaje de éxito tras enviar el correo
-                          if (_showSuccess)
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.green.shade300,
+                            const SizedBox(height: 24),
+                            // Imagen del personaje sobre el formulario
+                            Center(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(32),
+                                child: Image.asset(
+                                  'assets/images/forgot-password.png',
+                                  height: 180,
+                                  fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.high,
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline,
-                                    color: Colors.green.shade700,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.',
-                                      style: TextStyle(
-                                        color: Colors.green.shade700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
+                            const SizedBox(height: 24),
 
-                          // Mostrar mensaje de error si existe
-                          Consumer<AuthViewModel>(
-                            builder: (context, authViewModel, child) {
-                              if (authViewModel.errorMessage != null) {
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.red.shade300,
-                                    ),
+                            // Mensaje de éxito tras enviar el correo
+                            if (_showSuccess)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: colors.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.input,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.error_outline,
-                                        color: Colors.red.shade700,
+                                  border: Border.all(
+                                    color: colors.success,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_outline,
+                                      color: colors.success,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.',
+                                        style: TextStyle(color: colors.ink),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          authViewModel.errorMessage!,
-                                          style: TextStyle(
-                                            color: Colors.red.shade700,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                            // Mostrar mensaje de error si existe
+                            Consumer<AuthViewModel>(
+                              builder: (context, authViewModel, child) {
+                                if (authViewModel.errorMessage != null) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: scheme.errorContainer,
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.input,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: scheme.onErrorContainer,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            authViewModel.errorMessage!,
+                                            style: TextStyle(
+                                              color: scheme.onErrorContainer,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-
-                          // Campo de texto para el correo electrónico
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(color: Colors.black),
-                            decoration: const InputDecoration(
-                              labelText: 'Correo electrónico',
-                              labelStyle: TextStyle(color: Colors.black),
-                              border: OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(
-                                Icons.email,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa tu correo electrónico';
-                              }
-                              if (!value.contains('@')) {
-                                return 'Ingresa un correo electrónico válido';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Botón con indicador de carga
-                          Consumer<AuthViewModel>(
-                            builder: (context, authViewModel, child) {
-                              return SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: buttonColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
+                                      ],
                                     ),
-                                    textStyle: const TextStyle(fontSize: 18),
-                                  ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+
+                            // Campo de texto para el correo electrónico
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: 'Correo electrónico',
+                                prefixIcon: Icon(Icons.email_outlined),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu correo electrónico';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Ingresa un correo electrónico válido';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Botón con indicador de carga
+                            Consumer<AuthViewModel>(
+                              builder: (context, authViewModel, child) {
+                                return FilledButton(
                                   onPressed: authViewModel.isLoading
                                       ? null
                                       : _handleSubmit,
@@ -215,45 +209,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                           width: 20,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
                                           ),
                                         )
                                       : const Text(
                                           'Enviar correo de recuperación',
                                         ),
-                                ),
-                              );
-                            },
-                          ),
-                          if (_showSuccess) ...[
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton(
+                                );
+                              },
+                            ),
+                            if (_showSuccess) ...[
+                              const SizedBox(height: 16),
+                              TextButton(
                                 onPressed: () {
                                   Navigator.of(context).pop();
                                 },
-                                child: const Text(
-                                  'Volver a iniciar sesión',
-                                  style: TextStyle(
-                                    color: Color(0xFF5A97B8),
-                                    fontSize: 16,
-                                  ),
-                                ),
+                                child: const Text('Volver a iniciar sesión'),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

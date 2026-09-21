@@ -5,6 +5,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
 import 'popup_preview.dart';
+import 'puzzle_grid_background.dart';
+import 'video_player_screen.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
@@ -281,6 +283,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         canLaunch: _canPlaySelectedContent,
         previewImageUrl: _selectedPreviewImageUrl,
         videoPreviewPath: _selectedVideoPreviewPath,
+        levelId: widget.levelId,
+        moduleId: widget.moduleId,
         onLaunch: () => Navigator.of(dialogContext).pop(true),
       ),
     );
@@ -290,7 +294,6 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     }
 
     // Para el rompecabezas se pide elegir la dificultad antes de entrar.
-    // La selección de dificultad nunca marca `started` ni crea sesión.
     int? puzzleGridSize;
     if (activityType == 'puzzle') {
       puzzleGridSize = await _showPuzzleDifficultyDialog();
@@ -313,21 +316,43 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     // La actividad real inicia únicamente después de la
     // confirmación del popup (no al abrir la vista previa).
     try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LevelPlayScreen(
-            levelTitle: widget.levelTitle ?? widget.levelName,
-            minigameData: data,
-            actividadType: activityType,
-            levelId: widget.levelId ?? '',
-            moduleId: widget.moduleId ?? '',
-            videoUrl: widget.videoUrl,
-            launchSimpleSelectionFromCard: activityType == 'simple_selection',
-            telemetryHandle: telemetryHandle,
+      if (activityType == 'video') {
+        // Los niveles de video usan el reproductor horizontal con VideoControlRail.
+        final videoUrl =
+            widget.videoUrl ??
+            (widget.minigameData?['videoUrl'] as String?) ??
+            (widget.minigameData?['url'] as String?) ??
+            '';
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(
+              videoUrl: videoUrl,
+              levelTitle: widget.levelTitle ?? widget.levelName,
+              levelId: widget.levelId,
+              moduleId: widget.moduleId,
+              telemetryHandle: telemetryHandle,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LevelPlayScreen(
+              levelTitle: widget.levelTitle ?? widget.levelName,
+              minigameData: data,
+              actividadType: activityType,
+              levelId: widget.levelId ?? '',
+              moduleId: widget.moduleId ?? '',
+              videoUrl: widget.videoUrl,
+              launchSimpleSelectionFromCard:
+                  activityType == 'simple_selection',
+              telemetryHandle: telemetryHandle,
+            ),
+          ),
+        );
+      }
     } catch (_) {
       // Error de navegación antes de llegar a la actividad → launch_error.
       telemetryHandle?.onLaunchError(TerminalReason.navigationFailed);
@@ -552,8 +577,49 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     );
   }
 
+  List<String> get _backgroundImageUrls {
+    final urls = <String>[];
+
+    void addUrl(String? url) {
+      if (url == null || url.trim().isEmpty) return;
+      final clean = url.trim();
+      // Filtrar cuadriculas para que el fondo se forme de imagenes individuales
+      if (clean.contains('appy_heads_grid_preset') || clean.contains('appy_routine_menu_preset')) return;
+      urls.add(clean);
+    }
+
+    addUrl(widget.bgLevelImg);
+
+    for (final content in widget.contents) {
+      addUrl(content.imagePath);
+    }
+
+    // pictogramaUrl y puzzleImageUrl son la imagen protagonista de la
+    // actividad (se muestran solas en el popup de preview); repetirlas
+    // ademas como pieza del collage de fondo se ve mal, como una foto
+    // dentro de si misma. Se excluyen aqui.
+    final data = widget.minigameData;
+    if (data != null) {
+      final rawSteps = data['steps'] ?? data['pictogramSteps'];
+      if (rawSteps is List) {
+        for (final raw in rawSteps) {
+          if (raw is! Map) continue;
+          final image =
+              raw['url'] ??
+              raw['imagePath'] ??
+              raw['src'] ??
+              raw['pictogramaUrl'];
+          if (image is String) addUrl(image);
+        }
+      }
+    }
+    return urls;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).accessibleNavigation;
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -565,16 +631,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         ),
         child: Stack(
           children: [
-            if (widget.bgLevelImg != null && widget.bgLevelImg!.isNotEmpty)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.3,
-                  child: _buildImageFromUrl(
-                    widget.bgLevelImg!,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+            Positioned.fill(
+              child: PuzzleGridBackground(
+                imageUrls: _backgroundImageUrls,
+                opacity: Theme.of(context).brightness == Brightness.dark ? 0.04 : 0.02,
+                animate: !reduceMotion,
               ),
+            ),
 
             SafeArea(
               child: Column(

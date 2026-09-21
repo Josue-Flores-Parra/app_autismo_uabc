@@ -96,6 +96,10 @@ Widget Function({
 })
 ```
 
+`attempts` cuenta equivocaciones, no selecciones. Acertar todo a la primera
+reporta `0`. De ese numero dependen las monedas en `LevelCompletionService`,
+y por eso el dialogo de resultado lo muestra como "Errores".
+
 `MinigameFactory` mantiene un `Map<MinigameType, MinigameBuilder>` y expone:
 
 - `register(type, builder)`.
@@ -143,17 +147,21 @@ Mecanica:
 - Usa TTS en `es-MX` para leer la pregunta.
 - Permite reproducir pregunta con boton de volumen.
 - Mezcla opciones en cada pregunta.
-- Lleva intentos por pregunta (`_attempts`) e intentos totales (`_totalAttempts`).
+- Lleva intentos por pregunta (`_attempts`) y equivocaciones totales (`_totalErrors`).
 - Muestra feedback inline "Correcto" o "Intenta de nuevo".
 - En exito reproduce confetti y `assets/audio/celebration.mp3`.
 - En fallo reproduce `assets/audio/negative_beeps.mp3`.
-- Llama `onComplete(success, _totalAttempts)` despues de 1.5 s.
+- Llama `onComplete(success, _totalErrors)` despues de 1.5 s.
 
 Prioridad para construir preguntas:
 
 1. Si `steps` o `pictogramSteps` tiene al menos 2 pasos validos, genera exactamente 3 preguntas.
 2. Si existe `questions`, usa ese formato y limita a maximo 3 preguntas.
 3. Si no, el minijuego usa una pregunta por defecto (`¿Cuál es la imagen correcta?`) con opciones placeholder, evitando un soft-lock.
+
+Al generar desde `steps`, ninguna pregunta repite una imagen entre sus opciones.
+Dos pasos distintos pueden compartir la misma imagen con captions diferentes, y
+usarlos juntos dejaba opciones imposibles de distinguir a simple vista.
 
 ### steps / pictogramSteps
 

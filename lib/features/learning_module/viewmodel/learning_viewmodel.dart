@@ -39,6 +39,17 @@ class LearningViewModel extends ChangeNotifier {
   // Se deriva del progreso ya cargado en _loadModulesProgress().
   int _completedLevelsCount = 0;
 
+  Future<void> clearAllProgress() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _firestoreService.clearUserProgress(user.uid);
+      _userProgress.clear();
+      _moduleLevels.clear();
+      _completedLevelsCount = 0;
+      notifyListeners();
+    }
+  }
+
   // Control de race conditions: evitar peticiones duplicadas simultáneas
   final Map<String, Future<List<ModuleLevelInfo>>> _pendingLevelLoads = {};
 
@@ -135,6 +146,9 @@ class LearningViewModel extends ChangeNotifier {
   /*
   Carga el progreso del usuario para todos los módulos en paralelo (Future.wait)
   y actualiza las estrellas de cada módulo.
+
+  También se piden los niveles de cada módulo porque el badge de estrellas
+  depende de cuántos niveles tiene el módulo completo.
   */
   Future<void> _loadModulesProgress() async {
     if (_currentUserId == null || _modulos.isEmpty) return;
@@ -142,23 +156,28 @@ class LearningViewModel extends ChangeNotifier {
     _completedLevelsCount = 0;
 
     // Lanzar todas las peticiones de progreso en paralelo
-    final progressFutures = _modulos.map(
-      (modulo) => _firestoreService
-          .getUserLevelsProgress(_currentUserId!, modulo.id)
-          .catchError((_) => <String, Map<String, dynamic>>{}),
+    final progressFutures = Future.wait(
+      _modulos.map(
+        (modulo) => _firestoreService
+            .getUserLevelsProgress(_currentUserId!, modulo.id)
+            .catchError((_) => <String, Map<String, dynamic>>{}),
+      ),
+    );
+    final levelCountFutures = Future.wait(
+      _modulos.map(
+        (modulo) => _firestoreService
+            .getModuleLevels(modulo.id)
+            .then((levels) => levels.length),
+      ),
     );
 
-    final progressResults = await Future.wait(progressFutures);
+    final progressResults = await progressFutures;
+    final levelCounts = await levelCountFutures;
 
     // Aplicar resultados a cada módulo
     for (int i = 0; i < _modulos.length; i++) {
       final modulo = _modulos[i];
       final progress = progressResults[i];
-
-      int totalStars = 0;
-      progress.forEach((_, levelProgress) {
-        totalStars += (levelProgress['estrellas'] as int? ?? 0);
-      });
 
       // Contar niveles completados con la misma regla que _determineLevelStates
       final completedInModule = countCompletedLevels(progress);
@@ -170,7 +189,10 @@ class LearningViewModel extends ChangeNotifier {
       _modulos[i] = ModuloInfo(
         id: modulo.id,
         titulo: modulo.titulo,
-        estrellas: totalStars,
+        estrellas: moduleStarsForCompletedLevels(
+          completedInModule,
+          levelCounts[i],
+        ),
         nivel: modulo.nivel,
         imagenPath: modulo.imagenPath,
         lvlBackgroundImageUrl: modulo.lvlBackgroundImageUrl,
@@ -365,7 +387,7 @@ class LearningViewModel extends ChangeNotifier {
   Determina los estados de todos los niveles considerando el orden y progreso.
   Reglas:
   - El primer nivel (orden = 1) siempre está inProgress si no está completado
-  - Un nivel está completado si tiene progreso con estado 'completed' o estrellas > 0
+  - Un nivel está completado cuando reúne sus 3 estrellas (ver isCompletedProgress)
   - Un nivel está bloqueado si el nivel anterior no está completado
   - Un nivel está inProgress si es el siguiente nivel después del último completado
   */
@@ -382,18 +404,11 @@ class LearningViewModel extends ChangeNotifier {
       StateOfStep estado;
 
       if (progress != null) {
-        final status = progress['status']?.toString().toLowerCase();
-        final estrellas = parseProgressEstrellas(progress);
-
-        if (isCompletedProgress(progress)) {
-          estado = StateOfStep.completed;
-        } else if (status == 'in_progress' || status == 'inprogress') {
-          estado = StateOfStep.inProgress;
-        } else {
-          estado = estrellas > 0
-              ? StateOfStep.completed
-              : StateOfStep.inProgress;
-        }
+        // Con progreso registrado el nivel ya está abierto: o quedó terminado
+        // con sus 3 estrellas, o sigue en curso hasta reunirlas.
+        estado = isCompletedProgress(progress)
+            ? StateOfStep.completed
+            : StateOfStep.inProgress;
       } else {
         if (i == 0) {
           estado = StateOfStep.inProgress;

@@ -3,6 +3,8 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
+import 'feedback_preferences.dart';
+
 /// Reusable celebration effect used by minigames and video completion flows.
 class CelebrationHelper {
   final ConfettiController confettiController;
@@ -25,6 +27,7 @@ class CelebrationHelper {
   }
 
   Future<void> _playCelebrationSound() async {
+    if (!FeedbackPreferences.audioEnabled) return;
     try {
       await _configureAudioSession();
       await _celebrationPlayer.setAudioSource(

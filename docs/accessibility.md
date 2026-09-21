@@ -16,10 +16,10 @@ lo que debe cuidarse al agregar UI.
 | `locale` | Conectado a `MaterialApp.locale`. |
 | `highContrast` | Conectado a `AppTheme.light/dark`. |
 | `reduceAnimations` | Conectado a transiciones de pagina en `AppTheme` y a `AnimatedSwitcher` de `MainShell`. |
-| `audioFeedback` | Persistido, pero no aplicado globalmente a todos los sonidos. |
-| `hapticFeedback` | Persistido, pero no se observa uso global en el codigo actual. |
-| `remindersEnabled` | Persistido; permite elegir hora, pero no programa notificaciones reales. |
-| `parentalMinLevel` | Conectado a bloqueo visual de modulos en `ModuleListScreen`. |
+| `audioFeedback` | Conectado via `FeedbackPreferences` a `TtsService`, `CelebrationHelper` y `NegativeFeedbackHelper`. Apagarlo silencia el dictado de pictogramas y los sonidos de acierto y fallo. |
+| `hapticFeedback` | Conectado via `FeedbackPreferences` a `HapticsService`, que vibra al abrir y cerrar elementos y al resolver una actividad. |
+| `remindersEnabled` | Persistido; permite elegir hora, pero no programa notificaciones reales. La pantalla lo advierte junto al horario. |
+| `parentalAllowedModules` | Conectado a bloqueo visual de modulos en `ModuleListScreen`. |
 
 ## Escala de texto
 
@@ -90,9 +90,14 @@ Componentes con audio:
 | `LevelPlayScreen` | TTS de feedback final. |
 | `CelebrationHelper` | `assets/audio/celebration.mp3`. |
 
-`SettingsViewModel.audioFeedback` existe, pero estos componentes no lo consultan
-de forma global. Si se implementa control real de audio feedback, hay que pasar
-esa preferencia a los servicios o consultarla desde contexto.
+`SettingsViewModel.audioFeedback` llega a estos componentes a traves de
+`FeedbackPreferences`, un espejo en memoria que `SettingsViewModel` actualiza al
+cargar preferencias y en cada cambio del switch. `TtsService.speak`,
+`CelebrationHelper` y `NegativeFeedbackHelper` lo consultan antes de reproducir,
+porque son servicios sin `BuildContext` y no pueden leer el provider.
+
+Queda fuera del switch el contenido educativo en si: el audio del video de nivel
+y el del `AudioMinigame`, que sin sonido no tendrian actividad que resolver.
 
 ## Pictogramas y semantica
 
@@ -107,13 +112,13 @@ deben tener label semantico o texto equivalente visible.
 
 ## PIN y control parental
 
-`MainShell` protege Ajustes con PIN desde bottom nav. Esto sirve como control de
-adulto/cuidador, pero el icono de ajustes del `AppBar` en `ModuleListScreen`
-abre `SettingsPage` sin pedir PIN. Si el PIN debe ser una barrera real, ese
-acceso directo debe revisarse.
+`SettingsAccessGuard` protege Ajustes con PIN desde su unico punto de entrada:
+el icono del `AppBar` en `ModuleListScreen`. El PIN se guarda por cuenta
+(`settingsPin_<uid>`), asi que no se filtra entre usuarios del dispositivo ni
+sobrevive a borrar y recrear la cuenta.
 
-`parentalMinLevel` bloquea modulos cuyo `modulo.nivel` es menor que el minimo
-configurado. Es bloqueo visual en la lista; no es una regla de seguridad en
+`parentalAllowedModules` limita cuantos modulos, en el orden mostrado, puede
+abrir el nino. Es bloqueo visual en la lista; no es una regla de seguridad en
 Firestore.
 
 ## Consideraciones para usuarios con autismo

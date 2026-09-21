@@ -51,8 +51,8 @@ MainShell
         -> LevelContentPreviewScreen
           -> RadialFocusPreviewSelector
           -> PopupPreview
-          -> LevelPlayScreen
-            -> MinigamesWidget o _LevelVideoPlayerScreen
+          -> VideoPlayerScreen (actividadType == video) o LevelPlayScreen (resto)
+            -> MinigamesWidget
             -> LevelCompletionService
               -> FirestoreService.updateUserLevelProgress()
               -> AvatarViewModel.agregarMonedas()
@@ -141,10 +141,8 @@ No se encontraron modulos en Firestore
 Reglas reales:
 
 - Niveles se ordenan por `orden`.
-- Si hay progreso y `status == completed`, el nivel queda `completed`.
-- Si hay progreso y `estrellas > 0`, tambien queda `completed`.
-- Si hay progreso y `status == in_progress` o `inprogress`, queda `inProgress`.
-- Si hay progreso con otro status y sin estrellas, queda `inProgress`.
+- Si hay progreso y el nivel reunio sus 3 estrellas, queda `completed`.
+- Si hay progreso pero le faltan estrellas, queda `inProgress`.
 - Si no hay progreso, el primer nivel queda `inProgress`.
 - Si no hay progreso y el nivel anterior esta `completed`, queda `inProgress`.
 - Si no hay progreso y el anterior no esta completado, queda `blocked`.
@@ -182,15 +180,16 @@ Mecanica:
 - Muestra error con boton `Reintentar` si `errorMessageModules != null`.
 - Lee nombre de usuario directamente desde `FirebaseAuth.instance.currentUser`.
 - Usa `displayName`; si no, parte local del email; si no, `Usuario`.
-- El nivel mostrado en header esta hardcodeado como `2`; el propio codigo deja
-  indicado que deberia obtenerse desde Firestore en el futuro.
-- Lee `SettingsViewModel.parentalMinLevel`.
+- El nivel mostrado en header sale de `completedLevelsCount`, con minimo `1`.
+- Lee `SettingsViewModel.parentalAllowedModules`.
+- El icono de ajustes del `AppBar` pasa por `SettingsAccessGuard`. Es la unica
+  entrada a Ajustes; no hay pestana propia en el bottom nav.
 - Pasa modulos a `ModulosGridView`.
 
 `ModulosGridView` reconstruye modulos y agrega bloqueo si:
 
 ```text
-modulo.bloqueado || modulo.nivel < parentalMinLevel
+modulo.bloqueado || (parentalAllowedModules > 0 && indice >= parentalAllowedModules)
 ```
 
 `ModuloPlantilla`:
@@ -198,8 +197,9 @@ modulo.bloqueado || modulo.nivel < parentalMinLevel
 - En `onTapDown`, si no esta bloqueado, llama `prefetchModuleLevels(modulo.id)`.
 - En `onTap`, si no esta bloqueado, navega a `LevelTimelineScreen`.
 - Usa `Image.asset(modulo.imagenPath)`.
-- Muestra badge `NV <nivel>`.
-- Muestra hasta 3 estrellas.
+- Muestra badge `NV <niveles completados>`.
+- Muestra hasta 3 estrellas, calculadas con `moduleStarsForCompletedLevels`:
+  3 niveles terminados dan 1 estrella, 6 dan 2 y terminar el modulo da 3.
 
 ## LevelTimelineScreen
 
@@ -224,12 +224,15 @@ lib/features/learning_module/view/level_timeline_screen.dart
 La vista:
 
 - Dibuja background de modulo con `Image.asset(backgroundImagePath)` si existe.
-- Si el asset falla o no hay background, usa gradiente.
-- Dibuja path curvo con `PathPainter`.
-- Usa nodos circulares:
-  - lock para `blocked`.
-  - play para `inProgress`.
-  - check para `completed`.
+- Si el asset falla o no hay background, usa `colors.backgroundGradient`.
+- Encabezado en `GlassPill` opacas (`color: colors.surface`) sobre la ilustracion, con `extendBodyBehindAppBar`; el scroll reserva `padding.top + kToolbarHeight`.
+- Dibuja path curvo con `PathPainter`; recibe `baseColor` (`ink` al 40%) y `completedColor` (`success`) desde el tema.
+- Usa nodos circulares rellenos con `surface` y borde por estado:
+  - lock, borde `surfaceBorder`, icono `inkSoft` para `blocked`.
+  - play, borde `accent` para `inProgress`.
+  - check, borde `success` para `completed`.
+- Estrellas: `0xFFF2B233` ganadas, `surface`/`surfaceBorder` vacias.
+- Popup del nodo: tarjeta `surface` con borde `surfaceBorder`, boton `FilledButton` en pastilla.
 - Anima el nodo `inProgress` con escala 1.0 -> 1.05.
 - Dibuja `assets/images/appysittin.png` cerca del nodo activo.
 - Muestra boton flotante `JUGAR` para el primer nivel en progreso.
@@ -260,9 +263,11 @@ lib/features/learning_module/view/level_content_screen.dart
 
 Responsabilidades:
 
-- Mostrar header del nivel.
-- Mostrar hint "Desliza para explorar".
+- Mostrar header del nivel en pastillas (`GlassPill`): atras, titulo en `AppFonts.display` y "Desliza para explorar" como piezas separadas.
+- Fondo: `colors.backgroundGradient` mas `PuzzleGridBackground`.
 - Mostrar `RadialFocusPreviewSelector`.
+- Vibrar (`HapticsService.selection`) al abrir la vista previa.
+- Pasar `totalActivities` (modalidades reales del nivel) a `LevelPlayScreen`.
 - Resolver que actividad abrir segun la tarjeta seleccionada, no solo segun `actividadType`.
 - Preprecargar videos de preview con `VideoControllerManager`.
 - Abrir `PopupPreview`.
@@ -308,9 +313,32 @@ Mecanica:
 - `_dragSensitivity = 0.62`.
 - Hace snap al item mas cercano al terminar el gesto.
 - Notifica `onIndexChanged` solo cuando cambia el item logico.
-- Tocar el nodo enfocado llama `onFocusedNodePressed`.
+- Tocar el nodo enfocado llama `onFocusedNodePressed`; tocar un satelite lo trae al frente (`_bringToFront`).
 - Muestra labels `PICTOGRAMA`, `VIDEO`, `AUDIO`, `MINIJUEGO`.
 - Usa iconos PNG locales para pictograma, video y simple selection.
+
+Disposicion en cruz: todos los nodos son visibles a la vez. El enfocado va al
+frente, centrado en `(w/2, h*0.60)` con `focusSize = min(w*0.50, h*0.52)`; los
+demas se reparten en el arco superior de 180 grados con
+`satelliteSize = focusSize*0.55`. La posicion de cada nodo se interpola por
+`(offset + _dragPhase) % length`, asi el arrastre los desplaza de forma
+continua. Los colores del anillo y de los labels salen de `context.appColors`.
+
+### PuzzleGridBackground
+
+Archivo:
+
+```text
+lib/features/learning_module/view/puzzle_grid_background.dart
+```
+
+Fondo decorativo de `LevelContentPreviewScreen`: once rectangulos en patron
+"bento" que muestran, a muy baja opacidad (`0.10` claro, `0.14` oscuro), las
+imagenes del nivel (`bgLevelImg`, `imagePaths` de las tarjetas, pictograma,
+imagen del puzzle, urls de los pasos). Acepta URLs remotas y assets locales.
+Cada pieza respira con una senoidal (desplazamiento de 1.2%, escala 2%,
+ciclo de 14 s). Envuelto en `IgnorePointer`; `animate: false` cuando
+`reduceAnimations` esta activo.
 
 ## PopupPreview
 
@@ -341,11 +369,16 @@ Responsabilidades:
 
 - Resolver `actividadType`.
 - Abrir `MinigamesWidget` para minijuegos.
-- Abrir reproductor dedicado `_LevelVideoPlayerScreen` para tipo `video`.
 - Manejar reintentos globales de minijuego.
 - Mostrar dialog de resultado.
 - Ejecutar TTS de feedback final.
 - Guardar progreso exitoso mediante `LevelCompletionService`.
+
+Los niveles de tipo `video` **no** llegan a `LevelPlayScreen`:
+`LevelContentPreviewScreen._openSelectedPreviewFlow` los enruta directo a
+`VideoPlayerScreen` (ver seccion "Video de nivel" mas abajo). El `if (type ==
+'video')` que existia aqui se elimino junto con la clase interna
+`_LevelVideoPlayerScreen`: quedaba inalcanzable y duplicaba el reproductor.
 
 ### Reintentos
 
@@ -368,8 +401,9 @@ consentimiento no está activo). Cuando hay handle:
 - `Reintentar` llama `onStartRetryRun()` antes de recrear la UI (conserva la
   misma sesión y acumulados).
 - Back con reintentos disponibles → `abandon`; salir tras agotarlos → `failed`.
-- El reproductor de video dedicado instrumenta ready, 90% (objetivo), replay
-  explícito y `COMPLETAR`.
+- `VideoPlayerScreen` recibe el mismo `ActivitySessionHandle?` e instrumenta
+  ready, launch_error (sin URL o falla de init), 90% (objetivo), replay
+  explícito, `COMPLETAR` y abandono por back.
 
 Detalle completo en `../decisions/telemetry-implementation.md`.
 
@@ -385,19 +419,55 @@ Mensajes:
 
 ### Video de nivel
 
-Si `actividadType == video`, `LevelPlayScreen` usa `_LevelVideoPlayerScreen`,
-no `VideoMinigame`.
+Archivo:
+
+```text
+lib/features/learning_module/view/video_player_screen.dart
+```
+
+Pantalla dedicada, separada de `LevelPlayScreen`. Si `actividadType == video`,
+`LevelContentPreviewScreen` navega directo a `VideoPlayerScreen` en vez de
+`LevelPlayScreen`; los minijuegos siguen yendo por `LevelPlayScreen` /
+`MinigamesWidget`.
 
 Reglas:
 
-- URL tomada de `widget.videoUrl`, `minigameData.videoUrl` o `minigameData.url`.
-- Si no hay URL, muestra mensaje "No hay video disponible para este nivel."
-- Renderiza video en pantalla negra con top bar y controles.
-- Muestra portada `previewImageUrl` hasta el primer tap.
-- Marca `_isCompleted = true` cuando el usuario vio 90% o llego al final.
-- Muestra boton `COMPLETAR` solo cuando `_isCompleted`.
-- Al completar, pausa, hace seek a cero, reproduce celebracion, espera 1.5 s y llama callback de exito.
-- Intercepta back para pausar antes de salir.
+- URL resuelta en `LevelContentPreviewScreen` desde `widget.videoUrl`,
+  `minigameData.videoUrl` o `minigameData.url`. Si ninguna existe, se navega
+  igual con `videoUrl: ''`; `VideoPlayerScreen` detecta la cadena vacia y
+  muestra "No hay video disponible para este nivel." sin inicializar ningun
+  controller, y reporta `onLaunchError` en el primer frame.
+- Renderiza video en pantalla negra, en fullscreen (`enterFullscreenMode`/
+  `exitFullscreenMode`; fuera de aqui la app es solo vertical). A diferencia
+  de otras pantallas, esta **sigue la rotacion fisica del telefono**
+  (`enterFullscreenMode(allowPortrait: true)`) en vez de forzar horizontal:
+  hay ninos con TEA que no saben girar el telefono para "entrar" al video, asi
+  que tiene que verse igual de bien en cualquier orientacion, como en
+  cualquier otra app de video. Es una sola pantalla en ambos casos, no dos
+  vistas separadas; solo cambia donde caen los controles
+  (`MediaQuery.orientationOf(context)` en `build()`):
+  - Horizontal: `VideoControlRail`
+    (`lib/shared/widgets/video_control_rail.dart`), riel vertical de vidrio a
+    la derecha (play/pausa, repetir, salir). El mismo widget lo usan
+    `_FullscreenVideoPlayer` en `preview_cards.dart` y `VideoMinigame`.
+  - Vertical: controles al pie, en horizontal (`_buildBottomControls`), estilo
+    "TikTok": barra de progreso, hora, y botones de repetir/pausa en fila, sin
+    tapar el video. El boton de salir no se repite ahi porque la flecha de
+    regreso de arriba-izquierda ya esta visible en ambas orientaciones.
+- Tocar el video alterna play/pausa y muestra `VideoTapFeedback`, un icono
+  breve y de tamano fijo (no el area completa del reproductor).
+- Los controles se ocultan con fade a los 3 s (`_kControlsAutoHide`) solo
+  mientras reproduce; cualquier toque los vuelve a mostrar. No se ocultan
+  mientras `_isCompleted` es `true`.
+- La barra de progreso va con `allowScrubbing: true`.
+- Marca `_isCompleted = true` la primera vez que el progreso llega al 90% o al
+  final; dispara `onObjectiveMet()` una sola vez en ese instante.
+- Muestra boton `COMPLETAR` solo cuando `_isCompleted`. Al presionarlo:
+  `onComplete()`, pausa, seek a cero, celebracion, espera 1.5 s y
+  `LevelCompletionService.showVideoCompletionDialog`.
+- Replay explicito dispara `onRecordVideoReplay()` antes de reiniciar.
+- Intercepta back (`PopScope`) para pausar y reportar `onAbandon(userBack)`
+  antes de salir, salvo que ya se haya completado.
 
 ## LevelCompletionService
 
@@ -409,40 +479,70 @@ lib/shared/services/level_completion_service.dart
 
 Guarda progreso y recompensas.
 
-`calculateStars(attempts)`:
+Las estrellas del nivel no dependen de los intentos: cada modalidad completada
+(pictograma, video y minijuego) vale una estrella y el nivel se cierra al
+completarlas todas. Por eso el servicio lee el documento de progreso antes de
+escribir, fusiona la modalidad recien jugada en `activities` y recalcula
+`estrellas`.
 
-| Attempts | Estrellas |
+La meta no es siempre 3. `LevelContentPreviewScreen` cuenta las modalidades que
+ese nivel realmente ofrece y las pasa como `totalActivities`; el servicio usa
+ese numero con tope de 3. Sin esa cuenta, un nivel con solo dos modalidades
+nunca podria terminarse y dejaria bloqueado el resto del modulo.
+
+Invariante de UI: `estrellas == 3` significa siempre "nivel terminado". Un nivel
+incompleto nunca guarda 3, aunque su meta sea menor.
+
+`calculateCoins(attempts)`, donde `attempts` son equivocaciones y no
+selecciones totales:
+
+| Errores | Monedas |
 | --- | --- |
-| `<= 1` | 3 |
-| `== 2` | 2 |
-| `> 2` | 1 |
+| `0` | 30 |
+| `1` o `2` | 20 |
+| `>= 3` | 10 |
 
-`calculateCoins(stars)`:
+Una actividad de observacion (pictograma o video) paga 10 monedas fijas.
 
-| Estrellas | Monedas |
-| --- | --- |
-| 3 | 30 |
-| 2 | 20 |
-| 1 | 10 |
-| otro | 0 |
+Repasar una modalidad que el nivel ya tenia completada (`alreadyRewarded`)
+paga `_repasoCoins` (5 monedas) en vez de 0: repetir tiene que seguir
+valiendo la pena, para que repasar un video o un minijuego ya superado no se
+sienta como tiempo perdido. Ese mismo repaso, en el avatar, no cansa: la
+energia sube en vez de bajar (ver `docs/features/avatar.md`, seccion
+"Felicidad y energia").
 
 `completeInteractiveLevel()`:
 
-- Requiere `moduleId`, `levelId` y usuario autenticado.
-- Escribe progreso.
-- Si success y monedas > 0, intenta `AvatarViewModel.agregarMonedas`.
-- Recarga niveles con `LearningViewModel.getModuleLevels(forceReload: true)`.
+- Requiere `moduleId`, `levelId`, `actividadType` y usuario autenticado.
+- Escribe progreso, incluso al fallar, para que el timeline lo registre.
+- La primera vez que se completa una modalidad paga `coinsIfFirstTime`
+  completo; repetirla paga `_repasoCoins`. La marca de si ya se habia
+  completado vive en `activities.<tipo>.rewarded`.
+- Aplica el efecto sobre el avatar con `AvatarViewModel.registrarActividad`
+  (felicidad, energia y monedas en un solo guardado; `esRepaso: true` cuando
+  la modalidad ya estaba completada). Su resultado (`AvatarActivityDelta`) se
+  guarda en `LevelCompletionResult.felicidadDelta`/`energiaDelta`.
+- El refresco de cache local (`getModuleLevels(forceReload: true)` +
+  `refreshModulesProgress()`) va en su propio try/catch: si falla (ej. hipo de
+  red), no se pierde el resultado ya calculado ni las monedas ya guardadas en
+  Firestore.
 - Retorna `LevelCompletionResult` o `null` si falla.
 
 `completeObservationLevel()`:
 
-- Otorga 2 estrellas y 20 monedas.
-- Escribe `type: observation`.
+- Misma ruta, con `attempts` en 0 y `type: observation`.
+
+`LevelCompletionResult` trae `felicidadDelta`, `energiaDelta` y `esRepaso`
+ademas de `coins`, para que la pantalla de resultado muestre el efecto
+completo, no solo las monedas. `LevelCompletionService.statsSummary(felicidad,
+energia)` da el texto corto ("+5 felicidad · -4 energía") que usan tanto el
+dialogo de `LevelPlayScreen` como `showVideoCompletionDialog`.
 
 ## Reglas de mantenimiento
 
 - `modules/{moduleId}/levels` debe tener `orden` para ordenar timeline.
 - Si agregas un tipo nuevo de tarjeta, actualiza `ContentType`, `_buildContentFromLevel`, `RadialFocusPreviewSelector`, `PopupPreview` y docs.
+- Colores de estas pantallas desde `context.appColors`; las unicas excepciones son el negro del reproductor y el dorado `0xFFF2B233` de estrellas y monedas.
 - Si agregas minijuego, actualiza `LevelPlayScreen`, `MinigameType`, registros en `main.dart` y docs de minigames.
 - Si cambias progreso, actualiza `LevelCompletionService`, `LearningViewModel` y `docs/data-model.md`.
 - Si agregas imagen remota masiva, revisar cache/pinning para no saturar conexiones.

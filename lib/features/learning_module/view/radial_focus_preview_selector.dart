@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/app_theme.dart';
 import '../model/content_card_model.dart';
 
 class RadialFocusPreviewSelector extends StatefulWidget {
@@ -110,7 +111,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     _snapController =
         AnimationController(
           vsync: this,
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 220),
         )..addListener(() {
           final animation = _snapAnimation;
           if (animation == null || !mounted) return;
@@ -246,12 +247,39 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     _animateSnapToNearest();
   }
 
+  // Tocar un satelite lo trae al frente girando la rueda los pasos que haga
+  // falta, en la direccion mas corta.
+  void _bringToFront(int offset) {
+    if (_isDragging || offset == 0 || _length <= 1) return;
+    final forward = offset;
+    final backward = offset - _length;
+    final steps = forward.abs() <= backward.abs() ? forward : backward;
+
+    _snapAnimation = Tween<double>(begin: 0, end: -steps * _stepAngle).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeInOutCubic),
+    );
+    _snapController
+      ..stop()
+      ..reset();
+    _setDragging(true);
+    _snapController.forward().whenCompleteOrCancel(() {
+      if (!mounted) return;
+      setState(() {
+        _virtualIndex += steps;
+        _dragAccumulator = 0;
+      });
+      _setDragging(false);
+      widget.onIndexChanged?.call(_selectedLogicalIndex);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_length == 0) {
       return const SizedBox.shrink();
     }
 
+    final colors = context.appColors;
     final selected = widget.contents[_selectedLogicalIndex];
     final selectedTypeLabel = _typeLabelFor(selected);
 
@@ -269,124 +297,147 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final selectorCenter = Offset(
-                  constraints.maxWidth / 2,
-                  constraints.maxHeight * 0.42,
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
+
+                // Cruz: el nodo enfocado va grande al centro y los demas se
+                // reparten en un arco superior (izquierda, arriba, derecha),
+                // todos dentro de la pantalla. Nada queda fuera de vista.
+                final focusSize = math.min(width * 0.50, height * 0.52);
+                final satelliteSize = focusSize * 0.55;
+                final focusCenter = Offset(width / 2, height * 0.60);
+
+                final satelliteCount = _length - 1;
+                final ringRadius = math.min(
+                  width * 0.38,
+                  focusCenter.dy - satelliteSize / 2 - 6,
                 );
 
-                // El centro visual se desplaza hacia arriba para dejar espacio
-                // al label/titulo debajo sin recortar la orbita inferior.
-
-                final nodeSize = math.min(
-                  constraints.maxWidth * 0.74,
-                  constraints.maxHeight * 0.78,
-                );
-
-                // nodeSize se deriva de ambos ejes para conservar proporcion
-                // circular y evitar que el widget "rompa" en layouts extremos.
-
-                // Trayectoria radial: el nodo seleccionado se mantiene fijo en el punto
-                // superior de la circunferencia y los demas entran/salen desde abajo.
-                final orbitRadiusX = math.max(
-                  nodeSize * 0.95,
-                  constraints.maxWidth * 0.86,
-                );
-                final orbitRadiusY = math.max(
-                  nodeSize * 0.72,
-                  constraints.maxHeight * 0.52,
-                );
-
-                // Se usa orbita eliptica (X != Y) para reforzar sensacion de profundidad
-                // y reducir solapamiento vertical de nodos en pantallas bajas.
-                final orbitCenter = Offset(
-                  selectorCenter.dx,
-                  selectorCenter.dy + orbitRadiusY,
-                );
-
-                final radialNodes = <_RadialNodeLayout>[];
-                final orbitCount = _length;
-
-                for (int offset = 0; offset < orbitCount; offset++) {
-                  final logical = _logicalFromVirtual(_virtualIndex + offset);
-                  final angle =
-                      (-math.pi / 2) + ((offset + _dragPhase) * _stepAngle);
-                  final topness = ((-math.sin(angle) + 1) / 2).clamp(0.0, 1.0);
-
-                  // topness modela "cercania" al frente: 1 arriba (foco), 0 abajo (fondo).
-                  // Sobre esa variable se mapean opacidad y blur para dar lectura espacial.
-                  final opacity = 0.16 + (topness * 0.48);
-                  final blurSigma =
-                      0.2 + ((1 - topness) * 2.2) + (_isDragging ? 0.25 : 0.0);
-                  final center = Offset(
-                    orbitCenter.dx + math.cos(angle) * orbitRadiusX,
-                    orbitCenter.dy + math.sin(angle) * orbitRadiusY,
+                Offset slotCenter(int slot) {
+                  if (slot == 0) return focusCenter;
+                  if (satelliteCount == 1) {
+                    return Offset(focusCenter.dx, focusCenter.dy - ringRadius);
+                  }
+                  // Arco de 180 grados: de la izquierda (pi) hasta la derecha (0),
+                  // pasando por arriba (pi/2). Se recorre en el sentido en que
+                  // giran los items al deslizar.
+                  final t = (slot - 1) / (satelliteCount - 1);
+                  final angle = math.pi - (t * math.pi);
+                  return Offset(
+                    focusCenter.dx + math.cos(angle) * ringRadius,
+                    focusCenter.dy - math.sin(angle) * ringRadius,
                   );
+                }
 
-                  radialNodes.add(
+                double slotScale(int slot) => slot == 0 ? 1.0 : 0.55;
+                double slotOpacity(int slot) => slot == 0 ? 1.0 : 0.62;
+                double slotBlur(int slot) => slot == 0 ? 0.0 : 1.1;
+
+                final nodes = <_RadialNodeLayout>[];
+                for (int offset = 0; offset < _length; offset++) {
+                  final logical = _logicalFromVirtual(_virtualIndex + offset);
+
+                  // Posicion continua del item en la secuencia de slots:
+                  // offset entero + fase del arrastre. Se interpola entre el
+                  // slot actual y el siguiente para que la transicion sea
+                  // fluida en vez de saltar de hueco en hueco.
+                  final continuous = (offset + _dragPhase) % _length;
+                  final base = continuous < 0
+                      ? continuous + _length
+                      : continuous;
+                  final fromSlot = base.floor() % _length;
+                  final toSlot = (fromSlot + 1) % _length;
+                  final t = base - base.floor();
+
+                  final center = Offset.lerp(
+                    slotCenter(fromSlot),
+                    slotCenter(toSlot),
+                    t,
+                  )!;
+                  final scale = ui.lerpDouble(
+                    slotScale(fromSlot),
+                    slotScale(toSlot),
+                    t,
+                  )!;
+                  final opacity = ui.lerpDouble(
+                    slotOpacity(fromSlot),
+                    slotOpacity(toSlot),
+                    t,
+                  )!;
+                  final blur = ui.lerpDouble(
+                    slotBlur(fromSlot),
+                    slotBlur(toSlot),
+                    t,
+                  )!;
+
+                  nodes.add(
                     _RadialNodeLayout(
                       logicalIndex: logical,
+                      offset: offset,
                       center: center,
+                      size: focusSize * scale,
                       opacity: opacity,
-                      blurSigma: blurSigma,
-                      depth: topness,
+                      blurSigma: blur,
+                      depth: scale,
                     ),
                   );
                 }
 
-                // Ordena por profundidad para que los nodos del fondo se dibujen primero.
-                radialNodes.sort((a, b) => a.depth.compareTo(b.depth));
+                // Los satelites se dibujan primero y el enfocado al final,
+                // para que quede al frente.
+                nodes.sort((a, b) => a.depth.compareTo(b.depth));
 
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
                     Positioned(
-                      left: selectorCenter.dx - (nodeSize / 2),
-                      top: selectorCenter.dy - (nodeSize / 2),
-                      child: _SelectorRing(size: nodeSize),
+                      left: focusCenter.dx - (focusSize / 2) - 8,
+                      top: focusCenter.dy - (focusSize / 2) - 8,
+                      child: _SelectorRing(
+                        size: focusSize + 16,
+                        color: colors.accent,
+                      ),
                     ),
-                    for (final radialNode in radialNodes)
+                    for (final node in nodes)
                       Positioned(
-                        left: radialNode.center.dx - (nodeSize / 2),
-                        top: radialNode.center.dy - (nodeSize / 2),
+                        left: node.center.dx - (node.size / 2),
+                        top: node.center.dy - (node.size / 2),
                         child: Opacity(
-                          opacity: radialNode.opacity,
-
-                          // Para acercar la experiencia a preview_cards, cada nodo puede
-                          // renderizar miniatura cuando el contenido lo permite.
-                          child: _RadialNode(
-                            size: nodeSize,
-                            blurSigma: radialNode.blurSigma,
-                            content: widget.contents[radialNode.logicalIndex],
-                            activityAssetPath: _activityAssetForContent(
-                              widget.contents[radialNode.logicalIndex],
-                            ),
-                            fallbackIcon: _fallbackIconForType(
-                              widget.contents[radialNode.logicalIndex].type,
+                          opacity: node.opacity,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              if (_isDragging) return;
+                              if (node.offset == 0) {
+                                widget.onFocusedNodePressed?.call(
+                                  _selectedLogicalIndex,
+                                );
+                              } else {
+                                _bringToFront(node.offset);
+                              }
+                            },
+                            child: _RadialNode(
+                              size: node.size,
+                              blurSigma: node.blurSigma,
+                              isFocused: node.offset == 0,
+                              content: widget.contents[node.logicalIndex],
+                              activityAssetPath: _activityAssetForContent(
+                                widget.contents[node.logicalIndex],
+                              ),
+                              fallbackIcon: _fallbackIconForType(
+                                widget.contents[node.logicalIndex].type,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    Positioned(
-                      left: selectorCenter.dx - (nodeSize / 2),
-                      top: selectorCenter.dy - (nodeSize / 2),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () {
-                          if (_isDragging) return;
-                          widget.onFocusedNodePressed?.call(
-                            _selectedLogicalIndex,
-                          );
-                        },
-                        child: SizedBox(width: nodeSize, height: nodeSize),
-                      ),
-                    ),
                   ],
                 );
               },
             ),
           ),
-          const SizedBox(height: 18),
-          _buildTypeLabel(selectedTypeLabel),
+          const SizedBox(height: 14),
+          _buildTypeLabel(context, selectedTypeLabel),
           if (widget.showInlineScrollHint) ...[
             // Hint opcional en flujo normal para layouts que lo necesiten inline.
             const SizedBox(height: 8),
@@ -398,9 +449,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 selected.description!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xE6FFFFFF),
+                  color: colors.inkSoft,
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -465,27 +516,21 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     }
   }
 
-  Widget _buildTypeLabel(String text) {
+  Widget _buildTypeLabel(BuildContext context, String text) {
+    final colors = context.appColors;
     // Chip compacto para reforzar el tipo de contenido sin ocupar altura extra.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF2D5B7A),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xCCFFFFFF), width: 1.2),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x55000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color: colors.accentSoft,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: colors.surfaceBorder, width: 1),
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 15,
+        style: TextStyle(
+          color: colors.ink,
+          fontSize: 13,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
         ),
@@ -496,8 +541,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
 
 class _SelectorRing extends StatelessWidget {
   final double size;
+  final Color color;
 
-  const _SelectorRing({required this.size});
+  const _SelectorRing({required this.size, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -506,13 +552,15 @@ class _SelectorRing extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-
         // El anillo es un "target" visual: da contexto de foco sin usar sombra
         // pesada sobre el item principal para no contaminar contraste del icono.
-        border: Border.all(color: const Color(0xFF9EDFFF), width: 3),
-        boxShadow: const [
-          BoxShadow(color: Color(0xAA66C6FF), blurRadius: 18, spreadRadius: 2),
-          BoxShadow(color: Color(0x5548A8E6), blurRadius: 28, spreadRadius: 4),
+        border: Border.all(color: color.withValues(alpha: 0.55), width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.18),
+            blurRadius: 24,
+            spreadRadius: 2,
+          ),
         ],
       ),
     );
@@ -522,6 +570,7 @@ class _SelectorRing extends StatelessWidget {
 class _RadialNode extends StatelessWidget {
   final double size;
   final double blurSigma;
+  final bool isFocused;
   final ContentCardData content;
   final String? activityAssetPath;
   final IconData fallbackIcon;
@@ -529,6 +578,7 @@ class _RadialNode extends StatelessWidget {
   const _RadialNode({
     required this.size,
     required this.blurSigma,
+    required this.isFocused,
     required this.content,
     required this.activityAssetPath,
     required this.fallbackIcon,
@@ -546,6 +596,9 @@ class _RadialNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final iconColor = colors.ink;
+
     return SizedBox(
       width: size,
       height: size,
@@ -560,15 +613,22 @@ class _RadialNode extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-
-                // Gradiente frio para mantener coherencia visual con la identidad
-                // del modulo y diferenciar nodos "pasivos" del contenido central.
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF4E7A9C), Color(0xFF2E5574)],
+                  colors: [colors.surface, colors.accentSoft],
                 ),
-                border: Border.all(color: const Color(0x88FFFFFF), width: 1.1),
+                border: Border.all(
+                  color: isFocused ? colors.accent : colors.surfaceBorder,
+                  width: isFocused ? 2.5 : 1.2,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 16,
+                    offset: Offset(0, 8),
+                  ),
+                ],
               ),
             ),
           ),
@@ -582,15 +642,15 @@ class _RadialNode extends StatelessWidget {
                       child: _buildNodeImage(
                         content.imagePath,
                         fit: BoxFit.cover,
-                        shimmerBaseColor: const Color(0xFF2E5574),
+                        shimmerBaseColor: colors.accentSoft,
                         fallback: Icon(
                           fallbackIcon,
                           size: size * 0.4,
-                          color: const Color(0xE6FFFFFF),
+                          color: iconColor,
                         ),
                       ),
                     )
-                  : _buildActivityIcon(),
+                  : _buildActivityIcon(iconColor),
             ),
           ),
         ],
@@ -598,13 +658,9 @@ class _RadialNode extends StatelessWidget {
     );
   }
 
-  Widget _buildActivityIcon() {
+  Widget _buildActivityIcon(Color iconColor) {
     if (activityAssetPath == null) {
-      return Icon(
-        fallbackIcon,
-        size: size * 0.4,
-        color: const Color(0xE6FFFFFF),
-      );
+      return Icon(fallbackIcon, size: size * 0.4, color: iconColor);
     }
 
     return Image.asset(
@@ -612,8 +668,8 @@ class _RadialNode extends StatelessWidget {
       width: size * 0.42,
       height: size * 0.42,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) =>
-          Icon(fallbackIcon, size: size * 0.4, color: const Color(0xE6FFFFFF)),
+      errorBuilder: (context, error, stackTrace) =>
+          Icon(fallbackIcon, size: size * 0.4, color: iconColor),
     );
   }
 }
@@ -622,7 +678,7 @@ class _RadialNode extends StatelessWidget {
 Widget _buildNodeImage(
   String url, {
   BoxFit fit = BoxFit.cover,
-  Color shimmerBaseColor = const Color(0xFF2E5574),
+  required Color shimmerBaseColor,
   required Widget fallback,
 }) {
   // Mismo criterio que preview_cards: http/https es red, el resto se interpreta como asset.
@@ -630,7 +686,7 @@ Widget _buildNodeImage(
     return Image.network(
       url,
       fit: fit,
-      errorBuilder: (_, __, ___) => Center(child: fallback),
+      errorBuilder: (context, error, stackTrace) => Center(child: fallback),
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return _RadialNodeShimmer(baseColor: shimmerBaseColor);
@@ -641,7 +697,7 @@ Widget _buildNodeImage(
   return Image.asset(
     url,
     fit: fit,
-    errorBuilder: (_, __, ___) => Center(child: fallback),
+    errorBuilder: (context, error, stackTrace) => Center(child: fallback),
   );
 }
 
@@ -730,14 +786,18 @@ class _RadialNodeShimmerState extends State<_RadialNodeShimmer>
 
 class _RadialNodeLayout {
   final int logicalIndex;
+  final int offset;
   final Offset center;
+  final double size;
   final double opacity;
   final double blurSigma;
   final double depth;
 
   const _RadialNodeLayout({
     required this.logicalIndex,
+    required this.offset,
     required this.center,
+    required this.size,
     required this.opacity,
     required this.blurSigma,
     required this.depth,
@@ -752,6 +812,7 @@ class RadialScrollHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final opacity = isDragging ? 0.22 : 0.78;
 
     // El hint se atenúa durante el gesto para no distraer cuando el usuario
@@ -765,25 +826,25 @@ class RadialScrollHint extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0x2222384A),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x55FFFFFF), width: 1),
+              color: colors.glassFill,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: colors.glassBorder, width: 1),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.keyboard_double_arrow_left_rounded,
                   size: 18,
-                  color: Color(0xCCFFFFFF),
+                  color: colors.ink,
                 ),
-                SizedBox(width: 2),
-                Icon(Icons.circle, size: 6, color: Color(0xAAFFFFFF)),
-                SizedBox(width: 2),
+                const SizedBox(width: 2),
+                Icon(Icons.circle, size: 6, color: colors.inkSoft),
+                const SizedBox(width: 2),
                 Icon(
                   Icons.keyboard_double_arrow_right_rounded,
                   size: 18,
-                  color: Color(0xCCFFFFFF),
+                  color: colors.ink,
                 ),
               ],
             ),

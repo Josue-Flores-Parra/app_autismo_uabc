@@ -107,9 +107,10 @@ class LevelTimelineViewModel extends ChangeNotifier {
     for (int i = 0; i < _steps.length; i++) {
       final isLeft = i % 2 == 0;
       final centerX = screenSize.width / 2;
-      final offset = screenSize.width * 0.15;
+      final offset = screenSize.width * 0.125; // Coincide exactamente con Alignment(±0.25, 0)
       final xPos = isLeft ? centerX - offset : centerX + offset;
-      final yPos = (itemHeight * i) + 55;
+      // 20 (padding superior ListView) + 14 (margen vertical container) + 42.5 (centro de burbuja) = 76.5
+      final yPos = (itemHeight * i) + 76.5;
       positions.add(Offset(xPos, yPos));
     }
     _nodePositions = positions;

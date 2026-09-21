@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_theme.dart';
+
 /// Pantalla de carga con el robot alineado a la derecha
 class LoadingScreen extends StatelessWidget {
   final String? message;
@@ -10,7 +12,7 @@ class LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.appColors.surface,
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: SafeArea(
@@ -124,6 +126,7 @@ class _AnimatedDotsLoaderState extends State<_AnimatedDotsLoader>
 
   @override
   Widget build(BuildContext context) {
+    final accent = context.appColors.accent;
     return Center(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -141,13 +144,11 @@ class _AnimatedDotsLoaderState extends State<_AnimatedDotsLoader>
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF5B8DB3),
+                        color: accent,
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(
-                              0xFF5B8DB3,
-                            ).withValues(alpha: 0.3),
+                            color: accent.withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),

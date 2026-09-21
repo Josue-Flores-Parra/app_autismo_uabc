@@ -12,7 +12,7 @@ reflejar el codigo actual, aunque haya duplicacion o schemas historicos.
 | `features/learning_module/model/levels_models.dart` | `StateOfStep` | Estado visual: `completed`, `blocked`, `inProgress`. |
 | `features/learning_module/model/levels_models.dart` | `ModuleLevelInfo` | Modelo principal de nivel leido desde Firestore. |
 | `features/learning_module/model/levels_models.dart` | `LevelStepInfo` | Modelo adaptado para nodos del timeline. |
-| `features/learning_module/model/levels_models.dart` | `isCompletedProgress`, `countCompletedLevels`, `parseProgressEstrellas` | Predicados puros de progreso completado (status 'completed' o estrellas > 0). Usados por `LearningViewModel` y el badge "NIVEL X". |
+| `features/learning_module/model/levels_models.dart` | `isCompletedProgress`, `countCompletedLevels`, `parseProgressEstrellas`, `parseCompletedActivities`, `moduleStarsForCompletedLevels` | Predicados puros de progreso. Un nivel esta completo con `kLevelStarsToComplete` (3) estrellas, es decir sus tres modalidades. Usados por `LearningViewModel` y el badge "NIVEL X". |
 | `features/learning_module/model/content_card_model.dart` | `ContentType`, `ContentCardData` | Modelo de tarjetas de preview: pictograma, video, audio y miniGame. |
 
 ## Modelo de avatar
@@ -44,6 +44,21 @@ Campos escritos o leidos por codigo actual:
 | `deletedAt` | `String` ISO 8601 | `AuthService.deleteAccount` | No se lee en flujo principal |
 | `nivel` | `int` o `String` parseable | No se escribe en el codigo actual | `FirestoreService.getUserLevel` |
 | `avatarConfig` | `Map<String, dynamic>` | `AvatarViewModel.saveAvatarConfigToFirestore` | `AvatarViewModel.loadAvatarConfigFromFirestore` |
+| `legal` | `Map<String, dynamic>` | `FirestoreService.setAcceptedLegalVersion` | `FirestoreService.getAcceptedLegalVersion` |
+
+### users.legal
+
+Constancia del consentimiento expreso de los terminos y del aviso de privacidad.
+Ver `docs/features/legal.md`.
+
+| Campo | Tipo | Detalle |
+| --- | --- | --- |
+| `version` | `int` | Valor de `kLegalVersion` que la cuenta acepto. |
+| `acceptedAt` | `String` ISO 8601 | Momento de la aceptacion. |
+
+Se guarda por cuenta y no por dispositivo, de modo que reinstalar la app no
+vuelve a pedir la aceptacion y subir `kLegalVersion` si la pide de nuevo a todas
+las cuentas.
 
 ## users.avatarConfig
 
@@ -66,13 +81,19 @@ Campos guardados por `AvatarViewModel`:
 | `backgroundActual` | `String` | Ruta de asset del background. |
 | `monedas` | `int` | Monedas actuales del avatar/usuario. |
 | `accesoriosDesbloqueados` | `List<String>` | Nombres de accesorios desbloqueados. |
+| `energiaActualizadaEn` | `String` ISO 8601 | Ultimo calculo de energia; base del descanso. |
 
 Al cargar, `AvatarViewModel`:
 
 - Busca `skinActual` por nombre en `_availableSkins`; si no existe, usa la primera skin.
 - Busca `accesorioActualPath` por `imagenPath`; si no existe, deja `null`.
 - Castea `accesoriosDesbloqueados` como lista de `String` y luego `Set<String>`.
-- Si no hay `avatarConfig`, intenta usar `FirebaseAuth.currentUser.displayName` o `users/{uid}.name` como nombre, pero solo guarda automaticamente si el nombre local actual es `MRBEAST`.
+- Aplica el descanso acumulado sobre `energia` y adelanta `energiaActualizadaEn`.
+- Si no hay `avatarConfig`, intenta usar `FirebaseAuth.currentUser.displayName` o `users/{uid}.name` como nombre, pero solo guarda automaticamente si el nombre local actual sigue siendo el valor por defecto `nombre`.
+
+Regla de escritura: `saveAvatarConfigToFirestore` no escribe hasta que la
+configuracion remota de ese uid fue leida. Sin esa guarda, guardar antes de
+cargar sobrescribia las monedas reales con el estado inicial hardcodeado.
 
 ## Firestore: modules
 
@@ -142,15 +163,18 @@ remota o a un asset disponible en la aplicacion.
 
 1. Ordena niveles por `orden`.
 2. Si hay progreso del nivel:
-   - `status == completed` o `estrellas > 0` => `completed`.
-   - `status == in_progress` o `inprogress` => `inProgress`.
-   - Otros estados con `estrellas == 0` => `inProgress`.
+   - `estrellas >= 3` => `completed`. El servicio solo escribe 3 cuando el nivel completo todas las modalidades que ofrece.
+   - Cualquier otro progreso registrado => `inProgress`.
 3. Si no hay progreso:
    - Primer nivel => `inProgress`.
    - Niveles posteriores => `inProgress` solo si el nivel anterior esta `completed`; si no, `blocked`.
 
 Esto significa que `estado` en Firestore no es la fuente final de verdad cuando
 hay progreso calculado.
+
+Compatibilidad: los documentos escritos antes de que existiera `activities` no
+pueden recalcularse por modalidad, asi que `isCompletedProgress` respeta su
+`status == completed` y no vuelve a bloquear niveles ya abiertos.
 
 ## Firestore: progreso
 
@@ -160,26 +184,31 @@ Ruta usada por el learning module:
 users/{uid}/progress/{moduleId}/levels/{levelId}
 ```
 
-Campos escritos por `LevelCompletionService.completeInteractiveLevel`:
+Campos escritos por `LevelCompletionService` (mismo shape para actividades
+interactivas y de observacion):
 
 | Campo | Tipo | Valor |
 | --- | --- | --- |
-| `status` | `String` | `completed` si success; `in_progress` si no. |
-| `estrellas` | `int` | 3, 2, 1 o 0 segun intentos/exito. |
-| `attempts` | `int` | Intentos usados. |
-| `completedAt` | `String?` ISO 8601 | Solo si success. |
+| `status` | `String` | `completed` cuando el nivel completo todas sus modalidades; si no, `in_progress`. |
+| `estrellas` | `int` | Modalidades completadas. Vale 3 solo si el nivel quedo terminado, aunque su meta fueran 2. |
+| `attempts` | `int` | Equivocaciones de la ultima actividad jugada (no selecciones totales). |
+| `activities` | `Map<String, Map>` | Una entrada por modalidad completada. |
+| `completedAt` | `String?` ISO 8601 | Solo cuando el nivel llega a 3 estrellas. |
 | `updatedAt` | `String` ISO 8601 | Siempre. |
+| `type` | `String?` | `observation` en pictograma y video. |
 
-Campos escritos por `completeObservationLevel`:
+Cada entrada de `activities` esta indexada por `actividadType` (`video`,
+`pictogram`, `simple_selection`, `puzzle`, `audio`) y guarda:
 
 | Campo | Tipo | Valor |
 | --- | --- | --- |
-| `status` | `String` | `completed` |
-| `estrellas` | `int` | `2` |
-| `attempts` | `int` | `0` |
-| `completedAt` | `String` ISO 8601 | Momento de guardado. |
-| `updatedAt` | `String` ISO 8601 | Momento de guardado. |
-| `type` | `String` | `observation` |
+| `completedAt` | `String` ISO 8601 | Momento en que se completo esa modalidad. |
+| `attempts` | `int` | Equivocaciones de esa modalidad. |
+| `rewarded` | `bool` | Si esa modalidad ya pago monedas. |
+
+`activities` es la fuente de verdad de dos reglas: el nivel siguiente solo se
+abre al reunir las tres modalidades, y repetir una modalidad ya completada no
+vuelve a otorgar monedas.
 
 ## Firestore: telemetryActivitySessions
 
@@ -225,7 +254,7 @@ La escritura de telemetría la hace `ActivityTelemetryService` vía
 | `remindersEnabled` | `bool` | `false` |
 | `reminderTime` | `String` formato `HH:mm` | `18:00` |
 | `sendMetrics` | `bool` | `false` |
-| `parentalMinLevel` | `int` | `0`, con clamp 0..10 al guardar |
+| `parentalAllowedModules` | `int` | `0` (sin limite), con clamp 0..10 al guardar |
 
 Escala real:
 
@@ -239,10 +268,16 @@ Escala real:
 
 | Clave | Tipo | Uso |
 | --- | --- | --- |
-| `settingsPin` | `String` | PIN local de 4 digitos para abrir Ajustes desde `MainShell`. |
+| `settingsPin_<uid>` | `String` | PIN local de 4 digitos para abrir Ajustes, por cuenta. |
+| `onboardingSeen` | `bool` | La bienvenida ya se mostro en este dispositivo. |
 
 El PIN se guarda en texto plano en `SharedPreferences`. La validacion de PIN
-debil vive en `MainShell`, no en `PinService`.
+debil vive en `SettingsAccessGuard`, no en `PinService`.
+
+La llave global anterior (`settingsPin`) se descarta al leer: no identifica a su
+dueno, asi que heredarla filtraria el PIN de una cuenta a otra en el mismo
+dispositivo. `AuthService.deleteAccount` borra ademas la llave de la cuenta
+eliminada.
 
 ## actividadData
 

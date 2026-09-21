@@ -1,5 +1,7 @@
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'feedback_preferences.dart';
+
 /// Servicio reutilizable para dictado con FlutterTts.
 /// Centraliza la configuracion base para mantener una voz consistente.
 class TtsService {
@@ -24,6 +26,11 @@ class TtsService {
 
   Future<void> speak(String? text) async {
     if (!_isReady) return;
+    // El switch "Feedback auditivo" de Ajustes silencia el dictado.
+    if (!FeedbackPreferences.audioEnabled) {
+      await stop();
+      return;
+    }
     final content = text?.trim() ?? '';
     if (content.isEmpty) return;
 

@@ -1,5 +1,13 @@
 # Plan técnico de implementación de telemetría de actividades
 
+> Nota posterior: las referencias de este documento a `_LevelVideoPlayerScreen`
+> (clase interna de `level_play_screen.dart`) corresponden al reproductor de
+> video que existía cuando se escribió este plan. Ese reproductor se
+> reemplazó por `VideoPlayerScreen`, una pantalla propia en
+> `lib/features/learning_module/view/video_player_screen.dart`, con el mismo
+> contrato de `ActivitySessionHandle` descrito aquí. Ver
+> `docs/features/learning-module.md`, sección "Video de nivel".
+
 ## 1. Propósito y alcance
 
 Este documento define un plan ejecutable para instrumentar telemetría de sesiones de actividad en Appy sin volver a decidir contratos fundamentales durante la implementación. El diseño se alinea con la arquitectura Flutter/MVVM ligera descrita en `../architecture.md` y `docs/decisions/adr-0001-mvvm-provider-firebase.md`: estado e inyección con `provider`/`ChangeNotifier`, identidad con Firebase Auth y persistencia remota con Cloud Firestore.

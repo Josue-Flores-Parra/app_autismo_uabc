@@ -5,6 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
 import 'preview_card_colors.dart';
+import '../../../shared/widgets/video_control_rail.dart';
+import '../../../shared/services/celebration_helper.dart';
+import '../../../shared/services/level_completion_service.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -246,6 +249,9 @@ class VideoPreviewCard extends StatefulWidget {
   final bool isActive;
   final VideoPlayerController? externalController;
   final VoidCallback? onVideoCompleted; // Callback cuando el video se completa
+  // Opcionales: si se proveen, habilitan el botón COMPLETAR con registro de progreso.
+  final String? levelId;
+  final String? moduleId;
 
   const VideoPreviewCard({
     super.key,
@@ -256,16 +262,20 @@ class VideoPreviewCard extends StatefulWidget {
     this.isActive = true,
     this.externalController,
     this.onVideoCompleted,
+    this.levelId,
+    this.moduleId,
   });
 
   @override
-  State<VideoPreviewCard> createState() => _VideoPreviewCardState();
+  State<VideoPreviewCard> createState() => VideoPreviewCardState();
 }
 
-class _VideoPreviewCardState extends State<VideoPreviewCard>
+class VideoPreviewCardState extends State<VideoPreviewCard>
     with AutomaticKeepAliveClientMixin {
   late VideoViewModel _viewModel;
   bool _hasNotifiedCompletion = false;
+  bool _isCompleted = false;
+  bool _isFinishing = false;
   Timer? _completionCheckTimer;
 
   void _pauseIfPlaying() {
@@ -277,6 +287,20 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
         controller.pause();
       }
     } catch (_) {}
+  }
+
+  void enterFullscreen() {
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullscreenVideoPlayer(
+          viewModel: _viewModel,
+          levelId: widget.levelId,
+          moduleId: widget.moduleId,
+          onClose: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -302,11 +326,15 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
           // Verificar si el video se completó (al menos 90% visto o llegó al final)
           if (duration.inMilliseconds > 0) {
-            final progress = position.inMilliseconds / duration.inMilliseconds;
+            final totalSeconds = duration.inMilliseconds / 1000.0;
             final isAtEnd = position >= duration;
 
-            if ((progress >= 0.9 || isAtEnd) && !_hasNotifiedCompletion) {
+            if (_viewModel.actualSecondsWatched >= totalSeconds * 0.9 && !_hasNotifiedCompletion) {
               _hasNotifiedCompletion = true;
+              // Mostrar botón COMPLETAR si hay contexto de nivel
+              if (widget.levelId != null || widget.moduleId != null) {
+                setState(() => _isCompleted = true);
+              }
               // NO cancelar el timer completamente, solo marcar como notificado
               // Esto permite que el usuario pueda volver a reproducir el video
 
@@ -404,23 +432,12 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                       Positioned.fill(
                                         child: GestureDetector(
                                           onTap: _viewModel.togglePlayPause,
-                                          child: AnimatedOpacity(
-                                            opacity: _viewModel.showGiantIcon
-                                                ? 1.0
-                                                : 0.0,
-                                            duration: const Duration(
-                                              milliseconds: 300,
-                                            ),
-                                            child: SvgPicture.asset(
-                                              _viewModel
-                                                      .videoController
-                                                      .value
-                                                      .isPlaying
-                                                  ? 'assets/icons/pausebigbutton.svg'
-                                                  : 'assets/icons/playbigbutton.svg',
-                                              width: 60.0,
-                                              height: 60.0,
-                                            ),
+                                          child: VideoTapFeedback(
+                                            visible: _viewModel.showGiantIcon,
+                                            isPlaying: _viewModel
+                                                .videoController
+                                                .value
+                                                .isPlaying,
                                           ),
                                         ),
                                       ),
@@ -503,21 +520,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                               ),
 
                                               GestureDetector(
-                                                onTap: () {
-                                                  Navigator.of(context).push(
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          _FullscreenVideoPlayer(
-                                                            viewModel:
-                                                                _viewModel,
-                                                            onClose: () =>
-                                                                Navigator.of(
-                                                                  context,
-                                                                ).pop(),
-                                                          ),
-                                                    ),
-                                                  );
-                                                },
+                                                onTap: enterFullscreen,
                                                 child: SvgPicture.asset(
                                                   'assets/icons/fullscreen.svg',
                                                   width: 28,
@@ -566,6 +569,55 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+
+                      // Botón COMPLETAR: aparece cuando el video se vio ≥90%
+                      // y hay contexto de nivel (levelId/moduleId disponibles).
+                      if (_isCompleted)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _isFinishing
+                                    ? null
+                                    : () async {
+                                        setState(() => _isFinishing = true);
+                                        await LevelCompletionService
+                                            .showVideoCompletionDialog(
+                                              context: context,
+                                              moduleId: widget.moduleId,
+                                              levelId: widget.levelId,
+                                            );
+                                        if (mounted) {
+                                          setState(() {
+                                            _isFinishing = false;
+                                            _isCompleted = false;
+                                          });
+                                        }
+                                      },
+                            icon: const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'COMPLETAR',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF05E995),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 10,
+                              shadowColor: const Color(0x8005E995),
+                            ),
                           ),
                         ),
                     ],
@@ -638,10 +690,14 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
 class _FullscreenVideoPlayer extends StatefulWidget {
   final VideoViewModel viewModel;
+  final String? levelId;
+  final String? moduleId;
   final VoidCallback onClose;
 
   const _FullscreenVideoPlayer({
     required this.viewModel,
+    this.levelId,
+    this.moduleId,
     required this.onClose,
   });
 
@@ -650,119 +706,228 @@ class _FullscreenVideoPlayer extends StatefulWidget {
 }
 
 class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
+  static const Duration _kControlsAutoHide = Duration(seconds: 3);
+
+  bool _controlsVisible = true;
+  Timer? _hideControlsTimer;
+
+  late CelebrationHelper _celebrationHelper;
+  bool _isCompleted = false;
+  bool _hasNotifiedCompletion = false;
+  bool _isFinishing = false;
+
   @override
   void initState() {
     super.initState();
+    _celebrationHelper = CelebrationHelper();
     widget.viewModel.enterFullscreenMode();
-    widget.viewModel.addListener(() {
-      if (mounted) setState(() {});
+    widget.viewModel.addListener(_onViewModelChanged);
+    _showControls();
+  }
+
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
+    _checkCompletion();
+  }
+
+  void _checkCompletion() {
+    if (_hasNotifiedCompletion) return;
+    try {
+      final controller = widget.viewModel.videoController;
+      if (!controller.value.isInitialized) return;
+      final duration = controller.value.duration;
+      if (duration.inMilliseconds <= 0) return;
+      final totalSeconds = duration.inMilliseconds / 1000.0;
+      if (widget.viewModel.actualSecondsWatched >= totalSeconds * 0.9) {
+        _hasNotifiedCompletion = true;
+        if (widget.levelId != null || widget.moduleId != null) {
+          setState(() => _isCompleted = true);
+        }
+        // No auto-hide controls if complete
+        _hideControlsTimer?.cancel();
+        if (!_controlsVisible) setState(() => _controlsVisible = true);
+      }
+    } catch (_) {}
+  }
+
+  /// Muestra los controles y programa su desvanecido; solo se ocultan
+  /// mientras el video esta reproduciendose.
+  void _showControls() {
+    _hideControlsTimer?.cancel();
+    if (!_controlsVisible) setState(() => _controlsVisible = true);
+    if (_isCompleted) return; // Keep visible if completed
+    _hideControlsTimer = Timer(_kControlsAutoHide, () {
+      if (!mounted || !widget.viewModel.videoController.value.isPlaying) {
+        return;
+      }
+      setState(() => _controlsVisible = false);
     });
+  }
+
+  void _onSurfaceTap() {
+    widget.viewModel.togglePlayPause();
+    _showControls();
+  }
+
+  void _replay() {
+    widget.viewModel.replay();
+    setState(() {
+      _hasNotifiedCompletion = false;
+      _isCompleted = false;
+    });
+    _showControls();
+  }
+
+  Future<void> _handleComplete() async {
+    if (_isFinishing) return;
+    setState(() => _isFinishing = true);
+
+    try {
+      final controller = widget.viewModel.videoController;
+      if (controller.value.isPlaying) await controller.pause();
+      await controller.seekTo(Duration.zero);
+    } catch (_) {}
+
+    _celebrationHelper.playCelebration();
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    await LevelCompletionService.showVideoCompletionDialog(
+      context: context,
+      moduleId: widget.moduleId,
+      levelId: widget.levelId,
+    );
+
+    if (!mounted) return;
+    widget.onClose(); // Exit fullscreen
   }
 
   @override
   void dispose() {
+    _hideControlsTimer?.cancel();
+    widget.viewModel.removeListener(_onViewModelChanged);
     widget.viewModel.exitFullscreenMode();
+    _celebrationHelper.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = widget.viewModel.videoController;
+    final isPlaying = controller.value.isPlaying;
+    final controlsOrCompleted = _controlsVisible || _isCompleted;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          Center(
-            child: AspectRatio(
-              aspectRatio: widget.viewModel.videoController.value.aspectRatio,
-              child: VideoPlayer(widget.viewModel.videoController),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onSurfaceTap,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: AspectRatio(
+                    aspectRatio: controller.value.aspectRatio,
+                    child: VideoPlayer(controller),
+                  ),
+                ),
+                VideoTapFeedback(
+                  visible: widget.viewModel.showGiantIcon,
+                  isPlaying: isPlaying,
+                ),
+              ],
             ),
           ),
-
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: widget.viewModel.togglePlayPause,
-              child: AnimatedOpacity(
-                opacity: widget.viewModel.showGiantIcon ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: SvgPicture.asset(
-                  widget.viewModel.videoController.value.isPlaying
-                      ? 'assets/icons/pausebigbutton.svg'
-                      : 'assets/icons/playbigbutton.svg',
-                  width: 80.0,
-                  height: 80.0,
+          // Capa de controles: se desvanece y deja de recibir toques.
+          IgnorePointer(
+            ignoring: !controlsOrCompleted,
+            child: AnimatedOpacity(
+              opacity: controlsOrCompleted ? 1 : 0,
+              duration: const Duration(milliseconds: 250),
+              child: SafeArea(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: 18,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: VideoControlRail(
+                          isPlaying: isPlaying,
+                          isFullscreen: true,
+                          onPlayPause: _onSurfaceTap,
+                          onReplay: _replay,
+                          onFullscreen: widget.onClose,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 16,
+                      right: 76,
+                      bottom: _isCompleted ? 80 : 14,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          VideoProgressIndicator(
+                            controller,
+                            allowScrubbing: true,
+                            colors: const VideoProgressColors(
+                              playedColor: Colors.white,
+                              bufferedColor: Colors.white38,
+                              backgroundColor: Colors.white24,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${widget.viewModel.formatDuration(controller.value.position)} / ${widget.viewModel.formatDuration(controller.value.duration)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isCompleted)
+                      Positioned(
+                        left: 16,
+                        right: 80,
+                        bottom: 14,
+                        child: ElevatedButton.icon(
+                          onPressed: _isFinishing ? null : _handleComplete,
+                          icon: const Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'COMPLETAR',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF05E995),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 10,
+                            shadowColor: const Color(0x8005E995),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
-
-          Positioned(
-            bottom: 60,
-            left: 10,
-            right: 10,
-            child: VideoProgressIndicator(
-              widget.viewModel.videoController,
-              allowScrubbing: true,
-              colors: const VideoProgressColors(
-                playedColor: Colors.white,
-                bufferedColor: Colors.white54,
-                backgroundColor: Colors.white24,
-              ),
-            ),
-          ),
-
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 50,
-              decoration: const BoxDecoration(color: Color(0xFF5B8DB3)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      widget.viewModel.videoController.value.isPlaying
-                          ? 'assets/icons/pausebutton.svg'
-                          : 'assets/icons/playbuttoncontroller.svg',
-                      width: 30,
-                      height: 30,
-                    ),
-                    onPressed: widget.viewModel.togglePlayPause,
-                  ),
-
-                  Text(
-                    '${widget.viewModel.formatDuration(widget.viewModel.videoController.value.position)} / ${widget.viewModel.formatDuration(widget.viewModel.videoController.value.duration)}',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      'assets/icons/replay.svg',
-                      width: 30,
-                      height: 30,
-                    ),
-                    onPressed: widget.viewModel.replay,
-                  ),
-
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      'assets/icons/fullscreen.svg',
-                      width: 30,
-                      height: 30,
-                    ),
-                    onPressed: widget.onClose,
-                  ),
-                ],
-              ),
-            ),
+          CelebrationHelper.buildTopConfettiOverlay(
+            controller: _celebrationHelper.confettiController,
           ),
         ],
       ),

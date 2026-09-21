@@ -1,6 +1,8 @@
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 
+import 'feedback_preferences.dart';
+
 /// Reusable negative feedback sound used by minigames when the player
 /// fails (e.g. running out of attempts).
 ///
@@ -12,6 +14,7 @@ class NegativeFeedbackHelper {
 
   /// Reproduce el sonido de fallo (`assets/audio/negative_beeps.mp3`).
   Future<void> playNegativeBeep() async {
+    if (!FeedbackPreferences.audioEnabled) return;
     try {
       await _configureAudioSession();
       await _player.setAudioSource(
