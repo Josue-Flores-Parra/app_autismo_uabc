@@ -5,8 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
 import 'preview_card_colors.dart';
+import 'video_player_screen.dart';
 import '../../../shared/widgets/video_control_rail.dart';
-import '../../../shared/services/celebration_helper.dart';
 import '../../../shared/services/level_completion_service.dart';
 
 class BasePreviewCard extends StatefulWidget {
@@ -291,13 +291,17 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
 
   void enterFullscreen() {
     if (!mounted) return;
+    _pauseIfPlaying();
+    // Misma pantalla que "VER VIDEO" (VideoPlayerScreen): comparte
+    // VideoControllerManager por ruta, asi que retoma la posicion actual en
+    // vez de recargar el video desde cero.
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _FullscreenVideoPlayer(
-          viewModel: _viewModel,
+        builder: (context) => VideoPlayerScreen(
+          videoUrl: widget.videoPath,
+          levelTitle: widget.videoTitle,
           levelId: widget.levelId,
           moduleId: widget.moduleId,
-          onClose: () => Navigator.of(context).pop(),
         ),
       ),
     );
@@ -686,253 +690,6 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
   // Se conserva keepAlive para no reconstruir controllers al deslizar,
   // por eso el control de reproduccion se resuelve con isActive.
   bool get wantKeepAlive => true;
-}
-
-class _FullscreenVideoPlayer extends StatefulWidget {
-  final VideoViewModel viewModel;
-  final String? levelId;
-  final String? moduleId;
-  final VoidCallback onClose;
-
-  const _FullscreenVideoPlayer({
-    required this.viewModel,
-    this.levelId,
-    this.moduleId,
-    required this.onClose,
-  });
-
-  @override
-  State<_FullscreenVideoPlayer> createState() => _FullscreenVideoPlayerState();
-}
-
-class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
-  static const Duration _kControlsAutoHide = Duration(seconds: 3);
-
-  bool _controlsVisible = true;
-  Timer? _hideControlsTimer;
-
-  late CelebrationHelper _celebrationHelper;
-  bool _isCompleted = false;
-  bool _hasNotifiedCompletion = false;
-  bool _isFinishing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _celebrationHelper = CelebrationHelper();
-    widget.viewModel.enterFullscreenMode();
-    widget.viewModel.addListener(_onViewModelChanged);
-    _showControls();
-  }
-
-  void _onViewModelChanged() {
-    if (mounted) setState(() {});
-    _checkCompletion();
-  }
-
-  void _checkCompletion() {
-    if (_hasNotifiedCompletion) return;
-    try {
-      final controller = widget.viewModel.videoController;
-      if (!controller.value.isInitialized) return;
-      final duration = controller.value.duration;
-      if (duration.inMilliseconds <= 0) return;
-      final totalSeconds = duration.inMilliseconds / 1000.0;
-      if (widget.viewModel.actualSecondsWatched >= totalSeconds * 0.9) {
-        _hasNotifiedCompletion = true;
-        if (widget.levelId != null || widget.moduleId != null) {
-          setState(() => _isCompleted = true);
-        }
-        // No auto-hide controls if complete
-        _hideControlsTimer?.cancel();
-        if (!_controlsVisible) setState(() => _controlsVisible = true);
-      }
-    } catch (_) {}
-  }
-
-  /// Muestra los controles y programa su desvanecido; solo se ocultan
-  /// mientras el video esta reproduciendose.
-  void _showControls() {
-    _hideControlsTimer?.cancel();
-    if (!_controlsVisible) setState(() => _controlsVisible = true);
-    if (_isCompleted) return; // Keep visible if completed
-    _hideControlsTimer = Timer(_kControlsAutoHide, () {
-      if (!mounted || !widget.viewModel.videoController.value.isPlaying) {
-        return;
-      }
-      setState(() => _controlsVisible = false);
-    });
-  }
-
-  void _onSurfaceTap() {
-    widget.viewModel.togglePlayPause();
-    _showControls();
-  }
-
-  void _replay() {
-    widget.viewModel.replay();
-    setState(() {
-      _hasNotifiedCompletion = false;
-      _isCompleted = false;
-    });
-    _showControls();
-  }
-
-  Future<void> _handleComplete() async {
-    if (_isFinishing) return;
-    setState(() => _isFinishing = true);
-
-    try {
-      final controller = widget.viewModel.videoController;
-      if (controller.value.isPlaying) await controller.pause();
-      await controller.seekTo(Duration.zero);
-    } catch (_) {}
-
-    _celebrationHelper.playCelebration();
-    await Future.delayed(const Duration(milliseconds: 1500));
-    if (!mounted) return;
-
-    await LevelCompletionService.showVideoCompletionDialog(
-      context: context,
-      moduleId: widget.moduleId,
-      levelId: widget.levelId,
-    );
-
-    if (!mounted) return;
-    widget.onClose(); // Exit fullscreen
-  }
-
-  @override
-  void dispose() {
-    _hideControlsTimer?.cancel();
-    widget.viewModel.removeListener(_onViewModelChanged);
-    widget.viewModel.exitFullscreenMode();
-    _celebrationHelper.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = widget.viewModel.videoController;
-    final isPlaying = controller.value.isPlaying;
-    final controlsOrCompleted = _controlsVisible || _isCompleted;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _onSurfaceTap,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Center(
-                  child: AspectRatio(
-                    aspectRatio: controller.value.aspectRatio,
-                    child: VideoPlayer(controller),
-                  ),
-                ),
-                VideoTapFeedback(
-                  visible: widget.viewModel.showGiantIcon,
-                  isPlaying: isPlaying,
-                ),
-              ],
-            ),
-          ),
-          // Capa de controles: se desvanece y deja de recibir toques.
-          IgnorePointer(
-            ignoring: !controlsOrCompleted,
-            child: AnimatedOpacity(
-              opacity: controlsOrCompleted ? 1 : 0,
-              duration: const Duration(milliseconds: 250),
-              child: SafeArea(
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: 18,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: VideoControlRail(
-                          isPlaying: isPlaying,
-                          isFullscreen: true,
-                          onPlayPause: _onSurfaceTap,
-                          onReplay: _replay,
-                          onFullscreen: widget.onClose,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 16,
-                      right: 76,
-                      bottom: _isCompleted ? 80 : 14,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          VideoProgressIndicator(
-                            controller,
-                            allowScrubbing: true,
-                            colors: const VideoProgressColors(
-                              playedColor: Colors.white,
-                              bufferedColor: Colors.white38,
-                              backgroundColor: Colors.white24,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.viewModel.formatDuration(controller.value.position)} / ${widget.viewModel.formatDuration(controller.value.duration)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_isCompleted)
-                      Positioned(
-                        left: 16,
-                        right: 80,
-                        bottom: 14,
-                        child: ElevatedButton.icon(
-                          onPressed: _isFinishing ? null : _handleComplete,
-                          icon: const Icon(
-                            Icons.check_circle_rounded,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'COMPLETAR',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF05E995),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            elevation: 10,
-                            shadowColor: const Color(0x8005E995),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          CelebrationHelper.buildTopConfettiOverlay(
-            controller: _celebrationHelper.confettiController,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class MiniGamePreviewCard extends StatefulWidget {

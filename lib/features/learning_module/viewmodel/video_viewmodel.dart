@@ -20,6 +20,11 @@ class VideoViewModel extends ChangeNotifier {
   // Referencia al listener para poder removerlo limpiamente en dispose()
   VoidCallback? _controllerListener;
 
+  double _actualSecondsWatched = 0.0;
+  DateTime? _lastTick;
+  
+  double get actualSecondsWatched => _actualSecondsWatched;
+
   VideoPlayerController get videoController => _videoController;
   Future<void> get initializeVideoFuture => _initializeVideoFuture;
   bool get showGiantIcon => _showGiantIcon;
@@ -58,7 +63,10 @@ class VideoViewModel extends ChangeNotifier {
     // Registrar listener con guarda de disposed para evitar el crash
     // "VideoViewModel was used after being disposed"
     _controllerListener = () {
-      if (!_isDisposed) notifyListeners();
+      if (!_isDisposed) {
+        _updateWatchTime();
+        notifyListeners();
+      }
     };
     // Diferir con microtask para no disparar setState() durante build()
     Future.microtask(() {
@@ -66,6 +74,18 @@ class VideoViewModel extends ChangeNotifier {
         _videoController.addListener(_controllerListener!);
       }
     });
+  }
+
+  void _updateWatchTime() {
+    if (_videoController.value.isPlaying) {
+      final now = DateTime.now();
+      if (_lastTick != null) {
+        _actualSecondsWatched += now.difference(_lastTick!).inMilliseconds / 1000.0;
+      }
+      _lastTick = now;
+    } else {
+      _lastTick = null;
+    }
   }
 
   void togglePlayPause() {
@@ -115,22 +135,37 @@ class VideoViewModel extends ChangeNotifier {
     return '$minutes:$seconds';
   }
 
-  void enterFullscreenMode() {
+  /// [allowPortrait] deja que el sistema siga la rotación física del
+  /// teléfono en vez de forzar horizontal: hay niños con TEA que no saben
+  /// girar el teléfono para "entrar" al video, así que debe poder verse en
+  /// cualquier orientación, igual que en cualquier otra app de video.
+  ///
+  /// La lista de 3 orientaciones (vertical + las dos horizontales, sin
+  /// vertical invertida) no corresponde a ninguna combinación que Android
+  /// reconozca como válida; el motor de Flutter la reduce a solo la primera
+  /// orientación de la lista y el video quedaba forzado, no libre. Con las 4
+  /// orientaciones sí es una combinación reconocida (rotación libre real).
+  void enterFullscreenMode({bool allowPortrait = false}) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    SystemChrome.setPreferredOrientations(
+      allowPortrait
+          ? const [
+              DeviceOrientation.portraitUp,
+              DeviceOrientation.portraitDown,
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+            ]
+          : const [
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+            ],
+    );
   }
 
   void exitFullscreenMode() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // Evita choque de orientacion en iOS durante el pop de fullscreen.
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // La app es solo vertical (ver main.dart): al salir se vuelve a fijar.
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
 
   @override

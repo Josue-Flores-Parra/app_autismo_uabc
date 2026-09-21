@@ -452,7 +452,16 @@ Reglas:
     `_FullscreenVideoPlayer` en `preview_cards.dart` y `VideoMinigame`.
   - Vertical: controles al pie, en horizontal (`_buildBottomControls`), estilo
     "TikTok": barra de progreso, hora, y botones de repetir/pausa en fila, sin
-    tapar el video. El boton de salir no se repite ahi porque la flecha de
+    tapar el video.
+
+  `enterFullscreenMode(allowPortrait: true)` manda las 4 orientaciones
+  (`portraitUp`, `portraitDown`, `landscapeLeft`, `landscapeRight`), no 3.
+  Android/Flutter solo reconoce combinaciones especificas de
+  `setPreferredOrientations`; una lista de 3 (vertical + las dos horizontales,
+  sin la vertical invertida) no es ninguna de esas combinaciones y el motor la
+  reduce a la primera orientacion de la lista, dejando el video forzado en vez
+  de libre. Con las 4 si es una combinacion reconocida (rotacion libre real).
+  El boton de salir no se repite ahi porque la flecha de
     regreso de arriba-izquierda ya esta visible en ambas orientaciones.
 - Tocar el video alterna play/pausa y muestra `VideoTapFeedback`, un icono
   breve y de tamano fijo (no el area completa del reproductor).

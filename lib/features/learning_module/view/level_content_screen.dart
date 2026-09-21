@@ -579,25 +579,29 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
   List<String> get _backgroundImageUrls {
     final urls = <String>[];
+    // La imagen protagonista (levelInfo.pictogramaUrl, ver bgLevelImg abajo y
+    // level_timeline_screen) se muestra sola en el popup de preview; se
+    // filtra por VALOR aqui, en el unico lugar que agrega al collage, en vez
+    // de excluirla en cada fuente por separado (widget.contents,
+    // minigameData.steps, etc). Cualquier fuente nueva que la repita queda
+    // cubierta automaticamente sin tener que acordarse de excluirla ahi.
+    final protagonista = widget.bgLevelImg?.trim();
 
     void addUrl(String? url) {
       if (url == null || url.trim().isEmpty) return;
       final clean = url.trim();
+      if (protagonista != null && protagonista.isNotEmpty && clean == protagonista) {
+        return;
+      }
       // Filtrar cuadriculas para que el fondo se forme de imagenes individuales
       if (clean.contains('appy_heads_grid_preset') || clean.contains('appy_routine_menu_preset')) return;
       urls.add(clean);
     }
 
-    addUrl(widget.bgLevelImg);
-
     for (final content in widget.contents) {
       addUrl(content.imagePath);
     }
 
-    // pictogramaUrl y puzzleImageUrl son la imagen protagonista de la
-    // actividad (se muestran solas en el popup de preview); repetirlas
-    // ademas como pieza del collage de fondo se ve mal, como una foto
-    // dentro de si misma. Se excluyen aqui.
     final data = widget.minigameData;
     if (data != null) {
       final rawSteps = data['steps'] ?? data['pictogramSteps'];
