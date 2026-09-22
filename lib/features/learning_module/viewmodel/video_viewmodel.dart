@@ -5,8 +5,11 @@ import 'package:video_player/video_player.dart';
 import '../data/video_controller_manager.dart';
 
 class VideoViewModel extends ChangeNotifier {
+  VideoViewModel({DateTime Function()? now}) : _now = now ?? DateTime.now;
+
   late VideoPlayerController _videoController;
   late Future<void> _initializeVideoFuture;
+  final DateTime Function() _now;
 
   // Ruta del video gestionado por el manager (null si es controlador externo)
   String? _managedVideoPath;
@@ -20,10 +23,22 @@ class VideoViewModel extends ChangeNotifier {
   // Referencia al listener para poder removerlo limpiamente en dispose()
   VoidCallback? _controllerListener;
 
+  // Solo contabiliza reproducción real; la actividad usa este valor para no
+  // habilitar COMPLETAR al adelantar la barra de progreso.
   double _actualSecondsWatched = 0.0;
   DateTime? _lastTick;
-  
+
   double get actualSecondsWatched => _actualSecondsWatched;
+
+  /// Starts a fresh activity viewing session without replacing the shared
+  /// native controller.
+  void resetWatchedTime() {
+    if (_isDisposed) return;
+    // También se limpia _lastTick para que el primer evento tras replay no
+    // acumule el intervalo de la reproducción anterior.
+    _actualSecondsWatched = 0.0;
+    _lastTick = null;
+  }
 
   VideoPlayerController get videoController => _videoController;
   Future<void> get initializeVideoFuture => _initializeVideoFuture;
@@ -78,9 +93,10 @@ class VideoViewModel extends ChangeNotifier {
 
   void _updateWatchTime() {
     if (_videoController.value.isPlaying) {
-      final now = DateTime.now();
+      final now = _now();
       if (_lastTick != null) {
-        _actualSecondsWatched += now.difference(_lastTick!).inMilliseconds / 1000.0;
+        _actualSecondsWatched +=
+            now.difference(_lastTick!).inMilliseconds / 1000.0;
       }
       _lastTick = now;
     } else {
@@ -98,12 +114,28 @@ class VideoViewModel extends ChangeNotifier {
     _showTemporaryIcon();
   }
 
-  void replay() {
+  /// Restarts playback as a fresh viewing pass.
+  ///
+  /// The watched-time reset is deliberately synchronous, before the first
+  /// await, so a controller notification cannot carry eligibility from the
+  /// previous pass into the replayed one.
+  Future<void> replay() async {
     if (_isDisposed) return;
-    _videoController.seekTo(Duration.zero);
-    _videoController.setLooping(false);
-    _videoController.play();
-    _showTemporaryIcon();
+    resetWatchedTime();
+
+    try {
+      if (_videoController.value.isPlaying) {
+        await _videoController.pause();
+      }
+      if (_isDisposed) return;
+      await _videoController.seekTo(Duration.zero);
+      if (_isDisposed) return;
+      await _videoController.setLooping(false);
+      if (_isDisposed) return;
+      await _videoController.play();
+    } finally {
+      if (!_isDisposed) _showTemporaryIcon();
+    }
   }
 
   void pause() {

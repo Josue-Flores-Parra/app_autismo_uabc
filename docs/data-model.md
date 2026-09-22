@@ -297,8 +297,8 @@ Keys usadas por varios minijuegos:
 | --- | --- | --- |
 | `maxAttempts` | `int`, `num` o `String` | Intentos maximos de seleccion simple/puzzle. |
 | `pictogramaUrl` | `String` | Imagen de pictograma, fallback visual y fallback de puzzle. |
-| `videoUrl` | `String` | Video. |
-| `url` | `String` | Fallback de video en `LevelPlayScreen`. |
+| `videoUrl` | `String` | Fallback de video cuando la tarjeta seleccionada no tiene `videoPath`. |
+| `url` | `String` | Ultimo fallback de video resuelto por `LevelContentPreviewScreen`. |
 | `audioUrl` | `String` | Audio. |
 | `puzzleImageUrl` | `String` | Imagen principal de puzzle. |
 | `isSimpleSelectionEnabled` | `bool`, `num` o `String` | Habilita tarjeta de seleccion simple. |

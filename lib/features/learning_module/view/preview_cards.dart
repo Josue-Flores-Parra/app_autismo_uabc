@@ -5,9 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
 import 'preview_card_colors.dart';
-import 'video_player_screen.dart';
 import '../../../shared/widgets/video_control_rail.dart';
-import '../../../shared/services/level_completion_service.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -248,10 +246,7 @@ class VideoPreviewCard extends StatefulWidget {
   // Este flag lo define la pantalla contenedora (carrusel/pageview).
   final bool isActive;
   final VideoPlayerController? externalController;
-  final VoidCallback? onVideoCompleted; // Callback cuando el video se completa
-  // Opcionales: si se proveen, habilitan el botón COMPLETAR con registro de progreso.
-  final String? levelId;
-  final String? moduleId;
+  final VoidCallback? onLaunch;
 
   const VideoPreviewCard({
     super.key,
@@ -261,9 +256,7 @@ class VideoPreviewCard extends StatefulWidget {
     this.isPreview = true,
     this.isActive = true,
     this.externalController,
-    this.onVideoCompleted,
-    this.levelId,
-    this.moduleId,
+    this.onLaunch,
   });
 
   @override
@@ -273,10 +266,6 @@ class VideoPreviewCard extends StatefulWidget {
 class VideoPreviewCardState extends State<VideoPreviewCard>
     with AutomaticKeepAliveClientMixin {
   late VideoViewModel _viewModel;
-  bool _hasNotifiedCompletion = false;
-  bool _isCompleted = false;
-  bool _isFinishing = false;
-  Timer? _completionCheckTimer;
 
   void _pauseIfPlaying() {
     // Helper defensivo para unificar pausado y evitar excepciones si el
@@ -292,19 +281,7 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
   void enterFullscreen() {
     if (!mounted) return;
     _pauseIfPlaying();
-    // Misma pantalla que "VER VIDEO" (VideoPlayerScreen): comparte
-    // VideoControllerManager por ruta, asi que retoma la posicion actual en
-    // vez de recargar el video desde cero.
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => VideoPlayerScreen(
-          videoUrl: widget.videoPath,
-          levelTitle: widget.videoTitle,
-          levelId: widget.levelId,
-          moduleId: widget.moduleId,
-        ),
-      ),
-    );
+    widget.onLaunch?.call();
   }
 
   @override
@@ -314,65 +291,6 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.initialize(widget.videoPath, widget.externalController);
     _viewModel.addListener(() {
       if (mounted) setState(() {});
-    });
-
-    // Verificar periódicamente si el video se completó
-    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
-      timer,
-    ) {
-      if (!mounted || _hasNotifiedCompletion) return;
-
-      try {
-        final controller = _viewModel.videoController;
-        if (controller.value.isInitialized) {
-          final position = controller.value.position;
-          final duration = controller.value.duration;
-
-          // Verificar si el video se completó (al menos 90% visto o llegó al final)
-          if (duration.inMilliseconds > 0) {
-            final totalSeconds = duration.inMilliseconds / 1000.0;
-            final isAtEnd = position >= duration;
-
-            if (_viewModel.actualSecondsWatched >= totalSeconds * 0.9 && !_hasNotifiedCompletion) {
-              _hasNotifiedCompletion = true;
-              // Mostrar botón COMPLETAR si hay contexto de nivel
-              if (widget.levelId != null || widget.moduleId != null) {
-                setState(() => _isCompleted = true);
-              }
-              // NO cancelar el timer completamente, solo marcar como notificado
-              // Esto permite que el usuario pueda volver a reproducir el video
-
-              // Detener el video cuando se completa (pero permitir reproducirlo de nuevo)
-              try {
-                // Asegurarse de que el loop esté desactivado
-                if (controller.value.isLooping) {
-                  controller.setLooping(false);
-                }
-                // Solo pausar si el video llegó al final y está reproduciéndose
-                // Esto permite que el usuario pueda reproducirlo de nuevo fácilmente
-                if (isAtEnd && controller.value.isPlaying) {
-                  controller.pause();
-                }
-              } catch (e) {
-                // Error al pausar, continuar
-              }
-
-              if (widget.onVideoCompleted != null) {
-                widget.onVideoCompleted!();
-              }
-            }
-
-            // Si el usuario vuelve a reproducir el video después de completarlo,
-            // permitir que se pueda completar de nuevo (resetear el flag si el video se reinicia)
-            if (_hasNotifiedCompletion && position < duration * 0.5) {
-              // Si el video se reinició (volvió al inicio), permitir completarlo de nuevo
-              _hasNotifiedCompletion = false;
-            }
-          }
-        }
-      } catch (e) {
-        // Error al verificar, continuar
-      }
     });
   }
 
@@ -515,7 +433,9 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
                                               ),
 
                                               GestureDetector(
-                                                onTap: _viewModel.replay,
+                                                onTap: () {
+                                                  _viewModel.replay();
+                                                },
                                                 child: SvgPicture.asset(
                                                   'assets/icons/replay.svg',
                                                   width: 28,
@@ -575,55 +495,6 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-
-                      // Botón COMPLETAR: aparece cuando el video se vio ≥90%
-                      // y hay contexto de nivel (levelId/moduleId disponibles).
-                      if (_isCompleted)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: ElevatedButton.icon(
-                            onPressed:
-                                _isFinishing
-                                    ? null
-                                    : () async {
-                                        setState(() => _isFinishing = true);
-                                        await LevelCompletionService
-                                            .showVideoCompletionDialog(
-                                              context: context,
-                                              moduleId: widget.moduleId,
-                                              levelId: widget.levelId,
-                                            );
-                                        if (mounted) {
-                                          setState(() {
-                                            _isFinishing = false;
-                                            _isCompleted = false;
-                                          });
-                                        }
-                                      },
-                            icon: const Icon(
-                              Icons.check_circle_rounded,
-                              color: Colors.white,
-                            ),
-                            label: const Text(
-                              'COMPLETAR',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF05E995),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              elevation: 10,
-                              shadowColor: const Color(0x8005E995),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 );
@@ -681,7 +552,6 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void dispose() {
-    _completionCheckTimer?.cancel();
     _viewModel.dispose();
     super.dispose();
   }

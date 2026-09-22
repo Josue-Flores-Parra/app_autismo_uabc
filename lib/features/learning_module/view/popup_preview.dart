@@ -12,8 +12,6 @@ class PopupPreview extends StatefulWidget {
   final VoidCallback onLaunch;
   final String? previewImageUrl;
   final String? videoPreviewPath;
-  final String? levelId;
-  final String? moduleId;
 
   const PopupPreview({
     super.key,
@@ -23,8 +21,6 @@ class PopupPreview extends StatefulWidget {
     required this.onLaunch,
     this.previewImageUrl,
     this.videoPreviewPath,
-    this.levelId,
-    this.moduleId,
   });
 
   @override
@@ -173,11 +169,12 @@ class _PopupPreviewState extends State<PopupPreview> {
                             SizedBox(
                               width: double.infinity,
                               child: GestureDetector(
-                                onTap: widget.canLaunch 
-                                  ? (isVideo 
-                                      ? () => _videoKey.currentState?.enterFullscreen()
-                                      : widget.onLaunch) 
-                                  : null,
+                                onTap: widget.canLaunch
+                                    ? (isVideo
+                                          ? () => _videoKey.currentState
+                                                ?.enterFullscreen()
+                                          : widget.onLaunch)
+                                    : null,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 14,
@@ -294,8 +291,7 @@ class _PopupPreviewState extends State<PopupPreview> {
         videoDesc: null,
         isPreview: true,
         isActive: true,
-        levelId: widget.levelId,
-        moduleId: widget.moduleId,
+        onLaunch: widget.onLaunch,
       );
     }
 

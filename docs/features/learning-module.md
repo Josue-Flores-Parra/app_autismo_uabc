@@ -353,6 +353,10 @@ Mecanica:
 - Dialog transparente con `BackdropFilter.blur`.
 - Cierra con boton X.
 - Si el contenido es video y hay `videoPreviewPath`, usa `VideoPreviewCard`.
+- El video se mantiene como preview: su boton `VER VIDEO` y el control de
+  expansion delegan en el mismo callback de lanzamiento del popup.
+- El popup no crea sesiones de telemetria ni muestra `COMPLETAR`; ambas cosas
+  pertenecen al `VideoPlayerScreen` de la actividad.
 - Si no es video, usa `BasePreviewCard` con imagen o placeholder.
 - Para simple selection usa siempre `assets/imgs/simple_selection_preview.png`.
 - Si `canLaunch == false`, deshabilita boton y muestra mensaje.
@@ -378,7 +382,8 @@ Los niveles de tipo `video` **no** llegan a `LevelPlayScreen`:
 `LevelContentPreviewScreen._openSelectedPreviewFlow` los enruta directo a
 `VideoPlayerScreen` (ver seccion "Video de nivel" mas abajo). El `if (type ==
 'video')` que existia aqui se elimino junto con la clase interna
-`_LevelVideoPlayerScreen`: quedaba inalcanzable y duplicaba el reproductor.
+el reproductor interno previo de `LevelPlayScreen`: quedaba inalcanzable y
+duplicaba el reproductor dedicado.
 
 ### Reintentos
 
@@ -432,11 +437,12 @@ Pantalla dedicada, separada de `LevelPlayScreen`. Si `actividadType == video`,
 
 Reglas:
 
-- URL resuelta en `LevelContentPreviewScreen` desde `widget.videoUrl`,
-  `minigameData.videoUrl` o `minigameData.url`. Si ninguna existe, se navega
-  igual con `videoUrl: ''`; `VideoPlayerScreen` detecta la cadena vacia y
-  muestra "No hay video disponible para este nivel." sin inicializar ningun
-  controller, y reporta `onLaunchError` en el primer frame.
+- URL resuelta en `LevelContentPreviewScreen` desde el `videoPath` de la tarjeta
+  seleccionada; si falta, usa `widget.videoUrl`, `minigameData.videoUrl` o
+  `minigameData.url`. Preview y actividad reciben la misma URL. Si ninguna
+  existe, se navega igual con `videoUrl: ''`; `VideoPlayerScreen` detecta la
+  cadena vacia, muestra "No hay video disponible para este nivel." sin
+  inicializar ningun controller y reporta `onLaunchError` en el primer frame.
 - Renderiza video en pantalla negra, en fullscreen (`enterFullscreenMode`/
   `exitFullscreenMode`; fuera de aqui la app es solo vertical). A diferencia
   de otras pantallas, esta **sigue la rotacion fisica del telefono**
@@ -448,8 +454,7 @@ Reglas:
   (`MediaQuery.orientationOf(context)` en `build()`):
   - Horizontal: `VideoControlRail`
     (`lib/shared/widgets/video_control_rail.dart`), riel vertical de vidrio a
-    la derecha (play/pausa, repetir, salir). El mismo widget lo usan
-    `_FullscreenVideoPlayer` en `preview_cards.dart` y `VideoMinigame`.
+    la derecha (play/pausa, repetir, salir).
   - Vertical: controles al pie, en horizontal (`_buildBottomControls`), estilo
     "TikTok": barra de progreso, hora, y botones de repetir/pausa en fila, sin
     tapar el video.
@@ -469,12 +474,21 @@ Reglas:
   mientras reproduce; cualquier toque los vuelve a mostrar. No se ocultan
   mientras `_isCompleted` es `true`.
 - La barra de progreso va con `allowScrubbing: true`.
-- Marca `_isCompleted = true` la primera vez que el progreso llega al 90% o al
-  final; dispara `onObjectiveMet()` una sola vez en ese instante.
+- Al iniciar una actividad, pausa y reinicia el controlador compartido y limpia
+  el tiempo acumulado del `VideoViewModel`; la actividad siempre comienza desde
+  cero aunque el preview hubiera avanzado.
+- Marca `_isCompleted = true` la primera vez que el tiempo reproducido acumula
+  90% del video; buscar hacia adelante no aporta tiempo y dispara
+  `onObjectiveMet()` una sola vez.
 - Muestra boton `COMPLETAR` solo cuando `_isCompleted`. Al presionarlo:
+  bloquea nuevos controles, marca la finalizacion una sola vez, llama
   `onComplete()`, pausa, seek a cero, celebracion, espera 1.5 s y
-  `LevelCompletionService.showVideoCompletionDialog`.
-- Replay explicito dispara `onRecordVideoReplay()` antes de reiniciar.
+  `LevelCompletionService.showVideoCompletionDialog`. El reproductor es el
+  unico propietario de este boton y del dialogo de recompensa.
+- Replay explicito dispara `onRecordVideoReplay()` antes de reiniciar. Reinicia
+  la posicion y el tiempo visto acumulado, oculta `COMPLETAR` y exige una nueva
+  visualizacion de 90%; conserva la misma sesion y no vuelve a emitir
+  `onObjectiveMet()`.
 - Intercepta back (`PopScope`) para pausar y reportar `onAbandon(userBack)`
   antes de salir, salvo que ya se haya completado.
 

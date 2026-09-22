@@ -44,8 +44,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Timer? _hideControlsTimer;
 
   bool _isCompleted = false;
-  bool _hasNotifiedCompletion = false;
+  // Se reinicia en cada replay: habilita COMPLETAR sólo para la visualización
+  // actual, mientras que la señal de telemetría continúa siendo única.
+  bool _hasReachedViewingThreshold = false;
+  bool _hasEmittedObjective = false;
+  // Evita que taps rápidos mezclen eventos del controlador entre dos reinicios.
+  bool _isReplaying = false;
   bool _isFinishing = false;
+  bool _hasSubmittedCompletion = false;
+  bool _isActivityReady = false;
   bool _readyEmitted = false;
   bool _hasAbandoned = false;
 
@@ -70,19 +77,42 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _viewModel.addListener(_onViewModelChanged);
     _viewModel.enterFullscreenMode(allowPortrait: true);
     _viewModel.initializeVideoFuture
-        .then((_) {
-          if (!mounted || _readyEmitted) return;
-          _readyEmitted = true;
-          widget.telemetryHandle?.onActivityReady();
+        .then((_) async {
+          await _prepareFreshActivity();
         })
         .catchError((_) {
-          if (!mounted || _readyEmitted) return;
-          _readyEmitted = true;
-          widget.telemetryHandle?.onLaunchError(
-            TerminalReason.resourceInitializationFailed,
-          );
+          _reportInitializationError();
         });
     _showControls();
+  }
+
+  Future<void> _prepareFreshActivity() async {
+    if (!mounted || _readyEmitted) return;
+
+    try {
+      final controller = _viewModel.videoController;
+      if (controller.value.isPlaying) {
+        await controller.pause();
+      }
+      await controller.seekTo(Duration.zero);
+      _viewModel.resetWatchedTime();
+    } catch (_) {
+      _reportInitializationError();
+      return;
+    }
+
+    if (!mounted || _readyEmitted) return;
+    _readyEmitted = true;
+    setState(() => _isActivityReady = true);
+    widget.telemetryHandle?.onActivityReady();
+  }
+
+  void _reportInitializationError() {
+    if (!mounted || _readyEmitted) return;
+    _readyEmitted = true;
+    widget.telemetryHandle?.onLaunchError(
+      TerminalReason.resourceInitializationFailed,
+    );
   }
 
   void _onViewModelChanged() {
@@ -92,7 +122,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _checkCompletion() {
-    if (_hasNotifiedCompletion) return;
+    if (!_isActivityReady ||
+        _isReplaying ||
+        _isFinishing ||
+        _hasReachedViewingThreshold) {
+      return;
+    }
     try {
       final controller = _viewModel.videoController;
       if (!controller.value.isInitialized) return;
@@ -104,9 +139,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // value.position, no se puede completar arrastrando la barra de
       // progreso sin haber visto el video.
       if (_viewModel.actualSecondsWatched >= totalSeconds * 0.9) {
-        _hasNotifiedCompletion = true;
-        // Señal de objetivo al cruzar por primera vez el 90% (no terminaliza).
-        widget.telemetryHandle?.onObjectiveMet();
+        _hasReachedViewingThreshold = true;
+        // La elegibilidad se reinicia en cada replay, pero la señal de objetivo
+        // permanece única durante toda la sesión de telemetría.
+        if (!_hasEmittedObjective) {
+          _hasEmittedObjective = true;
+          widget.telemetryHandle?.onObjectiveMet();
+        }
         setState(() => _isCompleted = true);
         _hideControlsTimer?.cancel();
         if (!_controlsVisible) setState(() => _controlsVisible = true);
@@ -125,23 +164,44 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _onSurfaceTap() {
+    if (!_isActivityReady || _isReplaying || _isFinishing) return;
     _viewModel.togglePlayPause();
     _showControls();
   }
 
-  void _replay() {
-    // Tap explícito de replay → métrica.
-    widget.telemetryHandle?.onRecordVideoReplay();
-    _viewModel.replay();
+  Future<void> _replay() async {
+    if (!_isActivityReady || _isReplaying || _isFinishing) return;
+    _hideControlsTimer?.cancel();
     setState(() {
-      _hasNotifiedCompletion = false;
+      _isReplaying = true;
+      // Invalidar la elegibilidad antes del primer await evita que un listener
+      // del controlador muestre COMPLETAR durante el seek a cero.
+      _hasReachedViewingThreshold = false;
       _isCompleted = false;
     });
-    _showControls();
+    // Tap explícito de replay → métrica.
+    widget.telemetryHandle?.onRecordVideoReplay();
+    try {
+      await _viewModel.replay();
+    } catch (_) {
+      // El reproductor ya estaba listo; si el reinicio falla, conservar la
+      // actividad abierta y permitir que el usuario vuelva a intentarlo.
+    } finally {
+      if (mounted) {
+        setState(() => _isReplaying = false);
+        _showControls();
+      }
+    }
   }
 
   Future<void> _handleComplete() async {
-    if (_isFinishing) return;
+    if (!_isActivityReady ||
+        !_isCompleted ||
+        _isFinishing ||
+        _hasSubmittedCompletion) {
+      return;
+    }
+    _hasSubmittedCompletion = true;
     setState(() => _isFinishing = true);
 
     // Terminalizar telemetría antes de resetear, celebrar y esperar.
@@ -169,6 +229,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _pauseAndPop() async {
+    if (_isReplaying || _isFinishing) return;
     try {
       if (widget.videoUrl.isNotEmpty &&
           _viewModel.videoController.value.isInitialized &&
@@ -206,7 +267,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final controller = _viewModel.videoController;
     final isPlaying =
         controller.value.isInitialized && controller.value.isPlaying;
-    final controlsOrCompleted = _controlsVisible || _isCompleted;
+    final controlsOrCompleted =
+        !_isFinishing && (_controlsVisible || _isCompleted);
     // El sistema ahora sigue la rotación física (ver enterFullscreenMode):
     // en vertical los controles bajan al pie, tipo TikTok, para no depender
     // de que el niño sepa girar el teléfono.
@@ -230,7 +292,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 fit: StackFit.expand,
                 children: [
                   Center(
-                    child: controller.value.isInitialized
+                    child: _isActivityReady && controller.value.isInitialized
                         ? AspectRatio(
                             aspectRatio: controller.value.aspectRatio,
                             child: VideoPlayer(controller),
@@ -265,37 +327,38 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           onPressed: _pauseAndPop,
                         ),
                       ),
-                      if (isPortrait)
-                        _buildBottomControls(controller, isPlaying)
-                      else ...[
-                        Positioned(
-                          right: 18,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: VideoControlRail(
-                              isPlaying: isPlaying,
-                              isFullscreen: true,
-                              onPlayPause: _onSurfaceTap,
-                              onReplay: _replay,
-                              onFullscreen: _pauseAndPop,
+                      if (_isActivityReady)
+                        if (isPortrait)
+                          _buildBottomControls(controller, isPlaying)
+                        else ...[
+                          Positioned(
+                            right: 18,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: VideoControlRail(
+                                isPlaying: isPlaying,
+                                isFullscreen: true,
+                                onPlayPause: _onSurfaceTap,
+                                onReplay: _replay,
+                                onFullscreen: _pauseAndPop,
+                              ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          left: 16,
-                          right: 80,
-                          bottom: _isCompleted ? 80 : 14,
-                          child: _buildProgressAndTime(controller),
-                        ),
-                        if (_isCompleted)
                           Positioned(
                             left: 16,
                             right: 80,
-                            bottom: 14,
-                            child: _buildCompletarButton(),
+                            bottom: _isCompleted ? 80 : 14,
+                            child: _buildProgressAndTime(controller),
                           ),
-                      ],
+                          if (_isCompleted)
+                            Positioned(
+                              left: 16,
+                              right: 80,
+                              bottom: 14,
+                              child: _buildCompletarButton(),
+                            ),
+                        ],
                     ],
                   ),
                 ),
@@ -359,7 +422,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// Controles al pie, en horizontal, tipo TikTok: nada estorba el video y no
   /// depende de que el niño sepa que tiene que girar el teléfono para ver los
   /// botones. Reemplaza el riel vertical que se usa en horizontal.
-  Widget _buildBottomControls(VideoPlayerController controller, bool isPlaying) {
+  Widget _buildBottomControls(
+    VideoPlayerController controller,
+    bool isPlaying,
+  ) {
     return Positioned(
       left: 16,
       right: 16,

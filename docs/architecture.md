@@ -90,7 +90,6 @@ Los minijuegos registrados en `main.dart` son:
 
 ```text
 registerSimpleSelectionMinigame()
-registerVideoMinigame()
 registerPictogramMinigame()
 registerAudioMinigame()
 registerPuzzleMinigame()

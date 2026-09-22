@@ -86,7 +86,7 @@ Componentes con audio:
 | `SimpleSelectionMinigame` | TTS de pregunta, celebracion y beep negativo. |
 | `PictogramMinigame` | TTS de caption y celebracion al completar. |
 | `AudioMinigame` | Reproduccion de audio del nivel y celebracion. |
-| `_LevelVideoPlayerScreen` | Audio del video y celebracion. |
+| `VideoPlayerScreen` | Audio del video y celebracion. |
 | `LevelPlayScreen` | TTS de feedback final. |
 | `CelebrationHelper` | `assets/audio/celebration.mp3`. |
 

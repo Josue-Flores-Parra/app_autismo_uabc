@@ -58,6 +58,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
   final Set<String> _retainedPreloadedVideoPaths = <String>{};
+  bool _isLaunchingActivity = false;
 
   // Referencia a la animación de la ruta para poder desregistrar el listener
   // en dispose y evitar registros duplicados en didChangeDependencies.
@@ -265,64 +266,71 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }
 
   Future<void> _openSelectedPreviewFlow() async {
+    if (_isLaunchingActivity) return;
+
     final selected = _selectedContent;
     final activityType = _selectedActivityType;
+    final selectedVideoPath = _selectedVideoPreviewPath;
     if (activityType == null || selected == null || !_canPlaySelectedContent)
       return;
 
-    final shouldLaunch = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.transparent,
-      // Flujo en dos pasos:
-      // 1) Mostrar popup de vista previa (sin iniciar actividad)
-      // 2) Iniciar actividad solo si usuario confirma con botón dinámico
-      builder: (dialogContext) => PopupPreview(
-        content: selected,
-        launchLabel: _selectedLaunchLabel,
-        canLaunch: _canPlaySelectedContent,
-        previewImageUrl: _selectedPreviewImageUrl,
-        videoPreviewPath: _selectedVideoPreviewPath,
-        levelId: widget.levelId,
-        moduleId: widget.moduleId,
-        onLaunch: () => Navigator.of(dialogContext).pop(true),
-      ),
-    );
+    _isLaunchingActivity = true;
+    bool? shouldLaunch;
+    try {
+      shouldLaunch = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        barrierColor: Colors.transparent,
+        // Flujo en dos pasos:
+        // 1) Mostrar popup de vista previa (sin iniciar actividad)
+        // 2) Iniciar actividad solo si usuario confirma con botón dinámico
+        builder: (dialogContext) => PopupPreview(
+          content: selected,
+          launchLabel: _selectedLaunchLabel,
+          canLaunch: _canPlaySelectedContent,
+          previewImageUrl: _selectedPreviewImageUrl,
+          videoPreviewPath: selectedVideoPath,
+          onLaunch: () => Navigator.of(dialogContext).pop(true),
+        ),
+      );
+    } catch (_) {
+      _isLaunchingActivity = false;
+      rethrow;
+    }
 
     if (shouldLaunch != true || !mounted) {
+      _isLaunchingActivity = false;
       return;
     }
 
-    // Para el rompecabezas se pide elegir la dificultad antes de entrar.
-    int? puzzleGridSize;
-    if (activityType == 'puzzle') {
-      puzzleGridSize = await _showPuzzleDifficultyDialog();
-      if (puzzleGridSize == null || !mounted) return;
-    }
-
-    // Inyectar la dificultad elegida en los datos del minijuego.
-    final data = Map<String, dynamic>.from(widget.minigameData ?? const {});
-    if (puzzleGridSize != null) {
-      data['gridSize'] = puzzleGridSize;
-    }
-
-    // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
-    // elegido dificultad. El consentimiento se captura en este instante.
-    final telemetryHandle = await _requestTelemetryLaunch(
-      activityType: activityType,
-      gridSize: puzzleGridSize,
-    );
-
-    // La actividad real inicia únicamente después de la
-    // confirmación del popup (no al abrir la vista previa).
+    ActivitySessionHandle? telemetryHandle;
     try {
+      // Para el rompecabezas se pide elegir la dificultad antes de entrar.
+      int? puzzleGridSize;
+      if (activityType == 'puzzle') {
+        puzzleGridSize = await _showPuzzleDifficultyDialog();
+        if (puzzleGridSize == null || !mounted) return;
+      }
+
+      // Inyectar la dificultad elegida en los datos del minijuego.
+      final data = Map<String, dynamic>.from(widget.minigameData ?? const {});
+      if (puzzleGridSize != null) {
+        data['gridSize'] = puzzleGridSize;
+      }
+
+      // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
+      // elegido dificultad. El consentimiento se captura en este instante.
+      telemetryHandle = await _requestTelemetryLaunch(
+        activityType: activityType,
+        gridSize: puzzleGridSize,
+      );
+      if (!mounted) return;
+
+      // La actividad real inicia únicamente después de la confirmación del
+      // popup. El video usa la URL de la tarjeta seleccionada, igual que su
+      // preview, y siempre entra por esta ruta instrumentada.
       if (activityType == 'video') {
-        // Los niveles de video usan el reproductor horizontal con VideoControlRail.
-        final videoUrl =
-            widget.videoUrl ??
-            (widget.minigameData?['videoUrl'] as String?) ??
-            (widget.minigameData?['url'] as String?) ??
-            '';
+        final videoUrl = selectedVideoPath ?? '';
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -346,8 +354,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               levelId: widget.levelId ?? '',
               moduleId: widget.moduleId ?? '',
               videoUrl: widget.videoUrl,
-              launchSimpleSelectionFromCard:
-                  activityType == 'simple_selection',
+              launchSimpleSelectionFromCard: activityType == 'simple_selection',
               telemetryHandle: telemetryHandle,
             ),
           ),
@@ -356,6 +363,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     } catch (_) {
       // Error de navegación antes de llegar a la actividad → launch_error.
       telemetryHandle?.onLaunchError(TerminalReason.navigationFailed);
+    } finally {
+      _isLaunchingActivity = false;
     }
     if (!mounted) return;
 
@@ -590,11 +599,15 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     void addUrl(String? url) {
       if (url == null || url.trim().isEmpty) return;
       final clean = url.trim();
-      if (protagonista != null && protagonista.isNotEmpty && clean == protagonista) {
+      if (protagonista != null &&
+          protagonista.isNotEmpty &&
+          clean == protagonista) {
         return;
       }
       // Filtrar cuadriculas para que el fondo se forme de imagenes individuales
-      if (clean.contains('appy_heads_grid_preset') || clean.contains('appy_routine_menu_preset')) return;
+      if (clean.contains('appy_heads_grid_preset') ||
+          clean.contains('appy_routine_menu_preset'))
+        return;
       urls.add(clean);
     }
 
@@ -638,7 +651,9 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
             Positioned.fill(
               child: PuzzleGridBackground(
                 imageUrls: _backgroundImageUrls,
-                opacity: Theme.of(context).brightness == Brightness.dark ? 0.04 : 0.02,
+                opacity: Theme.of(context).brightness == Brightness.dark
+                    ? 0.04
+                    : 0.02,
                 animate: !reduceMotion,
               ),
             ),
