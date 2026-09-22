@@ -10,9 +10,11 @@ pantalla usa `Image.asset`, el valor debe ser un asset local; cuando usa
 ```text
 assets/
 |-- audio/
+|-- fonts/
 |-- icons/
 |-- images/
 |   |-- LevelBGs/
+|   |-- presets/
 |   `-- Skins/
 |-- imgs/
 |-- pictogramas/
@@ -51,7 +53,25 @@ assets:
   - assets/imgs/
   - assets/videos/
   - assets/audio/
+  - assets/images/presets/
 ```
+
+Fuentes declaradas en `pubspec.yaml`:
+
+```yaml
+fonts:
+  - family: Coiny
+    fonts:
+      - asset: assets/fonts/Coiny-Regular.ttf
+  - family: Commissioner
+    fonts:
+      - asset: assets/fonts/Commissioner-Variable.ttf
+```
+
+Ambas bajo SIL Open Font License; las licencias van en `assets/fonts/OFL-*.txt`.
+Coiny es para titulos de marca y mensajes grandes; Commissioner (variable, el
+peso se resuelve con `FontWeight`) para todo el texto de interfaz. Se consumen
+por `AppFonts.display` y `AppFonts.body`, nunca por nombre suelto.
 
 Hay carpetas con archivos que no aparecen como entrada especifica, por ejemplo
 `assets/pictogramas/` y `assets/images/LevelBGs/Dormir/`. Estan bajo la entrada
@@ -71,15 +91,45 @@ Archivos usados en pantallas principales:
 | `assets/images/icon-salute-hidden2x.png` | LoadingScreen. |
 | `assets/images/CARITAROBOT.png` | Header de modulos. |
 | `assets/images/appysittin.png` | Indicador de nodo activo en timeline. |
-| `assets/images/FELIZ.png` | Cara feliz del avatar. |
-| `assets/images/MEH.png` | Cara neutral del avatar. |
-| `assets/images/TRISTE.png` | Cara triste del avatar. |
+| `assets/images/FELIZ.png`, `MEH.png`, `TRISTE.png` | Opciones del minijuego de prueba en `LevelPlayScreen`. Las caras del avatar ya usan los presets. |
 | `assets/images/app_icon.png` | Fuente de icono de launcher. |
 | `assets/images/splash_icon.png` | Fuente de splash. |
 | `assets/images/forgot-password.png` | Imagen del flujo de recuperacion de contrasena (`ForgotPasswordScreen`). |
 
 Tambien existe `assets/pictogramas/appysittin.png`, pero el timeline usa
 `assets/images/appysittin.png`.
+
+## Presets del personaje
+
+Carpeta:
+
+```text
+assets/images/presets/
+```
+
+Ilustraciones del robot en PNG con transparencia. Las cabezas (`appy_head_*`,
+`FELIZ`, `MEH`, `TRISTE`, `appy_heads_grid`) son recortes sin fondo para ir
+sobre cualquier superficie del tema; las escenas (`appy_happy`, `appy_idea`,
+`appy_tablet`, etc.) traen su propio fondo pastel y van en mosaicos con
+`BoxFit.cover`. Los originales venian sobre blanco; el fondo se quito por
+relleno desde el borde y se recorto al contenido. Son piezas de interfaz, no
+skins: no pasan por `AvatarRepository`.
+
+| Asset | Uso |
+| --- | --- |
+| `FELIZ.png`, `MEH.png`, `TRISTE.png` | Cara del avatar segun felicidad (`AvatarScreen`). |
+| `appy_happy_preset.png` | `LoginScreen` y primera pagina del onboarding. |
+| `appy_idea_preset.png` | `RegisterScreen`. |
+| `appy_peeking_preset.png` | `ForgotPasswordScreen` y pagina "Para la familia" del onboarding. |
+| `appy_head_happy_preset.png` | Header de `ModuleListScreen` y perfil de `SettingsPage`. |
+| `appy_routine_menu_preset.png` | Onboarding, bienvenida. |
+| `appy_video_player_preset.png`, `appy_tablet_preset.png` | Onboarding, pagina de aprendizaje. |
+| `appy_cooking_preset.png`, `appy_heads_grid_preset.png` | Onboarding, pagina del companero. |
+| Resto (`appy_head_*`, `appy_music_preset.png`, `appy_sleeping_preset.png`) | Sin conectar; disponibles para pantallas nuevas. |
+
+Son pequenos (cabezas de ~105x85, escenas de 180 a 360 px): en pantallas de
+alta densidad se ven suaves si se escalan mucho. Si se rehacen, exportarlos al
+menos al doble de tamano y ya sin fondo blanco.
 
 ## Skins del avatar
 
@@ -236,4 +286,5 @@ Despues de cambiar esos assets, regenerar con los paquetes configurados.
 - No renombrar assets ya referenciados desde Firestore sin migrar documentos.
 - Si agregas una skin/accesorio/background, actualizar `AvatarRepository`.
 - Si agregas icono de minijuego, actualizar `RadialFocusPreviewSelector` o `PopupPreview` si aplica.
+- Si agregas un preset, colocarlo en `assets/images/presets/` (ya cubierto por `pubspec.yaml`) y anotarlo en la tabla de presets.
 - Si quitas la entrada amplia `assets/` de `pubspec.yaml`, declara explicitamente todas las subcarpetas usadas.

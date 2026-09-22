@@ -43,7 +43,7 @@ Firestore será la fuente de verdad de sesiones y la única persistencia remota 
 
 ### 3.1 Inicio y preparación
 
-El flujo actual inicia en `../../lib/features/learning_module/view/level_content_screen.dart`, donde `_openSelectedPreviewFlow()` muestra `PopupPreview`, opcionalmente muestra `_showPuzzleDifficultyDialog()` y finalmente navega a `LevelPlayScreen`.
+El flujo actual inicia en `../../lib/features/learning_module/view/level_content_screen.dart`, donde `_openSelectedPreviewFlow()` muestra `PopupPreview`, opcionalmente muestra `_showPuzzleDifficultyDialog()` y finalmente navega a `VideoPlayerScreen` para video o a `LevelPlayScreen` para los demás tipos.
 
 La instrumentación debe aplicar estas fronteras:
 
@@ -51,7 +51,7 @@ La instrumentación debe aplicar estas fronteras:
 - Abrir/cerrar `PopupPreview`: no crea sesión.
 - Confirmar el botón dinámico `JUGAR`/`VER VIDEO`: emite `launch_requested` y reserva el UUID.
 - Elegir/cancelar dificultad de puzzle: todavía no establece `hasStarted`; cancelar puede cerrar la sesión como `launch_error` con razón `launch_cancelled_before_navigation`, o evitar la creación remota si el servicio aún no persistió. La implementación elegida debe conservar la distinción y nunca marcar `started`.
-- Entrar a `LevelPlayScreen`: por sí solo no significa `started`.
+- Entrar a `VideoPlayerScreen` o `LevelPlayScreen`: por sí solo no significa `started`.
 - Actividad lista para uso: emite `started`, establece `outcome.hasStarted = true` y arranca el `Stopwatch`.
 
 Para evitar sesiones parciales cuando `sendMetrics` cambia durante el flujo, el consentimiento se captura al solicitar el launch. Si no estaba listo/activo en ese instante, no se crea contexto de sesión y señales posteriores se ignoran.
@@ -64,8 +64,7 @@ Cada actividad debe exponer una señal explícita `onReady`, consumida una sola 
 - `puzzle`: imagen/configuración resuelta, tablero y bandeja renderizables.
 - `pictogram`: imágenes imprescindibles cargadas o fallback utilizable y primera pantalla disponible.
 - `audio`: controlador inicializado y controles utilizables; no es necesario haber pulsado play.
-- Reproductor dedicado de video `_LevelVideoPlayerScreen`: `VideoViewModel.initializeVideoFuture` termina correctamente y el reproductor/portada están disponibles; no es necesario el primer tap de play.
-- `VideoMinigame`, aunque no sea el flujo principal: mismo criterio de controlador inicializado.
+- Reproductor dedicado de video `VideoPlayerScreen`: `VideoViewModel.initializeVideoFuture` termina correctamente, el controlador compartido ya se pausó y reinició a cero, y los controles están disponibles; no es necesario el primer tap de play.
 
 Una actividad no disponible, recurso obligatorio faltante, excepción de construcción o fallo de inicialización antes de `onReady` termina como `launch_error`, con `outcome.hasStarted = false`. No entra en denominadores KPI.
 
@@ -132,13 +131,13 @@ Una transición breve `inactive` causada por UI del sistema debe deduplicarse co
 
 ### 3.6 Video y media
 
-Para el reproductor dedicado en `../../lib/features/learning_module/view/level_play_screen.dart`:
+Para el reproductor dedicado en `../../lib/features/learning_module/view/video_player_screen.dart`:
 
-- Alcanzar 90% o el final sólo emite `objective_met`, establece `outcome.objectiveReached = true` y habilita `COMPLETAR`.
+- Acumular reproducción real por 90% de la duración sólo emite `objective_met`, establece `outcome.objectiveReached = true` y habilita `COMPLETAR`; adelantar la barra no aporta tiempo visto.
 - La sesión sólo termina `completed` cuando el usuario toca `COMPLETAR`.
 - `video.replayCount` aumenta exclusivamente al tocar el control explícito de replay que actualmente llama `VideoViewModel.replay()`.
 - Play inicial, pausa, resume, scrubbing con `VideoProgressIndicator`, seek interno al completar y volver desde background no cuentan como replay.
-- La misma semántica se aplicará a `../../lib/features/minigames/view/types/video_minigame.dart`, aunque el flujo principal use `_LevelVideoPlayerScreen`.
+- El preview no crea sesiones ni puede completar: ambos controles de lanzamiento pasan por `LevelContentPreviewScreen`, que crea el handle antes de abrir `VideoPlayerScreen`.
 
 Para audio, pictograma y video, los valores actuales `attempts = 1` enviados por callbacks son una convención de progreso existente, no intentos KPI. Telemetría debe escribir `attemptsApplicable = false` y `attempts = null`.
 
@@ -182,7 +181,7 @@ Cada actividad debe emitir `onObjectiveMet` inmediatamente al cumplirse el objet
 2. establece `outcome.objectiveReached = true`;
 3. conserva la sesión no terminal hasta recibir la decisión de producto correspondiente.
 
-En interactivas, el objetivo exitoso puede terminalizar `completed` de inmediato en la máquina de estados, aunque la UI continúe celebrando. En video, `objective_met` a 90% no terminaliza: el reloj queda detenido para excluir espera/celebración y sólo el tap explícito en `COMPLETAR` marca `completed`. Si después de alcanzar 90% el usuario hace replay antes de completar, se reanuda un segmento activo y `objectiveReached` permanece verdadero; al volver a tocar `COMPLETAR`, se detiene definitivamente.
+En interactivas, el objetivo exitoso puede terminalizar `completed` de inmediato en la máquina de estados, aunque la UI continúe celebrando. En video, `objective_met` a 90% no terminaliza: el reloj queda detenido para excluir espera/celebración y sólo el tap explícito en `COMPLETAR` marca `completed`. Si después de alcanzar 90% el usuario hace replay antes de completar, se reanuda un segmento activo y `objectiveReached` permanece verdadero; la UI reinicia su tiempo visto, oculta `COMPLETAR` y exige otra visualización de 90%, sin volver a emitir `objective_met`. Al volver a tocar `COMPLETAR`, se detiene definitivamente.
 
 ## 5. Esquema Firestore
 
@@ -319,7 +318,7 @@ En `../../lib/features/learning_module/view/level_content_screen.dart`, método 
 En `../../lib/features/learning_module/view/level_play_screen.dart`:
 
 - Añadir el handle opcional de sesión. Toda la experiencia debe funcionar igual cuando sea `null`.
-- Usar `PopScope` a nivel de `LevelPlayScreen` para cubrir minijuegos, no sólo `_LevelVideoPlayerScreen`.
+- Usar `PopScope` a nivel de `LevelPlayScreen` para los minijuegos y otro en `VideoPlayerScreen` para el reproductor dedicado.
 - Emitir abandono antes del pop explícito, salvo que el servicio ya esté terminal.
 - Modificar el contrato hacia `MinigamesWidget` para recibir señales `onReady` y `onObjectiveMet`, además del resultado de run.
 - En `_handleMinigameComplete`, detener/terminalizar telemetría **antes** de `LevelCompletionService`, `_speakCompletionFeedback`, celebración y `showDialog`.
@@ -367,19 +366,16 @@ En `../../lib/features/minigames/view/types/audio_minigame.dart`:
 - Emitir `onObjectiveMet` al tocar `COMPLETAR`, antes de celebración/delay.
 - Replay de audio no afecta `video.replayCount` ni el KPI de repeticiones de video.
 
-### 7.4 Reproductores de video
+### 7.4 Reproductor de video
 
-En `_LevelVideoPlayerScreen` dentro de `../../lib/features/learning_module/view/level_play_screen.dart`:
+En `../../lib/features/learning_module/view/video_player_screen.dart`:
 
-- Emitir `onReady` al completar correctamente `initializeVideoFuture`.
-- En `_onVideoUpdate`, al cruzar por primera vez 90%, emitir `onObjectiveMet` y dejar `_isCompleted` únicamente como habilitación del botón.
-- En el `GestureDetector` de replay, emitir `recordVideoReplay()` exactamente junto a la llamada explícita `_viewModel.replay()`.
-- No instrumentar `togglePlayPause`, `VideoProgressIndicator.allowScrubbing`, `_syncStartedStateFromController` ni el `seekTo(Duration.zero)` interno de completar.
-- En `COMPLETAR`, terminalizar telemetría antes de resetear, celebrar y esperar 1.5 s.
-- `_pauseAndPop()` abandona sólo si `started` y no terminal.
-- Error de `initializeVideoFuture` antes de ready termina `launch_error:resource_initialization_failed`.
-
-En `../../lib/features/minigames/view/types/video_minigame.dart`, aplicar el mismo contrato para evitar métricas distintas si esa ruta registrada comienza a usarse.
+- Emitir `onReady` al completar correctamente `initializeVideoFuture`, pausar el controlador compartido, buscar a cero y limpiar el tiempo visto antes de habilitar controles.
+- Al acumular por primera vez 90% de reproducción real, emitir `onObjectiveMet` una sola vez por sesión y usar `_isCompleted` únicamente para habilitar `COMPLETAR`.
+- En replay explícito, emitir `recordVideoReplay()` una vez, reiniciar posición y tiempo visto, ocultar `COMPLETAR` y exigir otro 90%; no volver a emitir `onObjectiveMet` en la misma sesión.
+- No instrumentar play/pausa, scrubbing, ni el `seekTo(Duration.zero)` interno de completar.
+- En `COMPLETAR`, terminalizar telemetría antes de resetear, celebrar y esperar 1.5 s; bloquear taps repetidos y navegación hasta terminar el flujo.
+- `_pauseAndPop()` abandona sólo si `started` y no terminal; error de inicialización antes de ready termina `launch_error:resource_initialization_failed`.
 
 ### 7.5 Lifecycle, logout y cierre
 
@@ -662,7 +658,7 @@ Ubicación sugerida: `../../test/features/telemetry`.
 - Consentimiento: Settings no listo, activación a mitad, desactivación activa, fallo del cierre best-effort y descarte de payload.
 - Identidad: learner/actor iguales bajo `account_as_learner`, sin UUID adicional.
 - Intentos: suma entre runs, callback duplicado no suma dos veces, media produce null.
-- Video: replay explícito suma; pause/resume/scrub/seek no suma; 90% sólo objective.
+- Video: replay explícito suma y reinicia el tiempo visto; pause/resume/scrub/seek no suman; adelantar no habilita el 90% y `objective_met` se emite una sola vez por sesión.
 - Serialización: esquema v1 completo, sin PII ni campos archive.
 - Reconciliación: documento terminal, marker stale, UID distinto, offline recuperable y permission-denied.
 - Cálculos KPI sobre fixtures, incluyendo denominador cero.
@@ -672,7 +668,7 @@ Ubicación sugerida: `../../test/features/telemetry`.
 - `LevelContentPreviewScreen`: preview/cancel no inicia; confirmación genera launch; dificultad no marca started.
 - `LevelPlayScreen`: unavailable produce launch_error; `onReady` inicia; back abandona; callback tras terminal no cambia estado.
 - Simple selection/puzzle: señal objective ocurre antes del delay/celebración; retry conserva sesión y aumenta run.
-- Video dedicado: 90% habilita botón sin completar; `COMPLETAR` completa; sólo botón replay incrementa.
+- Video dedicado: preview no inicia ni completa; cada launch inicia en cero; 90% de tiempo visto habilita el botón sin completar; replay exige un nuevo 90%; `COMPLETAR` completa una sola vez.
 - Settings: esperar `isReady`, activar sólo próxima actividad, opt-out bloquea nuevas sesiones y no borra histórico.
 - Fallo del repositorio: UI educativa sigue utilizable y el error queda observable, no silencioso.
 

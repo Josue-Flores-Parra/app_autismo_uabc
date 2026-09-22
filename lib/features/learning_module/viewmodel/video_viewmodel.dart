@@ -5,8 +5,11 @@ import 'package:video_player/video_player.dart';
 import '../data/video_controller_manager.dart';
 
 class VideoViewModel extends ChangeNotifier {
+  VideoViewModel({DateTime Function()? now}) : _now = now ?? DateTime.now;
+
   late VideoPlayerController _videoController;
   late Future<void> _initializeVideoFuture;
+  final DateTime Function() _now;
 
   // Ruta del video gestionado por el manager (null si es controlador externo)
   String? _managedVideoPath;
@@ -19,6 +22,23 @@ class VideoViewModel extends ChangeNotifier {
 
   // Referencia al listener para poder removerlo limpiamente en dispose()
   VoidCallback? _controllerListener;
+
+  // Solo contabiliza reproducción real; la actividad usa este valor para no
+  // habilitar COMPLETAR al adelantar la barra de progreso.
+  double _actualSecondsWatched = 0.0;
+  DateTime? _lastTick;
+
+  double get actualSecondsWatched => _actualSecondsWatched;
+
+  /// Starts a fresh activity viewing session without replacing the shared
+  /// native controller.
+  void resetWatchedTime() {
+    if (_isDisposed) return;
+    // También se limpia _lastTick para que el primer evento tras replay no
+    // acumule el intervalo de la reproducción anterior.
+    _actualSecondsWatched = 0.0;
+    _lastTick = null;
+  }
 
   VideoPlayerController get videoController => _videoController;
   Future<void> get initializeVideoFuture => _initializeVideoFuture;
@@ -58,7 +78,10 @@ class VideoViewModel extends ChangeNotifier {
     // Registrar listener con guarda de disposed para evitar el crash
     // "VideoViewModel was used after being disposed"
     _controllerListener = () {
-      if (!_isDisposed) notifyListeners();
+      if (!_isDisposed) {
+        _updateWatchTime();
+        notifyListeners();
+      }
     };
     // Diferir con microtask para no disparar setState() durante build()
     Future.microtask(() {
@@ -66,6 +89,19 @@ class VideoViewModel extends ChangeNotifier {
         _videoController.addListener(_controllerListener!);
       }
     });
+  }
+
+  void _updateWatchTime() {
+    if (_videoController.value.isPlaying) {
+      final now = _now();
+      if (_lastTick != null) {
+        _actualSecondsWatched +=
+            now.difference(_lastTick!).inMilliseconds / 1000.0;
+      }
+      _lastTick = now;
+    } else {
+      _lastTick = null;
+    }
   }
 
   void togglePlayPause() {
@@ -78,12 +114,28 @@ class VideoViewModel extends ChangeNotifier {
     _showTemporaryIcon();
   }
 
-  void replay() {
+  /// Restarts playback as a fresh viewing pass.
+  ///
+  /// The watched-time reset is deliberately synchronous, before the first
+  /// await, so a controller notification cannot carry eligibility from the
+  /// previous pass into the replayed one.
+  Future<void> replay() async {
     if (_isDisposed) return;
-    _videoController.seekTo(Duration.zero);
-    _videoController.setLooping(false);
-    _videoController.play();
-    _showTemporaryIcon();
+    resetWatchedTime();
+
+    try {
+      if (_videoController.value.isPlaying) {
+        await _videoController.pause();
+      }
+      if (_isDisposed) return;
+      await _videoController.seekTo(Duration.zero);
+      if (_isDisposed) return;
+      await _videoController.setLooping(false);
+      if (_isDisposed) return;
+      await _videoController.play();
+    } finally {
+      if (!_isDisposed) _showTemporaryIcon();
+    }
   }
 
   void pause() {
@@ -115,22 +167,37 @@ class VideoViewModel extends ChangeNotifier {
     return '$minutes:$seconds';
   }
 
-  void enterFullscreenMode() {
+  /// [allowPortrait] deja que el sistema siga la rotación física del
+  /// teléfono en vez de forzar horizontal: hay niños con TEA que no saben
+  /// girar el teléfono para "entrar" al video, así que debe poder verse en
+  /// cualquier orientación, igual que en cualquier otra app de video.
+  ///
+  /// La lista de 3 orientaciones (vertical + las dos horizontales, sin
+  /// vertical invertida) no corresponde a ninguna combinación que Android
+  /// reconozca como válida; el motor de Flutter la reduce a solo la primera
+  /// orientación de la lista y el video quedaba forzado, no libre. Con las 4
+  /// orientaciones sí es una combinación reconocida (rotación libre real).
+  void enterFullscreenMode({bool allowPortrait = false}) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    SystemChrome.setPreferredOrientations(
+      allowPortrait
+          ? const [
+              DeviceOrientation.portraitUp,
+              DeviceOrientation.portraitDown,
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+            ]
+          : const [
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+            ],
+    );
   }
 
   void exitFullscreenMode() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // Evita choque de orientacion en iOS durante el pop de fullscreen.
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // La app es solo vertical (ver main.dart): al salir se vuelve a fijar.
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
 
   @override

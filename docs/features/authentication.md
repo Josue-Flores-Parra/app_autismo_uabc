@@ -192,9 +192,11 @@ lib/features/authentication/view/auth_gate.dart
 
 - Muestra un `CircularProgressIndicator` centrado hasta el primer post-frame
   callback (evita un flash y cubre la restauracion sincrona de la sesion).
+- Consulta `OnboardingService.hasSeen()` en `initState`.
 - Usa `Consumer<AuthViewModel>` para escuchar cambios de `currentUser`.
+- `currentUser == null` y bienvenida no vista → `OnboardingScreen` (ver `docs/features/onboarding.md`).
 - `currentUser == null` → `LoginScreen`.
-- `currentUser != null` → `MainShell`.
+- `currentUser != null` → `_LegalGate`, que muestra `LegalConsentScreen` o `MainShell` (ver `docs/features/legal.md`).
 
 Como `AuthViewModel` notifica en cada mutacion de `_currentUser` (login, logout,
 deleteAccount, registro), el gate hace el swap automatico y **elimina la
@@ -342,7 +344,7 @@ PIN usa Firebase Auth.
 Archivo:
 
 ```text
-lib/features/home/view/main_shell.dart
+lib/shared/services/settings_access_guard.dart
 ```
 
 Si el usuario toca "Olvide el PIN":
@@ -351,8 +353,15 @@ Si el usuario toca "Olvide el PIN":
 2. Pide password.
 3. Crea credencial con `EmailAuthProvider.credential`.
 4. Ejecuta `reauthenticateWithCredential`.
-5. Borra `settingsPin` con `PinService.clearPin`.
+5. Borra `settingsPin_<uid>` con `PinService.clearPin(uid)`.
 6. Pide crear PIN nuevo.
+
+## Eliminar cuenta
+
+`AuthService.deleteAccount(password)` reautentica antes de borrar porque
+Firebase exige sesion reciente; sin ese paso la eliminacion fallaba aunque la
+palabra de confirmacion fuera correcta. Ademas marca `deletedAt` en
+`users/{uid}`, borra el PIN de esa cuenta y libera los controladores de video.
 
 ## Reglas de mantenimiento
 

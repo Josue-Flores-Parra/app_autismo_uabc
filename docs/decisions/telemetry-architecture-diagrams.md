@@ -139,7 +139,8 @@ flowchart TD
     PZ --> P3[Numero de\nintentos]
 
     VI --> V1[Cuando el video\nesta listo]
-    VI --> V2[Al llegar al 90%\ny tocar COMPLETAR]
+    VI --> V2[Al acumular 90%\nde reproduccion real]
+    VI --> V4[Al tocar COMPLETAR\ndespues del objetivo]
     VI --> V3[Cuantas veces\nse repitio]
 
     PI --> O1[Cuando cargo\nla imagen]

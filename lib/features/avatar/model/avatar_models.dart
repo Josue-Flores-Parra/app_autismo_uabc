@@ -13,12 +13,32 @@ class SkinInfo {
   final String carpetaBackground; // Ruta a la carpeta de backgrounds
   final List<String>?
   expresiones; // Lista de expresiones disponibles (puede ser null si no tiene)
+  final bool bloqueado; // Si requiere desbloqueo
+  final int costoMonedas; // Monedas necesarias para desbloquear
 
   SkinInfo({
     required this.nombre,
     required this.imagenBase,
     required this.carpetaBackground,
     this.expresiones, // Opcional porque no todas las skins tienen expresiones
+    this.bloqueado = false, // Por defecto desbloqueado
+    this.costoMonedas = 0, // Sin costo por defecto
+  });
+}
+
+/*
+CLASE PARA UN FONDO DEL AVATAR
+Los fondos se eligen sueltos, sin importar la skin activa.
+*/
+class FondoInfo {
+  final String path; // Ruta a la imagen del fondo
+  final bool bloqueado; // Si requiere desbloqueo
+  final int costoMonedas; // Monedas necesarias para desbloquear
+
+  FondoInfo({
+    required this.path,
+    this.bloqueado = false,
+    this.costoMonedas = 0,
   });
 }
 
@@ -63,6 +83,8 @@ class AvatarEstado {
   final int energia; // Nivel de energía (0-100)
   final int monedas; // Monedas del usuario para desbloquear accesorios
   final Set<String> accesoriosDesbloqueados; // IDs de accesorios desbloqueados
+  final Set<String> skinsDesbloqueadas; // Nombres de skins desbloqueadas
+  final Set<String> fondosDesbloqueados; // Rutas de fondos desbloqueados
 
   AvatarEstado({
     required this.skinActual,
@@ -72,9 +94,56 @@ class AvatarEstado {
     required this.nombre,
     required this.felicidad,
     required this.energia,
-    this.monedas = 100, // Monedas iniciales
+    this.monedas = 0,
     Set<String>? accesoriosDesbloqueados,
-  }) : accesoriosDesbloqueados = accesoriosDesbloqueados ?? {};
+    Set<String>? skinsDesbloqueadas,
+    Set<String>? fondosDesbloqueados,
+  }) : accesoriosDesbloqueados = accesoriosDesbloqueados ?? {},
+       skinsDesbloqueadas = skinsDesbloqueadas ?? {},
+       fondosDesbloqueados = fondosDesbloqueados ?? {};
+
+  /// Nombre con el que nace un robot antes de que la cuenta le ponga uno.
+  static const String nombrePorDefecto = 'Appy';
+
+  /// Estado con el que nace el robot de una cuenta nueva.
+  ///
+  /// Es lo que se escribe en Firestore al registrarse y lo que se usa en
+  /// memoria mientras la cuenta aun no se ha leido. Un companero recien
+  /// llegado esta descansado y contento, y todavia no ha ganado monedas.
+  factory AvatarEstado.inicial({required SkinInfo skin}) {
+    return AvatarEstado(
+      nombre: nombrePorDefecto,
+      felicidad: 100,
+      energia: 100,
+      skinActual: skin,
+      backgroundActual:
+          'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
+      monedas: 0,
+      accesoriosDesbloqueados: const {'Antenitas', 'Gafas'},
+      skinsDesbloqueadas: const {'Default'},
+      fondosDesbloqueados: const {
+        'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
+      },
+    );
+  }
+
+  /// Representacion persistible, la misma que guarda `AvatarViewModel`.
+  Map<String, dynamic> toConfigMap() {
+    return {
+      'nombre': nombre,
+      'felicidad': felicidad,
+      'energia': energia,
+      'energiaActualizadaEn': DateTime.now().toIso8601String(),
+      'skinActual': skinActual.nombre,
+      'expresionActual': expresionActual,
+      'accesorioActualPath': accesorioActual?.imagenPath,
+      'backgroundActual': backgroundActual,
+      'monedas': monedas,
+      'accesoriosDesbloqueados': accesoriosDesbloqueados.toList(),
+      'skinsDesbloqueadas': skinsDesbloqueadas.toList(),
+      'fondosDesbloqueados': fondosDesbloqueados.toList(),
+    };
+  }
 
   /* 
   Método para copiar el estado con cambios.
@@ -92,6 +161,8 @@ class AvatarEstado {
     int? energia,
     int? monedas,
     Set<String>? accesoriosDesbloqueados,
+    Set<String>? skinsDesbloqueadas,
+    Set<String>? fondosDesbloqueados,
   }) {
     return AvatarEstado(
       skinActual: skinActual ?? this.skinActual,
@@ -108,6 +179,8 @@ class AvatarEstado {
       monedas: monedas ?? this.monedas,
       accesoriosDesbloqueados:
           accesoriosDesbloqueados ?? this.accesoriosDesbloqueados,
+      skinsDesbloqueadas: skinsDesbloqueadas ?? this.skinsDesbloqueadas,
+      fondosDesbloqueados: fondosDesbloqueados ?? this.fondosDesbloqueados,
     );
   }
 }

@@ -14,6 +14,34 @@ class FirestoreService {
     return doc.exists ? doc.data() : null;
   }
 
+  /*
+  Versión de los documentos legales que la cuenta aceptó.
+  Devuelve null si nunca aceptó ninguna, que es el caso de las cuentas creadas
+  antes de que existiera la pantalla de consentimiento.
+  */
+  Future<int?> getAcceptedLegalVersion(String uid) async {
+    final data = await getUserData(uid);
+    final legal = data?['legal'];
+    if (legal is! Map) return null;
+    final version = legal['version'];
+    if (version is int) return version;
+    if (version is String) return int.tryParse(version);
+    return null;
+  }
+
+  /*
+  Deja constancia de qué versión aceptó la cuenta y cuándo. Es el registro que
+  respalda el consentimiento expreso del padre o tutor.
+  */
+  Future<void> setAcceptedLegalVersion(String uid, int version) async {
+    await setUserData(uid, {
+      'legal': {
+        'version': version,
+        'acceptedAt': DateTime.now().toIso8601String(),
+      },
+    });
+  }
+
   // =======================================
   // Métodos para Módulos de Aprendizaje
   // =======================================
@@ -105,6 +133,49 @@ class FirestoreService {
           .set(progressData, SetOptions(merge: true));
     } catch (e) {
       // Silent fail - error handling can be added at higher level if needed
+    }
+  }
+
+  /*
+  Limpia todo el progreso de todos los módulos para un usuario
+  */
+  Future<void> clearUserProgress(String uid) async {
+    try {
+      final progressRef = _db.collection('users').doc(uid).collection('progress');
+      final modulesSnapshot = await progressRef.get();
+      for (final moduleDoc in modulesSnapshot.docs) {
+        final levelsSnapshot = await moduleDoc.reference.collection('levels').get();
+        for (final levelDoc in levelsSnapshot.docs) {
+          await levelDoc.reference.delete();
+        }
+        await moduleDoc.reference.delete();
+      }
+    } catch (e) {
+      throw Exception('Error al limpiar el progreso: $e');
+    }
+  }
+
+  /*
+  Obtiene el progreso de un único nivel. Se usa antes de escribir para saber
+  qué modalidades ya estaban completadas y cuáles ya pagaron monedas.
+  */
+  Future<Map<String, dynamic>?> getUserLevelProgress(
+    String uid,
+    String moduleId,
+    String levelId,
+  ) async {
+    try {
+      final doc = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('progress')
+          .doc(moduleId)
+          .collection('levels')
+          .doc(levelId)
+          .get();
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      return null;
     }
   }
 

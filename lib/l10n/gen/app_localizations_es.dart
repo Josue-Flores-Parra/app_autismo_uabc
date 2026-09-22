@@ -146,7 +146,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get parentalSection => 'Control parental';
 
   @override
-  String get parentalMinLevel => 'Nivel mínimo requerido';
+  String get parentalAllowedModules => 'Módulos permitidos';
+
+  @override
+  String get parentalNoLimit => 'Sin límite';
+
+  @override
+  String get parentalModulesUnit => 'módulos';
+
+  @override
+  String get currentPasswordLabel => 'Contraseña de la cuenta';
+
+  @override
+  String get newPasswordLabel => 'Contraseña nueva';
 
   @override
   String get infoSection => 'Información y soporte';
@@ -156,6 +168,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get termsPrivacy => 'Términos y Privacidad';
+
+  @override
+  String get privacyPolicy => 'Política de privacidad';
 
   @override
   String get feedbackSupport => 'Enviar feedback / soporte';

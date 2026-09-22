@@ -180,7 +180,7 @@ flutter test test/puzzle_minigame_test.dart
 5. Probar login.
 6. Entrar a modulos.
 7. Entrar a avatar.
-8. Tocar la pestana PIN/Ajustes desde bottom nav y crear PIN.
+8. Tocar el engrane de Ajustes en el `AppBar` de Modulos y crear PIN.
 9. Ejecutar `flutter test`.
 10. Antes de cambiar Firestore o assets, leer `docs/firebase.md`, `docs/data-model.md` y `docs/assets.md`.
 

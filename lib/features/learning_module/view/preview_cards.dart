@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
 import 'preview_card_colors.dart';
+import '../../../shared/widgets/video_control_rail.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -245,7 +246,7 @@ class VideoPreviewCard extends StatefulWidget {
   // Este flag lo define la pantalla contenedora (carrusel/pageview).
   final bool isActive;
   final VideoPlayerController? externalController;
-  final VoidCallback? onVideoCompleted; // Callback cuando el video se completa
+  final VoidCallback? onLaunch;
 
   const VideoPreviewCard({
     super.key,
@@ -255,18 +256,16 @@ class VideoPreviewCard extends StatefulWidget {
     this.isPreview = true,
     this.isActive = true,
     this.externalController,
-    this.onVideoCompleted,
+    this.onLaunch,
   });
 
   @override
-  State<VideoPreviewCard> createState() => _VideoPreviewCardState();
+  State<VideoPreviewCard> createState() => VideoPreviewCardState();
 }
 
-class _VideoPreviewCardState extends State<VideoPreviewCard>
+class VideoPreviewCardState extends State<VideoPreviewCard>
     with AutomaticKeepAliveClientMixin {
   late VideoViewModel _viewModel;
-  bool _hasNotifiedCompletion = false;
-  Timer? _completionCheckTimer;
 
   void _pauseIfPlaying() {
     // Helper defensivo para unificar pausado y evitar excepciones si el
@@ -279,6 +278,12 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
     } catch (_) {}
   }
 
+  void enterFullscreen() {
+    if (!mounted) return;
+    _pauseIfPlaying();
+    widget.onLaunch?.call();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -286,61 +291,6 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.initialize(widget.videoPath, widget.externalController);
     _viewModel.addListener(() {
       if (mounted) setState(() {});
-    });
-
-    // Verificar periódicamente si el video se completó
-    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
-      timer,
-    ) {
-      if (!mounted || _hasNotifiedCompletion) return;
-
-      try {
-        final controller = _viewModel.videoController;
-        if (controller.value.isInitialized) {
-          final position = controller.value.position;
-          final duration = controller.value.duration;
-
-          // Verificar si el video se completó (al menos 90% visto o llegó al final)
-          if (duration.inMilliseconds > 0) {
-            final progress = position.inMilliseconds / duration.inMilliseconds;
-            final isAtEnd = position >= duration;
-
-            if ((progress >= 0.9 || isAtEnd) && !_hasNotifiedCompletion) {
-              _hasNotifiedCompletion = true;
-              // NO cancelar el timer completamente, solo marcar como notificado
-              // Esto permite que el usuario pueda volver a reproducir el video
-
-              // Detener el video cuando se completa (pero permitir reproducirlo de nuevo)
-              try {
-                // Asegurarse de que el loop esté desactivado
-                if (controller.value.isLooping) {
-                  controller.setLooping(false);
-                }
-                // Solo pausar si el video llegó al final y está reproduciéndose
-                // Esto permite que el usuario pueda reproducirlo de nuevo fácilmente
-                if (isAtEnd && controller.value.isPlaying) {
-                  controller.pause();
-                }
-              } catch (e) {
-                // Error al pausar, continuar
-              }
-
-              if (widget.onVideoCompleted != null) {
-                widget.onVideoCompleted!();
-              }
-            }
-
-            // Si el usuario vuelve a reproducir el video después de completarlo,
-            // permitir que se pueda completar de nuevo (resetear el flag si el video se reinicia)
-            if (_hasNotifiedCompletion && position < duration * 0.5) {
-              // Si el video se reinició (volvió al inicio), permitir completarlo de nuevo
-              _hasNotifiedCompletion = false;
-            }
-          }
-        }
-      } catch (e) {
-        // Error al verificar, continuar
-      }
     });
   }
 
@@ -404,23 +354,12 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                       Positioned.fill(
                                         child: GestureDetector(
                                           onTap: _viewModel.togglePlayPause,
-                                          child: AnimatedOpacity(
-                                            opacity: _viewModel.showGiantIcon
-                                                ? 1.0
-                                                : 0.0,
-                                            duration: const Duration(
-                                              milliseconds: 300,
-                                            ),
-                                            child: SvgPicture.asset(
-                                              _viewModel
-                                                      .videoController
-                                                      .value
-                                                      .isPlaying
-                                                  ? 'assets/icons/pausebigbutton.svg'
-                                                  : 'assets/icons/playbigbutton.svg',
-                                              width: 60.0,
-                                              height: 60.0,
-                                            ),
+                                          child: VideoTapFeedback(
+                                            visible: _viewModel.showGiantIcon,
+                                            isPlaying: _viewModel
+                                                .videoController
+                                                .value
+                                                .isPlaying,
                                           ),
                                         ),
                                       ),
@@ -494,7 +433,9 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                               ),
 
                                               GestureDetector(
-                                                onTap: _viewModel.replay,
+                                                onTap: () {
+                                                  _viewModel.replay();
+                                                },
                                                 child: SvgPicture.asset(
                                                   'assets/icons/replay.svg',
                                                   width: 28,
@@ -503,21 +444,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
                                               ),
 
                                               GestureDetector(
-                                                onTap: () {
-                                                  Navigator.of(context).push(
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          _FullscreenVideoPlayer(
-                                                            viewModel:
-                                                                _viewModel,
-                                                            onClose: () =>
-                                                                Navigator.of(
-                                                                  context,
-                                                                ).pop(),
-                                                          ),
-                                                    ),
-                                                  );
-                                                },
+                                                onTap: enterFullscreen,
                                                 child: SvgPicture.asset(
                                                   'assets/icons/fullscreen.svg',
                                                   width: 28,
@@ -625,7 +552,6 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
 
   @override
   void dispose() {
-    _completionCheckTimer?.cancel();
     _viewModel.dispose();
     super.dispose();
   }
@@ -634,140 +560,6 @@ class _VideoPreviewCardState extends State<VideoPreviewCard>
   // Se conserva keepAlive para no reconstruir controllers al deslizar,
   // por eso el control de reproduccion se resuelve con isActive.
   bool get wantKeepAlive => true;
-}
-
-class _FullscreenVideoPlayer extends StatefulWidget {
-  final VideoViewModel viewModel;
-  final VoidCallback onClose;
-
-  const _FullscreenVideoPlayer({
-    required this.viewModel,
-    required this.onClose,
-  });
-
-  @override
-  State<_FullscreenVideoPlayer> createState() => _FullscreenVideoPlayerState();
-}
-
-class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
-  @override
-  void initState() {
-    super.initState();
-    widget.viewModel.enterFullscreenMode();
-    widget.viewModel.addListener(() {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    widget.viewModel.exitFullscreenMode();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Center(
-            child: AspectRatio(
-              aspectRatio: widget.viewModel.videoController.value.aspectRatio,
-              child: VideoPlayer(widget.viewModel.videoController),
-            ),
-          ),
-
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: widget.viewModel.togglePlayPause,
-              child: AnimatedOpacity(
-                opacity: widget.viewModel.showGiantIcon ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: SvgPicture.asset(
-                  widget.viewModel.videoController.value.isPlaying
-                      ? 'assets/icons/pausebigbutton.svg'
-                      : 'assets/icons/playbigbutton.svg',
-                  width: 80.0,
-                  height: 80.0,
-                ),
-              ),
-            ),
-          ),
-
-          Positioned(
-            bottom: 60,
-            left: 10,
-            right: 10,
-            child: VideoProgressIndicator(
-              widget.viewModel.videoController,
-              allowScrubbing: true,
-              colors: const VideoProgressColors(
-                playedColor: Colors.white,
-                bufferedColor: Colors.white54,
-                backgroundColor: Colors.white24,
-              ),
-            ),
-          ),
-
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 50,
-              decoration: const BoxDecoration(color: Color(0xFF5B8DB3)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      widget.viewModel.videoController.value.isPlaying
-                          ? 'assets/icons/pausebutton.svg'
-                          : 'assets/icons/playbuttoncontroller.svg',
-                      width: 30,
-                      height: 30,
-                    ),
-                    onPressed: widget.viewModel.togglePlayPause,
-                  ),
-
-                  Text(
-                    '${widget.viewModel.formatDuration(widget.viewModel.videoController.value.position)} / ${widget.viewModel.formatDuration(widget.viewModel.videoController.value.duration)}',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      'assets/icons/replay.svg',
-                      width: 30,
-                      height: 30,
-                    ),
-                    onPressed: widget.viewModel.replay,
-                  ),
-
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      'assets/icons/fullscreen.svg',
-                      width: 30,
-                      height: 30,
-                    ),
-                    onPressed: widget.onClose,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class MiniGamePreviewCard extends StatefulWidget {

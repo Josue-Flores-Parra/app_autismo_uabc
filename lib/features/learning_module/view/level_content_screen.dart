@@ -5,6 +5,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'radial_focus_preview_selector.dart';
 import 'level_play_screen.dart';
 import 'popup_preview.dart';
+import 'puzzle_grid_background.dart';
+import 'video_player_screen.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
@@ -56,6 +58,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   // visitó/previsualizó para que al volver no reinicie el buffer desde cero.
   // Se libera completo en dispose para evitar fugas de memoria entre pantallas.
   final Set<String> _retainedPreloadedVideoPaths = <String>{};
+  bool _isLaunchingActivity = false;
 
   // Referencia a la animación de la ruta para poder desregistrar el listener
   // en dispose y evitar registros duplicados en didChangeDependencies.
@@ -263,74 +266,105 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }
 
   Future<void> _openSelectedPreviewFlow() async {
+    if (_isLaunchingActivity) return;
+
     final selected = _selectedContent;
     final activityType = _selectedActivityType;
+    final selectedVideoPath = _selectedVideoPreviewPath;
     if (activityType == null || selected == null || !_canPlaySelectedContent)
       return;
 
-    final shouldLaunch = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.transparent,
-      // Flujo en dos pasos:
-      // 1) Mostrar popup de vista previa (sin iniciar actividad)
-      // 2) Iniciar actividad solo si usuario confirma con botón dinámico
-      builder: (dialogContext) => PopupPreview(
-        content: selected,
-        launchLabel: _selectedLaunchLabel,
-        canLaunch: _canPlaySelectedContent,
-        previewImageUrl: _selectedPreviewImageUrl,
-        videoPreviewPath: _selectedVideoPreviewPath,
-        onLaunch: () => Navigator.of(dialogContext).pop(true),
-      ),
-    );
-
-    if (shouldLaunch != true || !mounted) {
-      return;
-    }
-
-    // Para el rompecabezas se pide elegir la dificultad antes de entrar.
-    // La selección de dificultad nunca marca `started` ni crea sesión.
-    int? puzzleGridSize;
-    if (activityType == 'puzzle') {
-      puzzleGridSize = await _showPuzzleDifficultyDialog();
-      if (puzzleGridSize == null || !mounted) return;
-    }
-
-    // Inyectar la dificultad elegida en los datos del minijuego.
-    final data = Map<String, dynamic>.from(widget.minigameData ?? const {});
-    if (puzzleGridSize != null) {
-      data['gridSize'] = puzzleGridSize;
-    }
-
-    // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
-    // elegido dificultad. El consentimiento se captura en este instante.
-    final telemetryHandle = await _requestTelemetryLaunch(
-      activityType: activityType,
-      gridSize: puzzleGridSize,
-    );
-
-    // La actividad real inicia únicamente después de la
-    // confirmación del popup (no al abrir la vista previa).
+    _isLaunchingActivity = true;
+    bool? shouldLaunch;
     try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LevelPlayScreen(
-            levelTitle: widget.levelTitle ?? widget.levelName,
-            minigameData: data,
-            actividadType: activityType,
-            levelId: widget.levelId ?? '',
-            moduleId: widget.moduleId ?? '',
-            videoUrl: widget.videoUrl,
-            launchSimpleSelectionFromCard: activityType == 'simple_selection',
-            telemetryHandle: telemetryHandle,
-          ),
+      shouldLaunch = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        barrierColor: Colors.transparent,
+        // Flujo en dos pasos:
+        // 1) Mostrar popup de vista previa (sin iniciar actividad)
+        // 2) Iniciar actividad solo si usuario confirma con botón dinámico
+        builder: (dialogContext) => PopupPreview(
+          content: selected,
+          launchLabel: _selectedLaunchLabel,
+          canLaunch: _canPlaySelectedContent,
+          previewImageUrl: _selectedPreviewImageUrl,
+          videoPreviewPath: selectedVideoPath,
+          onLaunch: () => Navigator.of(dialogContext).pop(true),
         ),
       );
     } catch (_) {
+      _isLaunchingActivity = false;
+      rethrow;
+    }
+
+    if (shouldLaunch != true || !mounted) {
+      _isLaunchingActivity = false;
+      return;
+    }
+
+    ActivitySessionHandle? telemetryHandle;
+    try {
+      // Para el rompecabezas se pide elegir la dificultad antes de entrar.
+      int? puzzleGridSize;
+      if (activityType == 'puzzle') {
+        puzzleGridSize = await _showPuzzleDifficultyDialog();
+        if (puzzleGridSize == null || !mounted) return;
+      }
+
+      // Inyectar la dificultad elegida en los datos del minijuego.
+      final data = Map<String, dynamic>.from(widget.minigameData ?? const {});
+      if (puzzleGridSize != null) {
+        data['gridSize'] = puzzleGridSize;
+      }
+
+      // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
+      // elegido dificultad. El consentimiento se captura en este instante.
+      telemetryHandle = await _requestTelemetryLaunch(
+        activityType: activityType,
+        gridSize: puzzleGridSize,
+      );
+      if (!mounted) return;
+
+      // La actividad real inicia únicamente después de la confirmación del
+      // popup. El video usa la URL de la tarjeta seleccionada, igual que su
+      // preview, y siempre entra por esta ruta instrumentada.
+      if (activityType == 'video') {
+        final videoUrl = selectedVideoPath ?? '';
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(
+              videoUrl: videoUrl,
+              levelTitle: widget.levelTitle ?? widget.levelName,
+              levelId: widget.levelId,
+              moduleId: widget.moduleId,
+              telemetryHandle: telemetryHandle,
+            ),
+          ),
+        );
+      } else {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LevelPlayScreen(
+              levelTitle: widget.levelTitle ?? widget.levelName,
+              minigameData: data,
+              actividadType: activityType,
+              levelId: widget.levelId ?? '',
+              moduleId: widget.moduleId ?? '',
+              videoUrl: widget.videoUrl,
+              launchSimpleSelectionFromCard: activityType == 'simple_selection',
+              telemetryHandle: telemetryHandle,
+            ),
+          ),
+        );
+      }
+    } catch (_) {
       // Error de navegación antes de llegar a la actividad → launch_error.
       telemetryHandle?.onLaunchError(TerminalReason.navigationFailed);
+    } finally {
+      _isLaunchingActivity = false;
     }
     if (!mounted) return;
 
@@ -552,8 +586,57 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     );
   }
 
+  List<String> get _backgroundImageUrls {
+    final urls = <String>[];
+    // La imagen protagonista (levelInfo.pictogramaUrl, ver bgLevelImg abajo y
+    // level_timeline_screen) se muestra sola en el popup de preview; se
+    // filtra por VALOR aqui, en el unico lugar que agrega al collage, en vez
+    // de excluirla en cada fuente por separado (widget.contents,
+    // minigameData.steps, etc). Cualquier fuente nueva que la repita queda
+    // cubierta automaticamente sin tener que acordarse de excluirla ahi.
+    final protagonista = widget.bgLevelImg?.trim();
+
+    void addUrl(String? url) {
+      if (url == null || url.trim().isEmpty) return;
+      final clean = url.trim();
+      if (protagonista != null &&
+          protagonista.isNotEmpty &&
+          clean == protagonista) {
+        return;
+      }
+      // Filtrar cuadriculas para que el fondo se forme de imagenes individuales
+      if (clean.contains('appy_heads_grid_preset') ||
+          clean.contains('appy_routine_menu_preset'))
+        return;
+      urls.add(clean);
+    }
+
+    for (final content in widget.contents) {
+      addUrl(content.imagePath);
+    }
+
+    final data = widget.minigameData;
+    if (data != null) {
+      final rawSteps = data['steps'] ?? data['pictogramSteps'];
+      if (rawSteps is List) {
+        for (final raw in rawSteps) {
+          if (raw is! Map) continue;
+          final image =
+              raw['url'] ??
+              raw['imagePath'] ??
+              raw['src'] ??
+              raw['pictogramaUrl'];
+          if (image is String) addUrl(image);
+        }
+      }
+    }
+    return urls;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).accessibleNavigation;
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -565,16 +648,15 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
         ),
         child: Stack(
           children: [
-            if (widget.bgLevelImg != null && widget.bgLevelImg!.isNotEmpty)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.3,
-                  child: _buildImageFromUrl(
-                    widget.bgLevelImg!,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+            Positioned.fill(
+              child: PuzzleGridBackground(
+                imageUrls: _backgroundImageUrls,
+                opacity: Theme.of(context).brightness == Brightness.dark
+                    ? 0.04
+                    : 0.02,
+                animate: !reduceMotion,
               ),
+            ),
 
             SafeArea(
               child: Column(

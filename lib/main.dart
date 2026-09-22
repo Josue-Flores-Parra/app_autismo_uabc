@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,32 +8,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appy/l10n/gen/app_localizations.dart';
 
 // Firebase
-import 'firebase_options.dart';
+import 'package:appy/firebase_options.dart';
 
 // Auth
-import 'features/authentication/viewmodel/auth_viewmodel.dart';
-import 'features/authentication/view/auth_gate.dart';
-import 'features/settings/viewmodel/settings_viewmodel.dart';
+import 'package:appy/features/authentication/viewmodel/auth_viewmodel.dart';
+import 'package:appy/features/authentication/view/auth_gate.dart';
+import 'package:appy/features/settings/viewmodel/settings_viewmodel.dart';
 
 // Avatar
-import 'features/avatar/model/avatar_models.dart';
-import 'features/avatar/data/avatar_repository.dart';
-import 'features/avatar/viewmodel/avatar_viewmodel.dart';
+import 'package:appy/features/avatar/model/avatar_models.dart';
+import 'package:appy/features/avatar/data/avatar_repository.dart';
+import 'package:appy/features/avatar/viewmodel/avatar_viewmodel.dart';
 
 // Learning Module
-import 'features/learning_module/viewmodel/learning_viewmodel.dart';
+import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart';
+
+// Legal
+import 'package:appy/features/legal/viewmodel/legal_viewmodel.dart';
 
 // Shared Services
-import 'shared/services/loading_service.dart';
-import 'shared/widgets/loading_wrapper.dart';
+import 'package:appy/shared/services/loading_service.dart';
+import 'package:appy/shared/widgets/loading_wrapper.dart';
 
 // Minigames
-import 'features/minigames/view/types/simple_selection_minigame.dart';
-import 'features/minigames/view/types/video_minigame.dart';
-import 'features/minigames/view/types/pictogram_minigame.dart';
-import 'features/minigames/view/types/audio_minigame.dart';
-import 'features/minigames/view/types/puzzle_minigame.dart';
-import 'core/app_theme.dart';
+import 'package:appy/features/minigames/view/types/simple_selection_minigame.dart';
+import 'package:appy/features/minigames/view/types/pictogram_minigame.dart';
+import 'package:appy/features/minigames/view/types/audio_minigame.dart';
+import 'package:appy/features/minigames/view/types/puzzle_minigame.dart';
+import 'package:appy/core/app_theme.dart';
 
 // Telemetry
 import 'features/telemetry/data/telemetry_repository.dart';
@@ -41,11 +44,13 @@ import 'features/telemetry/service/pending_session_store.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // La app se usa en vertical. Solo el reproductor de video pide horizontal
+  // al entrar a pantalla completa y lo devuelve al salir.
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Registrar minijuegos
   registerSimpleSelectionMinigame();
-  registerVideoMinigame();
   registerPictogramMinigame();
   registerAudioMinigame();
   registerPuzzleMinigame();
@@ -67,23 +72,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Obtener skins disponibles del repositorio
-    final skinsDisponibles = AvatarRepository.obtenerSkinsDisponibles();
-
-    // Crear el estado inicial del avatar
-    final estadoInicial = AvatarEstado(
-      // Definir estado inicial con valores por defecto
-      nombre: 'nombre',
-      felicidad: 64,
-      energia: 92,
-      skinActual: skinsDisponibles.first,
-      backgroundActual:
-          'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
-      monedas: 150, // Monedas iniciales
-      accesoriosDesbloqueados: {
-        'Antenitas', // Desbloqueado por defecto
-        'Gafas', // Desbloqueado por defecto
-      },
+    // Estado de arranque del avatar. Es un marcador hasta que se lee la
+    // cuenta; los valores reales viven en Firestore desde el registro.
+    final estadoInicial = AvatarEstado.inicial(
+      skin: AvatarRepository.obtenerSkinsDisponibles().first,
     );
     return MultiProvider(
       providers: [
@@ -105,6 +97,16 @@ class MyApp extends StatelessWidget {
               avatarVM.initialize();
             }
             return avatarVM;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthViewModel, LegalViewModel>(
+          create: (_) => LegalViewModel(),
+          update: (context, auth, previous) {
+            final legalVM = previous ?? LegalViewModel();
+            if (auth.currentUser == null) {
+              legalVM.reset();
+            }
+            return legalVM;
           },
         ),
         ChangeNotifierProvider(create: (_) => LearningViewModel()),

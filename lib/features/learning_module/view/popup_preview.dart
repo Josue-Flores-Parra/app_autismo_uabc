@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../model/content_card_model.dart';
 import 'preview_cards.dart';
 
-class PopupPreview extends StatelessWidget {
+class PopupPreview extends StatefulWidget {
   final ContentCardData content;
   final String launchLabel;
   final bool canLaunch;
@@ -23,8 +23,15 @@ class PopupPreview extends StatelessWidget {
     this.videoPreviewPath,
   });
 
+  @override
+  State<PopupPreview> createState() => _PopupPreviewState();
+}
+
+class _PopupPreviewState extends State<PopupPreview> {
+  final GlobalKey<VideoPreviewCardState> _videoKey = GlobalKey();
+
   String get _typeLabel {
-    switch (content.type) {
+    switch (widget.content.type) {
       case ContentType.pictogram:
         return 'PICTOGRAMA';
       case ContentType.video:
@@ -38,11 +45,11 @@ class PopupPreview extends StatelessWidget {
 
   // Helper para detectar casos específicos de minijuegos sin imagen de preview válida.
   bool get _isPuzzleMissingImage {
-    if (content.type != ContentType.miniGame ||
-        content.miniGameType != 'puzzle') {
+    if (widget.content.type != ContentType.miniGame ||
+        widget.content.miniGameType != 'puzzle') {
       return false;
     }
-    final source = (previewImageUrl ?? content.imagePath).trim();
+    final source = (widget.previewImageUrl ?? widget.content.imagePath).trim();
     return source.isEmpty;
   }
 
@@ -95,7 +102,7 @@ class PopupPreview extends StatelessWidget {
                   ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final isVideo = content.type == ContentType.video;
+                      final isVideo = widget.content.type == ContentType.video;
                       final minPreviewHeight = isVideo ? 170.0 : 140.0;
                       final maxPreviewHeight = isVideo ? 380.0 : 320.0;
 
@@ -105,7 +112,7 @@ class PopupPreview extends StatelessWidget {
                           56.0 + // boton cerrar
                           16.0 + // separador principal
                           56.0 + // boton de accion
-                          (!canLaunch ? 24.0 : 0.0) +
+                          (!widget.canLaunch ? 24.0 : 0.0) +
                           (!isVideo ? 64.0 : 0.0);
 
                       final availablePreviewHeight =
@@ -146,7 +153,7 @@ class PopupPreview extends StatelessWidget {
                             if (!isVideo) ...[
                               const SizedBox(height: 16),
                               Text(
-                                content.title,
+                                widget.content.title,
                                 style: const TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w900,
@@ -161,60 +168,90 @@ class PopupPreview extends StatelessWidget {
                             const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: canLaunch ? onLaunch : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      content.type == ContentType.video
-                                      ? const Color(0xFF5A97B8)
-                                      : const Color(0xFF00E5FF),
-                                  disabledBackgroundColor: const Color(
-                                    0x553A5160,
-                                  ),
+                              child: GestureDetector(
+                                onTap: widget.canLaunch
+                                    ? (isVideo
+                                          ? () => _videoKey.currentState
+                                                ?.enterFullscreen()
+                                          : widget.onLaunch)
+                                    : null,
+                                child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 14,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  elevation: 10,
-                                  shadowColor: const Color.fromARGB(
-                                    204,
-                                    0,
-                                    229,
-                                    255,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      content.type == ContentType.video
-                                          ? Icons.play_circle_rounded
-                                          : Icons.play_arrow_rounded,
-                                      color: Colors.white,
-                                      size: 28,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: widget.canLaunch
+                                          ? const [
+                                              Color(0xFF92C5BC),
+                                              Color(0xFF5A97B8),
+                                            ]
+                                          : const [
+                                              Color(0xFF3A5160),
+                                              Color(0xFF2A3E4A),
+                                            ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        launchLabel,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          letterSpacing: 1.2,
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: widget.canLaunch
+                                          ? const Color(0xFFB0D9D1)
+                                          : const Color(0xFF3A5160),
+                                      width: 2,
+                                    ),
+                                    boxShadow: widget.canLaunch
+                                        ? const [
+                                            BoxShadow(
+                                              color: Color(0x4DFFFFFF),
+                                              blurRadius: 8,
+                                              offset: Offset(0, -2),
+                                            ),
+                                            BoxShadow(
+                                              color: Color(0x665A97B8),
+                                              blurRadius: 15,
+                                              spreadRadius: 1,
+                                            ),
+                                            BoxShadow(
+                                              color: Color(0x80000000),
+                                              blurRadius: 12,
+                                              offset: Offset(0, 5),
+                                              spreadRadius: 1,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        widget.content.type == ContentType.video
+                                            ? Icons.play_circle_rounded
+                                            : Icons.play_arrow_rounded,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          widget.launchLabel,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.white,
+                                            letterSpacing: 1.2,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                            if (!canLaunch)
+                            if (!widget.canLaunch)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8),
                                 child: Text(
@@ -243,16 +280,18 @@ class PopupPreview extends StatelessWidget {
   }
 
   Widget _buildPopupPreviewBody() {
-    final videoPath = (videoPreviewPath ?? '').trim();
-    if (content.type == ContentType.video && videoPath.isNotEmpty) {
+    final videoPath = (widget.videoPreviewPath ?? '').trim();
+    if (widget.content.type == ContentType.video && videoPath.isNotEmpty) {
       // Reusar el mismo flujo de preview de video para mantener
       // comportamiento visual, controles y lifecycle consistente con preview_cards.dart.
       return VideoPreviewCard(
+        key: _videoKey,
         videoPath: videoPath,
-        videoTitle: content.title,
+        videoTitle: widget.content.title,
         videoDesc: null,
         isPreview: true,
         isActive: true,
+        onLaunch: widget.onLaunch,
       );
     }
 
@@ -307,11 +346,11 @@ class PopupPreview extends StatelessWidget {
   Widget _buildPreviewImage() {
     // Para minijuegos usamos siempre la miniatura local dedicada.
     // Evita depender de miniGameType exacto y de rutas dinámicas inconsistentes.
-    final source = (content.type == ContentType.miniGame)
-        ? (content.miniGameType == 'simple_selection'
+    final source = (widget.content.type == ContentType.miniGame)
+        ? (widget.content.miniGameType == 'simple_selection'
               ? 'assets/imgs/simple_selection_preview.png'
-              : (previewImageUrl ?? content.imagePath).trim())
-        : (previewImageUrl ?? content.imagePath).trim();
+              : (widget.previewImageUrl ?? widget.content.imagePath).trim())
+        : (widget.previewImageUrl ?? widget.content.imagePath).trim();
     if (source.isEmpty) {
       // Fallback explícito para recursos ausentes o no mapeados.
       return _buildPlaceholder();

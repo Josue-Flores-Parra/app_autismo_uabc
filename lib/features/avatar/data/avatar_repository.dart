@@ -36,6 +36,8 @@ class AvatarRepository {
           'assets/images/Skins/Astronaut/expresions/expastron2.png',
           'assets/images/Skins/Astronaut/expresions/expastron3.png',
         ],
+        bloqueado: true,
+        costoMonedas: 60,
       ),
 
       // Skin Chef (tiene expresiones)
@@ -49,6 +51,8 @@ class AvatarRepository {
           'assets/images/Skins/Chef/expresions/expchef3.png',
           'assets/images/Skins/Chef/expresions/expchef4.png',
         ],
+        bloqueado: true,
+        costoMonedas: 70,
       ),
 
       // Skin Dinosaur (sin expresiones)
@@ -57,6 +61,8 @@ class AvatarRepository {
         imagenBase: 'assets/images/Skins/Dinosaur/dinosaurio.png',
         carpetaBackground: 'assets/images/Skins/Dinosaur/backgrounds/',
         expresiones: null, // No tiene expresiones
+        bloqueado: true,
+        costoMonedas: 80,
       ),
 
       // Skin Firefighter (sin expresiones)
@@ -65,6 +71,8 @@ class AvatarRepository {
         imagenBase: 'assets/images/Skins/Firefighter/Bombero.png',
         carpetaBackground: 'assets/images/Skins/Firefighter/backgrounds/',
         expresiones: null, // No tiene expresiones
+        bloqueado: true,
+        costoMonedas: 90,
       ),
 
       // Skin Superhero (sin expresiones)
@@ -73,6 +81,8 @@ class AvatarRepository {
         imagenBase: 'assets/images/Skins/Superhero/Superheroe.png',
         carpetaBackground: 'assets/images/Skins/Superhero/backgrounds/',
         expresiones: null, // No tiene expresiones
+        bloqueado: true,
+        costoMonedas: 100,
       ),
     ];
   }
@@ -131,21 +141,62 @@ class AvatarRepository {
     ];
   }
 
-  /* 
-  Retorna todos los backgrounds disponibles en el sistema
+  /*
+  Retorna todos los fondos disponibles en el sistema. Solo el fondo por
+  defecto es gratis; el resto cuesta monedas, igual que los accesorios.
   */
-  static List<String> obtenerBackgroundsDisponibles() {
+  static List<FondoInfo> obtenerFondosDisponibles() {
     return [
-      'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
-      'assets/images/Skins/Astronaut/backgrounds/espacio.jpg',
-      'assets/images/Skins/Astronaut/backgrounds/espacio2.jpg',
-      'assets/images/Skins/Chef/backgrounds/cocina.jpg',
-      'assets/images/Skins/Dinosaur/backgrounds/prehistoria.jpg',
-      'assets/images/Skins/Dinosaur/backgrounds/prehistoria2.jpg',
-      'assets/images/Skins/Firefighter/backgrounds/departamento_bomberos.jpg',
-      'assets/images/Skins/Firefighter/backgrounds/departamento_bomberos2.jpg',
-      'assets/images/Skins/Superhero/backgrounds/superbase.jpg',
-      'assets/images/Skins/Superhero/backgrounds/superbase2.jpg',
+      FondoInfo(
+        path: 'assets/images/Skins/DefaultSkin/backgrounds/default.jpg',
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Astronaut/backgrounds/espacio.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Astronaut/backgrounds/espacio2.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Chef/backgrounds/cocina.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Dinosaur/backgrounds/prehistoria.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Dinosaur/backgrounds/prehistoria2.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path:
+            'assets/images/Skins/Firefighter/backgrounds/departamento_bomberos.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path:
+            'assets/images/Skins/Firefighter/backgrounds/departamento_bomberos2.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Superhero/backgrounds/superbase.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
+      FondoInfo(
+        path: 'assets/images/Skins/Superhero/backgrounds/superbase2.jpg',
+        bloqueado: true,
+        costoMonedas: 25,
+      ),
     ];
   }
 }

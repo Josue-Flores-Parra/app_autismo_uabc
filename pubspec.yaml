@@ -88,6 +88,23 @@ flutter:
     - assets/videos/             # Videos para el módulo de aprendizaje
     - assets/audio/              # Audios para el módulo de aprendizaje
 
+    # ----------------------------
+    # Character presets (onboarding, estados de animo, ilustraciones de UI)
+    # ----------------------------
+    - assets/images/presets/
+
+  # Coiny para titulos de marca y mensajes grandes; Commissioner para el texto
+  # explicativo y de interfaz. Ambas bajo SIL Open Font License (ver
+  # assets/fonts/OFL-*.txt). Commissioner es fuente variable: el eje de peso se
+  # resuelve con FontWeight.
+  fonts:
+    - family: Coiny
+      fonts:
+        - asset: assets/fonts/Coiny-Regular.ttf
+    - family: Commissioner
+      fonts:
+        - asset: assets/fonts/Commissioner-Variable.ttf
+
 # App icon configuration
 flutter_launcher_icons:
   android: true

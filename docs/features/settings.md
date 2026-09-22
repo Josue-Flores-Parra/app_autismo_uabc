@@ -53,7 +53,7 @@ Estado y persistencia:
 | `remindersEnabled` | `bool` | `remindersEnabled` | `false` |
 | `reminderTime` | `TimeOfDay` | `reminderTime` | `18:00` |
 | `sendMetrics` | `bool` | `sendMetrics_{uid}` | `false` |
-| `parentalMinLevel` | `int` | `parentalMinLevel` | `0` |
+| `parentalAllowedModules` | `int` | `parentalAllowedModules` | `0` |
 
 El consentimiento de telemetría (`sendMetrics`) y el flag de onboarding
 (`telemetryOnboardingShown`) se guardan **por cuenta** (UID), no del dispositivo;
@@ -67,11 +67,15 @@ Escalas reales:
 | `medium` | `1.0` |
 | `large` | `1.15` |
 
-`setParentalMinLevel(level)` aplica:
+`setParentalAllowedModules(count)` aplica:
 
 ```text
-level.clamp(0, 10)
+count.clamp(0, 10)
 ```
+
+`toggleAudioFeedback` y `toggleHapticFeedback` publican ademas su valor en
+`FeedbackPreferences`, que es lo que consultan los servicios sin `BuildContext`
+(`TtsService`, `CelebrationHelper`, `NegativeFeedbackHelper`, `HapticsService`).
 
 `clearCache()` limpia:
 
@@ -133,14 +137,17 @@ lib/core/app_theme.dart
 Mecanica:
 
 - Usa Material 3.
-- Usa `ColorScheme.fromSeed`.
+- Usa `ColorScheme.fromSeed` y lo sobrescribe con la paleta `AppColors` activa (`surface`, `onSurface`, `outline`, `primary`).
 - Seed normal: `0xFF4A90E2`.
 - Seed alto contraste: `0xFF0E1B4D`.
-- En alto contraste fuerza `surface` negro, `onSurface` blanco y `outline` blanco70.
-- `ElevatedButtonTheme` usa verde `0xFF50C878` salvo alto contraste.
-- `CardTheme` sube elevacion y borde en alto contraste.
-- `SwitchTheme` y `SliderTheme` se ajustan al `colorScheme`.
+- Registra `AppColors` como `ThemeExtension`; las pantallas leen `context.appColors`.
+- Tipografia: `Commissioner` para el cuerpo, `Coiny` para `display*` y `headline*`.
+- Botones (`FilledButton`, `ElevatedButton`, `OutlinedButton`, `TextButton`), inputs, cards, dialogs, snackbars, chips, switches y sliders toman color y radio del tema; los radios vienen de `AppRadius`.
+- `AppBar` transparente con `foregroundColor` en `ink`.
 - Si `reduceMotion` es `true`, usa `NoTransitionsBuilder` para Android, iOS, macOS, Linux y Windows.
+
+Ver `docs/architecture.md`, seccion "Tema y accesibilidad", para el detalle de
+paletas y campos.
 
 ## SettingsPage
 
@@ -154,29 +161,41 @@ Es un `StatefulWidget` que usa `Consumer<SettingsViewModel>` y obtiene
 `AuthViewModel` con `Provider.of<AuthViewModel>(listen: false)` dentro de un
 try/catch. Eso permite que algunos tests monten Settings sin AuthProvider.
 
+Estructura visual: un encabezado de perfil (preset
+`appy_head_happy_preset.png`, nombre y correo) seguido de tarjetas agrupadas.
+Cada tarjeta es un `_Section` con filas `_SettingsRow` (icono, titulo,
+subtitulo y control a la derecha) o `_ChoiceRow` con `_Chip`s para elegir
+entre opciones. No hay `ListTile` ni colores fijos: todo sale de
+`context.appColors`.
+
 Secciones visibles:
 
 | Seccion | Contenido |
 | --- | --- |
-| Perfil de usuario | Nombre para mostrar editable y correo deshabilitado. |
-| Cuenta y seguridad | Cambiar contrasena, cerrar sesion, eliminar cuenta. |
-| Idioma | Radio `es` y `en`. |
-| Apariencia | Tema sistema/claro/oscuro y chips de tamano de fuente. |
+| Perfil | Nombre para mostrar editable y correo. |
+| Cuenta y seguridad | Cambiar contrasena, cambiar PIN, cerrar sesion, reiniciar progreso, eliminar cuenta. |
+| Idioma | Chips `es` y `en`. |
+| Apariencia | Chips de tema sistema/claro/oscuro y de tamano de fuente. |
 | Accesibilidad | Alto contraste, reducir animaciones, feedback auditivo, feedback haptico. |
 | Notificaciones y recordatorios | Toggle de recordatorios y selector de hora si esta activo. |
 | Privacidad y datos | Limpiar cache y enviar metricas anonimas. |
-| Control parental | Slider 0..10 para nivel minimo. |
+| Control parental | Modulos permitidos, con resumen en el subtitulo (`_parentalSummary`). |
 | Informacion y soporte | Version, terminos, privacy policy y mailto de soporte. |
 
 `PackageInfo.fromPlatform()` muestra solo `version`, no `buildNumber`.
 
 Links externos:
 
-| Item | URL |
+| Item | Destino |
 | --- | --- |
-| Terminos y Privacidad | `https://policies.google.com/terms` |
-| Privacy policy | `https://policies.google.com/privacy` |
+| Terminos y Privacidad | `LegalDocumentScreen`, pestana 0. |
+| Politica de privacidad | `LegalDocumentScreen`, pestana 1. |
 | Feedback / soporte | `mailto:rosalesq.software@gmail.com?subject=Appy%20Feedback` |
+
+Terminos y privacidad ya no abren `policies.google.com`: esas politicas son de
+Google, no de Appy, y mostrarlas como propias confundia al padre. Ahora abren
+los documentos propios, los mismos que la cuenta acepto al entrar. Ver
+`docs/features/legal.md`.
 
 ## Operaciones de cuenta desde Settings
 
@@ -196,6 +215,24 @@ Links externos:
 No hay flujo de reautenticacion en esta pantalla. Firebase puede rechazar la
 operacion si la sesion no es reciente.
 
+### Cambiar PIN
+
+1. Llama `SettingsAccessGuard.changePinFlow(context)` (mismo servicio que el
+   gating de PIN al entrar a Ajustes).
+2. Si el flujo termina bien, snackbar "PIN actualizado correctamente".
+
+### Reiniciar progreso
+
+1. Dialogo de confirmacion: borra estrellas, monedas ganadas en niveles y
+   vuelve a bloquear los niveles.
+2. En exito llama `LearningViewModel.clearAllProgress()` (la View no toca
+   Firestore directamente) y muestra snackbar.
+3. En error, snackbar con el mensaje de la excepcion.
+
+Fila destructiva; no forma parte de los ajustes que pidio el equipo
+originalmente. Confirmar con el equipo antes de subir si se quiere conservar
+para el usuario final o dejarla solo para pruebas internas.
+
 ### Cerrar sesion
 
 1. Llama `AuthViewModel.logout`.
@@ -204,28 +241,32 @@ operacion si la sesion no es reciente.
 
 ### Eliminar cuenta
 
-1. Pide confirmar escribiendo `BORRAR` o `DELETE`, segun locale.
-2. Llama `AuthViewModel.deleteAccount`.
-3. En exito, `deleteAccount()` limpia `_currentUser` y `AuthGate` hace el swap a
-   `LoginScreen` (sin navegacion imperativa).
-4. Si falla, muestra snackbar.
+1. Pide confirmar escribiendo `BORRAR` o `DELETE`, segun locale, y la password
+   de la cuenta.
+2. Llama `AuthViewModel.deleteAccount(password)`.
+3. `AuthService.deleteAccount` reautentica con esa password antes de borrar.
+   Firebase exige sesion reciente; sin este paso la operacion fallaba aunque la
+   palabra de confirmacion fuera correcta.
+4. En exito, `deleteAccount()` limpia `_currentUser`, borra el PIN de esa cuenta
+   y `AuthGate` hace el swap a `LoginScreen` (sin navegacion imperativa).
+5. Si falla, muestra snackbar.
 
 ## PIN de acceso a Settings
 
 El PIN no vive en `SettingsPage`; vive en:
 
 ```text
-lib/features/home/view/main_shell.dart
+lib/shared/services/settings_access_guard.dart
 lib/shared/services/pin_service.dart
 ```
 
-Clave:
+Clave, una por cuenta:
 
 ```text
-settingsPin
+settingsPin_<uid>
 ```
 
-Reglas reales de PIN debil en `MainShell._isWeakPin`:
+Reglas reales de PIN debil en `SettingsAccessGuard.isWeakPin`:
 
 - Debe cumplir `^\d{4}$`.
 - Rechaza cuatro digitos iguales.
@@ -233,16 +274,26 @@ Reglas reales de PIN debil en `MainShell._isWeakPin`:
 - Rechaza secuencias descendentes.
 - Rechaza blacklist: `0000`, `1234`, `4321`, `1111`, `2222`, `3333`.
 
-Si no hay PIN guardado y se toca la pestana de Ajustes/PIN desde bottom nav, se
-pide crear uno. Si hay PIN, se pide ingresarlo. Si se olvida, se reautentica
-con password de la cuenta actual y se borra el PIN local.
+Si no hay PIN guardado y se toca el engrane de Ajustes en el `AppBar` de
+Modulos, se pide crear uno. Si hay PIN, se pide ingresarlo. Si se olvida, se
+reautentica con password de la cuenta actual y se borra el PIN local.
 
-Nota importante: el icono de ajustes en el `AppBar` de `ModuleListScreen`
-navega directamente a `SettingsPage` y no usa este gating de PIN.
+Dialogo (`_PinDialog` en `settings_access_guard.dart`):
+
+- Cuatro casillas (`_PinBox`) y teclado numerico propio (`_PinKey`); no abre el teclado del sistema. Tambien acepta digitos y Backspace de un teclado fisico.
+- Al escribir el cuarto digito se valida solo; no hay boton "Confirmar".
+- Con PIN guardado: correcto cierra con `true`; incorrecto muestra "PIN incorrecto" y limpia las casillas. "Olvide el PIN" cierra con `null` y dispara la reautenticacion.
+- Sin PIN guardado: primer ingreso se valida con `isWeakPin`, segundo ingreso debe coincidir ("Los PIN no coinciden" reinicia el flujo). Cierra con el PIN elegido o `null` al cancelar.
+
+El gating vive en `SettingsAccessGuard` y no en `MainShell` porque, cuando
+existia la pestana de Ajustes en el bottom nav, habia dos entradas al mismo
+PIN. Esa pestana se elimino por redundante (ver `docs/architecture.md`); el
+gating se quedo en `SettingsAccessGuard` porque `ModuleListScreen` tambien lo
+necesita para su icono de engrane.
 
 ## Control parental
 
-`SettingsViewModel.parentalMinLevel` se aplica en:
+`SettingsViewModel.parentalAllowedModules` se aplica en:
 
 ```text
 lib/features/learning_module/view/module_list_screen.dart
@@ -251,17 +302,22 @@ lib/features/learning_module/view/module_list_screen.dart
 `ModulosGridView` reconstruye cada `ModuloInfo` y marca bloqueado si:
 
 ```text
-modulo.bloqueado || modulo.nivel < parentalMinLevel
+modulo.bloqueado || (parentalAllowedModules > 0 && indice >= parentalAllowedModules)
 ```
 
-Esto significa que el valor configurado es "nivel minimo requerido". Si el
-modulo tiene nivel menor que ese minimo, se bloquea visualmente.
+El valor configurado es "cuantos modulos, en el orden en que se muestran, puede
+abrir el nino". `0` significa sin limite.
+
+La regla anterior comparaba `modulo.nivel` contra el slider. Como todos los
+modulos tienen `nivelMinimo = 1`, `0` y `1` daban el mismo resultado y cualquier
+valor mayor o igual a `2` bloqueaba todos los modulos. Contar modulos permitidos
+hace visible cada posicion del slider y nunca deja al nino sin contenido.
 
 ## Localizacion
 
 Settings usa `AppLocalizations` para la mayoria de textos. Hay excepciones:
 
-- El item "Privacy policy" esta hardcodeado en ingles.
+- El item de politica de privacidad ya usa la llave `privacyPolicy`.
 - Algunos mensajes de fallback siguen hardcodeados.
 - El gating de PIN en `MainShell` usa textos hardcodeados en espanol.
 

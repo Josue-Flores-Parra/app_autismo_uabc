@@ -12,7 +12,6 @@ desde `MinigamesWidget` cuando `LevelPlayScreen` decide que tipo abrir.
 lib/features/minigames/minigame_core.dart
 lib/features/minigames/view/minigames_widget.dart
 lib/features/minigames/view/types/simple_selection_minigame.dart
-lib/features/minigames/view/types/video_minigame.dart
 lib/features/minigames/view/types/pictogram_minigame.dart
 lib/features/minigames/view/types/audio_minigame.dart
 lib/features/minigames/view/types/puzzle_minigame.dart
@@ -24,7 +23,6 @@ Servicios usados:
 lib/shared/services/tts_service.dart
 lib/shared/services/celebration_helper.dart
 lib/features/learning_module/viewmodel/audio_viewmodel.dart
-lib/features/learning_module/viewmodel/video_viewmodel.dart
 ```
 
 ## Registro
@@ -33,7 +31,6 @@ lib/features/learning_module/viewmodel/video_viewmodel.dart
 
 ```dart
 registerSimpleSelectionMinigame();
-registerVideoMinigame();
 registerPictogramMinigame();
 registerAudioMinigame();
 registerPuzzleMinigame();
@@ -58,10 +55,13 @@ lib/features/minigames/minigame_core.dart
 | Enum | actividadType usado por LevelPlayScreen |
 | --- | --- |
 | `simpleSelection` | `simple_selection` |
-| `video` | `video` solo si se usa `VideoMinigame`; el flujo principal de video usa reproductor dedicado. |
+| `video` | Reservado; `LevelContentPreviewScreen` abre `VideoPlayerScreen` antes de llegar a `LevelPlayScreen`. |
 | `pictogram` | `pictogram` |
 | `audio` | `audio` |
 | `puzzle` | `puzzle` |
+
+`video` permanece en el enum por compatibilidad de datos, pero no es un
+minijuego registrado.
 
 `MinigameBase` exige:
 
@@ -96,6 +96,10 @@ Widget Function({
 })
 ```
 
+`attempts` cuenta equivocaciones, no selecciones. Acertar todo a la primera
+reporta `0`. De ese numero dependen las monedas en `LevelCompletionService`,
+y por eso el dialogo de resultado lo muestra como "Errores".
+
 `MinigameFactory` mantiene un `Map<MinigameType, MinigameBuilder>` y expone:
 
 - `register(type, builder)`.
@@ -109,7 +113,8 @@ Flujo actual:
 ```text
 LevelContentPreviewScreen
   -> PopupPreview
-  -> LevelPlayScreen
+  -> VideoPlayerScreen (video)
+  -> LevelPlayScreen (resto)
     -> MinigamesWidget
       -> MinigameFactory.create()
 ```
@@ -124,9 +129,10 @@ LevelContentPreviewScreen
 | `puzzle` | `MinigameType.puzzle` |
 | otro/null/vacio | Pantalla "Actividad no disponible." |
 
-Para `video`, `LevelPlayScreen` usa `_LevelVideoPlayerScreen` y no el
-`VideoMinigame` registrado, salvo que otro flujo cree explicitamente
-`MinigameType.video`.
+Para `video`, `LevelContentPreviewScreen` no entra a `LevelPlayScreen`: abre
+`VideoPlayerScreen`, que conserva los controles de video y el flujo de
+finalización propios. El resto de los tipos se resuelve mediante
+`MinigameFactory`.
 
 ## SimpleSelectionMinigame
 
@@ -143,17 +149,21 @@ Mecanica:
 - Usa TTS en `es-MX` para leer la pregunta.
 - Permite reproducir pregunta con boton de volumen.
 - Mezcla opciones en cada pregunta.
-- Lleva intentos por pregunta (`_attempts`) e intentos totales (`_totalAttempts`).
+- Lleva intentos por pregunta (`_attempts`) y equivocaciones totales (`_totalErrors`).
 - Muestra feedback inline "Correcto" o "Intenta de nuevo".
 - En exito reproduce confetti y `assets/audio/celebration.mp3`.
 - En fallo reproduce `assets/audio/negative_beeps.mp3`.
-- Llama `onComplete(success, _totalAttempts)` despues de 1.5 s.
+- Llama `onComplete(success, _totalErrors)` despues de 1.5 s.
 
 Prioridad para construir preguntas:
 
 1. Si `steps` o `pictogramSteps` tiene al menos 2 pasos validos, genera exactamente 3 preguntas.
 2. Si existe `questions`, usa ese formato y limita a maximo 3 preguntas.
 3. Si no, el minijuego usa una pregunta por defecto (`¿Cuál es la imagen correcta?`) con opciones placeholder, evitando un soft-lock.
+
+Al generar desde `steps`, ninguna pregunta repite una imagen entre sus opciones.
+Dos pasos distintos pueden compartir la misma imagen con captions diferentes, y
+usarlos juntos dejaba opciones imposibles de distinguir a simple vista.
 
 ### steps / pictogramSteps
 
@@ -344,30 +354,6 @@ Keys:
 | `title` / `titulo` | Titulo. |
 | `description` / `descripcion` | Descripcion. |
 
-## VideoMinigame
-
-Archivo:
-
-```text
-lib/features/minigames/view/types/video_minigame.dart
-```
-
-Estado actual:
-
-- Existe y esta registrado.
-- El flujo principal para `actividadType == video` en `LevelPlayScreen` usa un reproductor dedicado (`_LevelVideoPlayerScreen`), no este minijuego.
-
-Mecanica si se instancia:
-
-- Carga `minigameData.videoUrl`.
-- Si falta, llama `onComplete(false, 1)` despues del primer frame.
-- Usa `VideoViewModel`.
-- Reproduce automaticamente al inicializar.
-- Desactiva looping.
-- Muestra video con overlay play/pause, progress bar, replay y boton `Completar`.
-- El timer detecta si se vio 90%, pero el boton `Completar` no esta bloqueado por ese progreso; solo se deshabilita si `_isCompleted`.
-- Al completar pausa, hace seek a cero y llama `onComplete(true, 1)`.
-
 ## Preview cards y minigames
 
 `LevelContentPreviewScreen` no instancia minijuegos directamente. Primero muestra
@@ -379,8 +365,8 @@ tarjetas de contenido:
 - Puzzle.
 - Audio.
 
-Despues `PopupPreview` confirma. Finalmente `LevelPlayScreen` instancia la
-actividad.
+Despues `PopupPreview` confirma. Los videos van a `VideoPlayerScreen`; los
+demas tipos los instancia `LevelPlayScreen`.
 
 `simple_selection` solo se lanza desde tarjeta si `isSimpleSelectionEnabled` es
 true. Esto evita abrir seleccion simple solo porque exista data antigua.

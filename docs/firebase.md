@@ -209,7 +209,7 @@ Campos esperados por `ModuloInfo.fromFirestore`:
 
 `ModulosGridView` agrega otro bloqueo visual si:
 
-- `modulo.nivel < SettingsViewModel.parentalMinLevel`.
+- El indice del modulo queda fuera de `SettingsViewModel.parentalAllowedModules`.
 
 ## modules/{moduleId}/levels/{levelId}
 

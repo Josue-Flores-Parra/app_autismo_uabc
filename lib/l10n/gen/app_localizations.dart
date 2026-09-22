@@ -368,11 +368,35 @@ abstract class AppLocalizations {
   /// **'Control parental'**
   String get parentalSection;
 
-  /// No description provided for @parentalMinLevel.
+  /// No description provided for @parentalAllowedModules.
   ///
   /// In es, this message translates to:
-  /// **'Nivel mínimo requerido'**
-  String get parentalMinLevel;
+  /// **'Módulos permitidos'**
+  String get parentalAllowedModules;
+
+  /// No description provided for @parentalNoLimit.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin límite'**
+  String get parentalNoLimit;
+
+  /// No description provided for @parentalModulesUnit.
+  ///
+  /// In es, this message translates to:
+  /// **'módulos'**
+  String get parentalModulesUnit;
+
+  /// No description provided for @currentPasswordLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Contraseña de la cuenta'**
+  String get currentPasswordLabel;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Contraseña nueva'**
+  String get newPasswordLabel;
 
   /// No description provided for @infoSection.
   ///
@@ -391,6 +415,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Términos y Privacidad'**
   String get termsPrivacy;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In es, this message translates to:
+  /// **'Política de privacidad'**
+  String get privacyPolicy;
 
   /// No description provided for @feedbackSupport.
   ///

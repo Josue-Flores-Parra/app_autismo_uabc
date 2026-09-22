@@ -2,6 +2,9 @@
     <!-- Permisos para audio -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Feedback haptico del switch de accesibilidad. Es un permiso normal:
+         no genera solicitud en tiempo de ejecucion. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     
     <application
         android:label="Appy"
@@ -44,6 +47,13 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Desde Android 11 una app solo ve las demas si las declara aqui.
+             Sin esto, el correo de soporte de Ajustes no encuentra con que
+             abrirse y el boton no hace nada. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
         </intent>
     </queries>
 </manifest>

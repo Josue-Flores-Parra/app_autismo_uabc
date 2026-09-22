@@ -6,8 +6,10 @@ import '../model/modulo_info.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import 'level_timeline_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/app_theme.dart';
 import '../../settings/view/settings_page.dart';
 import '../../settings/viewmodel/settings_viewmodel.dart';
+import '../../../shared/services/settings_access_guard.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
@@ -19,20 +21,16 @@ class ModuleListScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          l10n?.navModules ?? 'Mis Módulos',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+        title: Text(l10n?.navModules ?? 'Mis Módulos'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: l10n?.settingsTitle ?? 'Ajustes',
-            onPressed: () {
+            // Mismo PIN que la pestaña de Ajustes: este atajo no puede ser
+            // una puerta trasera al control parental.
+            onPressed: () async {
+              final unlocked = await SettingsAccessGuard.ensureAccess(context);
+              if (!unlocked || !context.mounted) return;
               Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
@@ -41,12 +39,8 @@ class ModuleListScreen extends StatelessWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xF20D3B52), Color(0xFF091F2C)],
-          ),
+        decoration: BoxDecoration(
+          gradient: context.appColors.backgroundGradient,
         ),
         child: Consumer<LearningViewModel>(
           builder: (context, viewModel, child) {
@@ -63,7 +57,6 @@ class ModuleListScreen extends StatelessWidget {
                   children: [
                     Text(
                       viewModel.errorMessageModules!,
-                      style: const TextStyle(color: Colors.white),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -82,14 +75,14 @@ class ModuleListScreen extends StatelessWidget {
                 user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
             final nivelUsuario = viewModel.completedLevelsCount;
 
-            final parentalMinLevel = context
+            final parentalAllowedModules = context
                 .watch<SettingsViewModel>()
-                .parentalMinLevel;
+                .parentalAllowedModules;
             return ModulosGridView(
               modulos: viewModel.modulos,
               nombreUsuario: nombreUsuario,
               nivelUsuario: nivelUsuario,
-              parentalMinLevel: parentalMinLevel,
+              parentalAllowedModules: parentalAllowedModules,
             );
           },
         ),
@@ -104,41 +97,45 @@ class ModulosGridView extends StatelessWidget {
   final List<ModuloInfo> modulos;
   final String nombreUsuario;
   final int nivelUsuario;
-  final int parentalMinLevel;
+
+  /// Cuántos módulos deja abrir el control parental. `0` es sin límite.
+  final int parentalAllowedModules;
 
   const ModulosGridView({
     super.key,
     required this.modulos,
     required this.nombreUsuario,
     required this.nivelUsuario,
-    required this.parentalMinLevel,
+    required this.parentalAllowedModules,
   });
 
   @override
   Widget build(BuildContext context) {
-    final filteredModules = modulos
-        .map(
-          (modulo) => ModuloInfo(
-            id: modulo.id,
-            titulo: modulo.titulo,
-            estrellas: modulo.estrellas,
-            nivel: modulo.nivel,
-            imagenPath: modulo.imagenPath,
-            lvlBackgroundImageUrl: modulo.lvlBackgroundImageUrl,
-            color: modulo.color,
-            bloqueado: modulo.bloqueado || modulo.nivel < parentalMinLevel,
-            descripcion: modulo.descripcion,
-            nivelesCompletados: modulo.nivelesCompletados,
-          ),
-        )
-        .toList();
+    final filteredModules = modulos.asMap().entries.map((entry) {
+      final modulo = entry.value;
+      final fueraDelLimiteParental =
+          parentalAllowedModules > 0 && entry.key >= parentalAllowedModules;
+
+      return ModuloInfo(
+        id: modulo.id,
+        titulo: modulo.titulo,
+        estrellas: modulo.estrellas,
+        nivel: modulo.nivel,
+        imagenPath: modulo.imagenPath,
+        lvlBackgroundImageUrl: modulo.lvlBackgroundImageUrl,
+        color: modulo.color,
+        bloqueado: modulo.bloqueado || fueraDelLimiteParental,
+        descripcion: modulo.descripcion,
+        nivelesCompletados: modulo.nivelesCompletados,
+      );
+    }).toList();
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           /// Header con información del usuario
-          _buildUserHeader(),
+          _buildUserHeader(context),
 
           /// Grid de módulos
           Expanded(
@@ -161,43 +158,30 @@ class ModulosGridView extends StatelessWidget {
   }
 
   /// Construye el header con información del usuario
-  Widget _buildUserHeader() {
+  Widget _buildUserHeader(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-        ),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x80000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-            spreadRadius: 2,
-          ),
-        ],
+        gradient: colors.headerGradient,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: colors.surfaceBorder),
       ),
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 52,
+            height: 52,
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: const Color(0x33FFFFFF),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: const Color(0x4DFFFFFF), width: 1),
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+              border: Border.all(color: colors.surfaceBorder),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(13),
-              child: Image.asset(
-                'assets/images/CARITAROBOT.png',
-                fit: BoxFit.cover,
-              ),
+            child: Image.asset(
+              'assets/images/presets/appy_head_happy_preset.png',
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(width: 12),
@@ -205,11 +189,11 @@ class ModulosGridView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '¡HOLA!',
                   style: TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 14,
+                    color: colors.inkSoft,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1.2,
                   ),
@@ -217,56 +201,38 @@ class ModulosGridView extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   nombreUsuario,
-                  style: const TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: AppFonts.display,
+                    fontSize: 22,
+                    color: colors.ink,
                   ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFFE55C), width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0xCCFFD700),
-                  blurRadius: 15,
-                  offset: Offset(0, 0),
-                  spreadRadius: 2,
-                ),
-                BoxShadow(
-                  color: Color(0x80000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                  spreadRadius: 0,
-                ),
-              ],
+              color: colors.accentSoft,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.workspace_premium_rounded,
-                  color: Color(0xFF000000),
-                  size: 20,
+                  color: colors.accent,
+                  size: 18,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   'NIVEL ${max(1, nivelUsuario)}',
-                  style: const TextStyle(
-                    color: Color(0xFF000000),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -288,6 +254,7 @@ class ModuloPlantilla extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return GestureDetector(
       // Iniciar prefetch de niveles cuando el dedo toca la tarjeta (antes de soltar)
       // así los datos ya están cargándose mientras dura el gesto de toque
@@ -312,27 +279,9 @@ class ModuloPlantilla extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xE65B8DB3), Color(0xCC4A7499)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x997BA5C9), width: 1.5),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0xCC2A4A5C),
-              blurRadius: 25,
-              offset: Offset(0, 12),
-              spreadRadius: 3,
-            ),
-            BoxShadow(
-              color: Color(0x66000000),
-              blurRadius: 35,
-              offset: Offset(0, 18),
-              spreadRadius: -5,
-            ),
-          ],
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: colors.surfaceBorder),
         ),
         child: Padding(
           padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
@@ -342,10 +291,10 @@ class ModuloPlantilla extends StatelessWidget {
               Expanded(
                 child: Stack(
                   children: [
-                    _buildModuleImage(),
+                    _buildModuleImage(colors),
                     if (modulo.bloqueado) _buildLockedOverlay(),
-                    _buildLevelBadge(),
-                    _buildStarsIndicator(),
+                    _buildLevelBadge(colors),
+                    _buildStarsIndicator(colors),
                   ],
                 ),
               ),
@@ -361,26 +310,18 @@ class ModuloPlantilla extends StatelessWidget {
   }
 
   /// Construye la imagen del módulo
-  Widget _buildModuleImage() {
+  Widget _buildModuleImage(AppColors colors) {
     return Center(
       child: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
           color: modulo.color,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x997BA5C9), width: 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x80000000),
-              blurRadius: 30,
-              spreadRadius: 5,
-              offset: Offset(0, 10),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          border: Border.all(color: colors.surfaceBorder),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.input),
           child: Image.asset(modulo.imagenPath, fit: BoxFit.contain),
         ),
       ),
@@ -391,39 +332,21 @@ class ModuloPlantilla extends StatelessWidget {
   Widget _buildLockedOverlay() {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: const Color(0xE0000000),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xCC2A2A2A), Color.fromARGB(223, 46, 43, 43)],
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        color: const Color(0x99000000),
       ),
       child: Center(
         child: Container(
-          width: 110,
-          height: 110,
-          decoration: BoxDecoration(
+          width: 64,
+          height: 64,
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFFFD700),
-            border: Border.all(color: const Color(0xFFFFE55C), width: 3),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0xBBFFD700),
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
-              BoxShadow(
-                color: Color(0x88FFD700),
-                blurRadius: 35,
-                spreadRadius: 10,
-              ),
-            ],
+            color: Colors.white,
           ),
           child: const Icon(
             Icons.lock_rounded,
-            size: 55,
-            color: Color.fromARGB(255, 105, 92, 13),
+            size: 34,
+            color: Colors.black87,
           ),
         ),
       ),
@@ -431,24 +354,20 @@ class ModuloPlantilla extends StatelessWidget {
   }
 
   /// Construye el badge del nivel
-  Widget _buildLevelBadge() {
+  Widget _buildLevelBadge(AppColors colors) {
     return Positioned(
-      top: 0,
-      left: 0,
+      top: 6,
+      left: 6,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAFAFA),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFFFFFFFF), width: 2),
-          boxShadow: const [
-            BoxShadow(color: Color(0xFFFFFFFF), blurRadius: 8, spreadRadius: 2),
-          ],
+          color: colors.accentSoft,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Text(
           'NV ${modulo.nivelesCompletados}',
-          style: const TextStyle(
-            color: Color(0xFF000000),
+          style: TextStyle(
+            color: colors.ink,
             fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
@@ -459,54 +378,28 @@ class ModuloPlantilla extends StatelessWidget {
   }
 
   /// Construye el indicador de estrellas
-  Widget _buildStarsIndicator() {
+  Widget _buildStarsIndicator(AppColors colors) {
     return Positioned(
-      top: 0,
-      right: 0,
+      top: 6,
+      right: 6,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(3, (index) {
-          bool isRellena = index < modulo.estrellas;
-
-          return Container(
-            margin: const EdgeInsets.only(left: 2),
-            decoration: BoxDecoration(
-              boxShadow: isRellena
-                  ? const [
-                      BoxShadow(
-                        color: Color(0xFFFFD700),
-                        blurRadius: 15,
-                        spreadRadius: 0.000003,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.star,
-                  size: 18,
-                  color: isRellena
-                      ? const Color.fromARGB(150, 255, 158, 1)
-                      : const Color(0xFF2A2A2A),
-                ),
-                Icon(
-                  Icons.star,
-                  size: 17,
-                  color: isRellena
-                      ? const Color(0xFFFFD700)
-                      : const Color.fromARGB(255, 136, 133, 133),
-                ),
-              ],
-            ),
+          final isRellena = index < modulo.estrellas;
+          return Icon(
+            Icons.star_rounded,
+            size: 18,
+            color: isRellena ? const Color(0xFFF2B233) : colors.surfaceBorder,
           );
         }),
       ),
     );
   }
 
-  /// Construye el botón del título
+  /// Construye el botón del título.
+  /// IgnorePointer deja pasar el toque al GestureDetector de la tarjeta; el
+  /// botón solo aporta el estilo del tema (y el estado deshabilitado si está
+  /// bloqueado).
   Widget _buildTitleButton() {
     return Row(
       children: [
@@ -551,17 +444,27 @@ class ModuloPlantilla extends StatelessWidget {
                 ),
               ],
             ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
+            child: Center(
               child: Text(
                 modulo.titulo,
-                style: const TextStyle(
-                  color: Color(0xFFFFFFFF),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: modulo.bloqueado
+                      ? const Color(0x80FFFFFF)
+                      : Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: const [
+                    Shadow(
+                      color: Color(0x66000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -614,6 +517,7 @@ class _ShimmerState extends State<_Shimmer>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -623,14 +527,8 @@ class _ShimmerState extends State<_Shimmer>
             return LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: const [
-                Color(0xFF1E4D6B),
-                Color(0xFF2E7DAA),
-                Color(0xFF3A9AD9),
-                Color(0xFF2E7DAA),
-                Color(0xFF1E4D6B),
-              ],
-              stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+              colors: [colors.accentSoft, colors.surface, colors.accentSoft],
+              stops: const [0.0, 0.5, 1.0],
             ).createShader(bounds);
           },
           child: child,
@@ -642,18 +540,17 @@ class _ShimmerState extends State<_Shimmer>
 }
 
 /// Bloque rectangular redondeado que sirve como placeholder genérico.
-/// Acepta sombras opcionales para imitar la elevación del elemento real.
 class _SkeletonBox extends StatelessWidget {
   final double? width;
   final double? height;
   final BorderRadius borderRadius;
-  final List<BoxShadow> shadows;
 
   const _SkeletonBox({
     this.width,
     this.height,
-    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-    this.shadows = const [],
+    this.borderRadius = const BorderRadius.all(
+      Radius.circular(AppRadius.input),
+    ),
   });
 
   @override
@@ -662,65 +559,37 @@ class _SkeletonBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E4D6B),
+        color: context.appColors.accentSoft,
         borderRadius: borderRadius,
-        boxShadow: shadows,
       ),
     );
   }
 }
 
 /// Tarjeta esqueleto que imita la apariencia de [ModuloPlantilla].
-/// Replica el gradiente de fondo, el borde y las dos sombras de la tarjeta real.
 class _SkeletonModuleCard extends StatelessWidget {
   const _SkeletonModuleCard();
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xE63A6A8A), Color(0xCC2E5570)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x994A7A9A), width: 1.5),
-        // Mismas dos sombras que usa ModuloPlantilla
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0xCC2A4A5C),
-            blurRadius: 25,
-            offset: Offset(0, 12),
-            spreadRadius: 3,
-          ),
-          BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 35,
-            offset: Offset(0, 18),
-            spreadRadius: -5,
-          ),
-        ],
+        // Semitransparente para que el shimmer distinga la tarjeta de los
+        // bloques opacos de su interior.
+        color: colors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: colors.surfaceBorder),
       ),
       child: Padding(
         padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
         child: Column(
           children: [
             // Placeholder del área de imagen del módulo
-            Expanded(
+            const Expanded(
               child: _SkeletonBox(
                 width: double.infinity,
                 height: double.infinity,
-                borderRadius: BorderRadius.circular(18),
-                // Sombra interior que replica el efecto de la imagen real
-                shadows: const [
-                  BoxShadow(
-                    color: Color(0x80000000),
-                    blurRadius: 30,
-                    spreadRadius: 5,
-                    offset: Offset(0, 10),
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -728,21 +597,7 @@ class _SkeletonModuleCard extends StatelessWidget {
             _SkeletonBox(
               width: double.infinity,
               height: 45,
-              borderRadius: BorderRadius.circular(30),
-              // Sombras que imitan el botón de título real
-              shadows: const [
-                BoxShadow(
-                  color: Color(0x4DFFFFFF),
-                  blurRadius: 8,
-                  offset: Offset(0, -2),
-                ),
-                BoxShadow(
-                  color: Color(0x80000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 5),
-                  spreadRadius: 1,
-                ),
-              ],
+              borderRadius: BorderRadius.circular(AppRadius.button),
             ),
           ],
         ),
@@ -752,100 +607,41 @@ class _SkeletonModuleCard extends StatelessWidget {
 }
 
 /// Encabezado esqueleto que imita [_buildUserHeader].
-/// Replica el contenedor principal y las sombras de cada elemento interno.
 class _SkeletonUserHeader extends StatelessWidget {
   const _SkeletonUserHeader();
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-        ),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0x66FFFFFF), width: 1.5),
-        // Sombra del contenedor principal del header
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x80000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-            spreadRadius: 2,
-          ),
-        ],
+        color: colors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: colors.surfaceBorder),
       ),
       child: Row(
         children: [
-          // Placeholder del avatar con borde y sombra suave
-          _SkeletonBox(
-            width: 50,
-            height: 50,
-            borderRadius: BorderRadius.circular(15),
-            shadows: const [
-              BoxShadow(
-                color: Color(0x40000000),
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
+          // Placeholder del avatar
+          const _SkeletonBox(width: 50, height: 50),
           const SizedBox(width: 12),
           // Placeholders del saludo y nombre de usuario
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Línea pequeña para "¡HOLA!"
-                _SkeletonBox(
-                  width: 48,
-                  height: 12,
-                  shadows: const [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // Línea grande para el nombre del usuario
-                _SkeletonBox(
-                  width: 120,
-                  height: 22,
-                  shadows: const [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
+                _SkeletonBox(width: 48, height: 12),
+                SizedBox(height: 6),
+                _SkeletonBox(width: 120, height: 22),
               ],
             ),
           ),
-          // Placeholder de la insignia de nivel con su sombra dorada
+          // Placeholder de la insignia de nivel
           _SkeletonBox(
             width: 90,
-            height: 44,
-            borderRadius: BorderRadius.circular(20),
-            shadows: const [
-              BoxShadow(
-                color: Color(0x66FFD700),
-                blurRadius: 15,
-                offset: Offset(0, 0),
-                spreadRadius: 2,
-              ),
-              BoxShadow(
-                color: Color(0x80000000),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
+            height: 32,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
         ],
       ),

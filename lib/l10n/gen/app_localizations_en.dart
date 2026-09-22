@@ -146,7 +146,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get parentalSection => 'Parental control';
 
   @override
-  String get parentalMinLevel => 'Minimum level required';
+  String get parentalAllowedModules => 'Allowed modules';
+
+  @override
+  String get parentalNoLimit => 'No limit';
+
+  @override
+  String get parentalModulesUnit => 'modules';
+
+  @override
+  String get currentPasswordLabel => 'Account password';
+
+  @override
+  String get newPasswordLabel => 'New password';
 
   @override
   String get infoSection => 'Info & support';
@@ -156,6 +168,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get termsPrivacy => 'Terms & Privacy';
+
+  @override
+  String get privacyPolicy => 'Privacy policy';
 
   @override
   String get feedbackSupport => 'Send feedback / support';

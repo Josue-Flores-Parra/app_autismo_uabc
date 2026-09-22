@@ -32,6 +32,13 @@ lib/
 |   |   `-- viewmodel/
 |   |-- home/
 |   |   `-- view/
+|   |-- legal/
+|   |   |-- data/
+|   |   |-- view/
+|   |   `-- viewmodel/
+|   |-- onboarding/
+|   |   |-- data/
+|   |   `-- view/
 |   |-- learning_module/
 |   |   |-- data/
 |   |   |-- model/
@@ -40,9 +47,14 @@ lib/
 |   |-- minigames/
 |   |   |-- minigame_core.dart
 |   |   `-- view/
-|   `-- settings/
-|       |-- view/
-|       `-- viewmodel/
+|   |-- settings/
+|   |   |-- view/
+|   |   `-- viewmodel/
+|   `-- telemetry/
+|       |-- data/
+|       |-- model/
+|       |-- service/
+|       `-- view/
 |-- l10n/
 |   |-- app_en.arb
 |   |-- app_es.arb
@@ -78,7 +90,6 @@ Los minijuegos registrados en `main.dart` son:
 
 ```text
 registerSimpleSelectionMinigame()
-registerVideoMinigame()
 registerPictogramMinigame()
 registerAudioMinigame()
 registerPuzzleMinigame()
@@ -93,6 +104,7 @@ registerPuzzleMinigame()
 | `SettingsViewModel` | `ChangeNotifierProvider` | Preferencias locales: tema, idioma, escala de texto, accesibilidad, recordatorios, metricas, control parental y limpieza de cache de imagenes. |
 | `AuthViewModel` | `ChangeNotifierProvider` | Estado de autenticacion, login, registro, logout, restablecimiento de password, cambio de nombre, cambio de password y eliminacion de cuenta. |
 | `AvatarViewModel` | `ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>` | Estado visual del avatar y persistencia en `users/{uid}.avatarConfig`. Cuando hay usuario autenticado llama `initialize()`. |
+| `LegalViewModel` | `ChangeNotifierProxyProvider<AuthViewModel, LegalViewModel>` | Resuelve si la cuenta acepto la version vigente de los documentos legales. Se reinicia al cerrar sesion. |
 | `LearningViewModel` | `ChangeNotifierProvider` | Carga modulos, niveles, progreso, cache de niveles y pines de imagenes de portada en `ImageCache`. |
 | `LoadingService` | `ChangeNotifierProvider` | Overlay global de carga consumido por `LoadingWrapper` y `LoadingHook`. |
 
@@ -111,10 +123,12 @@ La app arranca con `AuthGate` (`lib/features/authentication/view/auth_gate.dart`
 como pantalla inicial en `main.dart`. El gate es un `StatefulWidget` que:
 
 - Muestra un splash (`CircularProgressIndicator`) hasta el primer post-frame callback.
+- Consulta `OnboardingService.hasSeen()` una vez por arranque.
 - Escucha `AuthViewModel` con `Consumer`; ante cualquier cambio de `currentUser`
   (login, logout, deleteAccount, registro) hace el swap automatico:
+  - sin usuario y sin bienvenida vista → `OnboardingScreen`; al terminar marca `onboardingSeen` y pasa a `LoginScreen`.
   - sin usuario → `LoginScreen`.
-  - con usuario (login o sesion restaurada por Firebase) → `MainShell`.
+  - con usuario (login o sesion restaurada por Firebase) → `_LegalGate` → `MainShell`.
 
 Esto elimino la navegacion imperativa (`pushReplacement` / `pushAndRemoveUntil`)
 que antes usaban login, registro y settings para moverse entre pantallas.
@@ -123,12 +137,19 @@ Flujo despues de autenticarse:
 
 ```text
 AuthGate
+  -> OnboardingScreen (solo la primera vez en el dispositivo)
   -> LoginScreen / RegisterScreen / ForgotPasswordScreen
   -> AuthViewModel
   -> AuthService
   -> FirebaseAuth
-  -> MainShell (visto via AuthGate cuando currentUser != null)
+  -> _LegalGate (visto via AuthGate cuando currentUser != null)
+       -> LegalConsentScreen si falta aceptar la version vigente
+       -> MainShell si la cuenta esta al corriente
 ```
+
+El gate legal va despues del de autenticacion porque la version aceptada se
+guarda por cuenta, en `users/{uid}.legal`, y solo puede consultarse con sesion
+abierta. Ver `docs/features/legal.md`.
 
 `RegisterScreen` y `ForgotPasswordScreen` se empujan sobre el `LoginScreen` del
 gate con `Navigator.push` y regresan con `Navigator.pop()`. Tras un registro
@@ -136,24 +157,21 @@ exitoso, `AuthViewModel.register` cierra la sesion auto-iniciada por Firebase,
 marca `registrationSuccess` y el gate permanece en `LoginScreen` mostrando un
 cue de exito.
 
-`MainShell` contiene tres pantallas:
+`MainShell` contiene dos pantallas en el bottom nav:
 
 | Indice | Pantalla | Archivo |
 | --- | --- | --- |
 | `0` | Modulos | `lib/features/learning_module/view/module_list_screen.dart` |
 | `1` | Avatar | `lib/features/avatar/view/avatar_screen.dart` |
-| `2` | Ajustes | `lib/features/settings/view/settings_page.dart` |
 
-La pestaña de Ajustes no se abre libremente desde el bottom nav. `MainShell`
-protege el indice `2` con un PIN local usando `PinService`. Si no hay PIN, pide
+Ajustes no tiene pestaña propia: es redundante abrirla desde el bottom nav
+cuando ya existe el icono de engrane en el `AppBar` de `ModuleListScreen`, que
+lleva al mismo `SettingsPage` tras el mismo PIN. Ese unico atajo pasa por
+`SettingsAccessGuard`, que a su vez usa `PinService`. Si no hay PIN, pide
 crear uno; si ya existe, pide ingresarlo. Si el usuario toca "Olvide el PIN",
 se reautentica con email/password usando `FirebaseAuth.instance.currentUser` y
-`EmailAuthProvider.credential`, borra `settingsPin` y solicita crear un PIN
-nuevo.
-
-Importante: `ModuleListScreen` tambien tiene un icono de ajustes en el `AppBar` superior
-que navega directamente a `SettingsPage` sin pasar por el gating de PIN de
-`MainShell`.
+`EmailAuthProvider.credential`, borra `settingsPin_<uid>` y solicita crear un
+PIN nuevo.
 
 ## MVVM
 La regla general del proyecto es:
@@ -189,7 +207,7 @@ Desviaciones reales que hay que conocer:
 
 - `AvatarViewModel` consulta `FirebaseAuth.instance.currentUser` directamente para guardar/cargar avatar.
 - `ModuleListScreen` lee `FirebaseAuth.instance.currentUser` directamente para mostrar nombre de usuario.
-- `MainShell` usa `FirebaseAuth.instance` directamente para recuperar el PIN por reautenticacion.
+- `SettingsAccessGuard` usa `FirebaseAuth.instance` directamente para resolver el uid y recuperar el PIN por reautenticacion.
 - Algunas pantallas contienen logica de flujo importante dentro del widget, por ejemplo `LevelContentPreviewScreen` decide que actividad lanzar segun la tarjeta seleccionada.
 - `ModuleListViewModel` existe, pero el flujo principal de modulos usa el `LearningViewModel` global.
 
@@ -224,8 +242,9 @@ con `_buildContentFromLevel()` y navegan a `LevelContentPreviewScreen`.
 
 Estado local:
 
-- `SettingsViewModel` persiste en `SharedPreferences`.
-- `PinService` persiste `settingsPin` en `SharedPreferences`.
+- `SettingsViewModel` persiste en `SharedPreferences` y publica las preferencias de feedback en `FeedbackPreferences`.
+- `PinService` persiste `settingsPin_<uid>` en `SharedPreferences`.
+- `FeedbackPreferences` mantiene en memoria si el audio y la vibracion estan activos, para los servicios que no tienen `BuildContext`.
 - `LoadingService` solo mantiene estado en memoria.
 
 Estado remoto:
@@ -246,7 +265,25 @@ Cache de runtime:
 
 ## Tema y accesibilidad
 
-`core/app_theme.dart` construye tema claro y oscuro con Material 3.
+`core/app_theme.dart` construye tema claro y oscuro con Material 3 y expone
+tres piezas que las pantallas consumen directamente:
+
+| Pieza | Que es | Como se usa |
+| --- | --- | --- |
+| `AppColors` | `ThemeExtension` con los colores semanticos de la app. | `context.appColors.surface`, `.ink`, `.accent`, etc. |
+| `AppRadius` | Escala unica de radios: `input` 14, `card` 18, `button` 16, `pill` 28, `sheet` 24. | `BorderRadius.circular(AppRadius.card)` |
+| `AppFonts` | Familias: `display` (Coiny) y `body` (Commissioner). | `fontFamily: AppFonts.display` |
+
+Paletas de `AppColors`:
+
+- `light`: pasteles celestes tomados de los fondos de los presets del personaje.
+- `dark`: el azul profundo original de la app.
+- `highContrastLight` y `highContrastDark`: blanco/negro puros con un solo acento.
+
+Campos: `backgroundTop`, `backgroundBottom`, `surface`, `surfaceBorder`,
+`headerTop`, `headerBottom`, `ink`, `inkSoft`, `accent`, `accentSoft`,
+`success`, `warning`, `glassFill`, `glassBorder`, mas los getters
+`backgroundGradient` y `headerGradient`.
 
 Parametros que recibe desde `SettingsViewModel`:
 
@@ -257,10 +294,17 @@ Parametros que recibe desde `SettingsViewModel`:
 Detalles reales:
 
 - La escala de texto efectiva no se aplica dentro de `TextTheme`; se aplica con `MediaQuery.textScaler` en `main.dart`.
-- `highContrast` cambia el seed color, fuerza `surface` negro, `onSurface` blanco y bordes mas fuertes.
+- `highContrast` cambia el seed color y elige las paletas `highContrast*`.
 - `reduceMotion` cambia `pageTransitionsTheme` a `NoTransitionsBuilder`.
 - `MainShell` tambien usa `reduceAnimations`: si esta activo, `AnimatedSwitcher` dura `Duration.zero`.
-- Muchas pantallas tienen animaciones propias que no consultan `reduceAnimations`; esto es un gap pendiente.
+- `PuzzleGridBackground` (fondo animado de `LevelContentPreviewScreen`) recibe `animate: !reduceMotion`.
+- El `AppBar` del tema es transparente con `foregroundColor` en `ink`; las pantallas que van sobre ilustraciones usan `GlassPill` (`shared/widgets/glass_pill.dart`).
+- La orientacion se fija a `portraitUp` en `main.dart`; solo el video en pantalla completa la libera y la restaura al salir.
+- Otras pantallas tienen animaciones propias que no consultan `reduceAnimations`; esto sigue siendo un gap.
+
+Regla: ningun color fijo (`Color(0xFF...)`, `Colors.white`) en pantallas
+nuevas salvo colores de marca compartidos (estrellas y monedas usan
+`0xFFF2B233`) o superficies que siempre son oscuras (reproductor de video).
 
 ## Convenciones actuales
 
@@ -270,6 +314,7 @@ Detalles reales:
 - Repositories especificos de feature: `features/*/data/`.
 - Modelos de UI de feature: `features/*/model/`.
 - Assets nuevos deben declararse o quedar cubiertos por `pubspec.yaml`.
+- Colores desde `context.appColors`, radios desde `AppRadius`, fuentes desde `AppFonts`.
 
 ## Reglas para agregar funcionalidad
 

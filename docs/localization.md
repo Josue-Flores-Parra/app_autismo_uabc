@@ -100,17 +100,10 @@ Los ARB actuales cubren principalmente:
 - Snackbars de Settings.
 - Confirmar/cancelar.
 
-Detalle importante en los ARB:
-
-```text
-navSettings = "PIN"
-```
-
-Tanto `app_es.arb` como `app_en.arb` definen `navSettings` como `PIN`. Sin
-embargo, los archivos generados versionados pueden quedar stale si no se ejecuta
-`flutter gen-l10n`; en el estado previo a regenerar, `app_localizations_es.dart`
-devolvia `Ajustes` y `app_localizations_en.dart` devolvia `Settings`. Si el
-bottom nav no muestra `PIN`, regenera l10n.
+`navSettings` (`"PIN"` en ambos ARB) quedo sin uso: la pestaña de Ajustes se
+quito del bottom nav por redundante con el icono de engrane de
+`ModuleListScreen` (mismo PIN, misma pantalla). La clave sigue en los ARB por
+si se reutiliza, pero ningun widget la consume hoy.
 
 ## Uso real por pantalla
 

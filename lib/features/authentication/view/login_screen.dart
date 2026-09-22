@@ -4,6 +4,8 @@ import '../viewmodel/auth_viewmodel.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../../../shared/services/loading_service.dart';
+import '../../../core/app_theme.dart';
+import '../../onboarding/view/onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -72,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     if (!authViewModel.registrationSuccess) return;
 
+    final colors = context.appColors;
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(
@@ -83,22 +86,25 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF5B8DB3),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x33000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: colors.success, width: 1.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle_outline, color: colors.success),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Registro exitoso, puedes iniciar sesión ahora',
+                      style: TextStyle(color: colors.ink, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
-              ),
-              child: const Text(
-                'Registro exitoso, puedes iniciar sesión ahora',
-                style: TextStyle(color: Colors.white, fontSize: 14),
-                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -179,255 +185,169 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Definir la paleta de colores
-    const Color primaryColor = Color(0xFF5B8DB3);
-    const Color buttonColor = Color(0xFF5A97B8);
-    const Color backgroundColor = Colors.white;
-    const avatarScale = 0.65; // escala para la imagen del avatar
+    final colors = context.appColors;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: const Text('Appy'), backgroundColor: primaryColor),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 16.0,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 16),
-                          // Texto de bienvenida en la parte superior centrado
-                          const Text(
-                            '¡Bienvenido! Por favor inicia sesión',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF5B8DB3),
+      body: Container(
+        decoration: BoxDecoration(gradient: colors.backgroundGradient),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 16.0,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 16),
+                            Text(
+                              'Appy',
+                              style: TextStyle(
+                                fontFamily: AppFonts.display,
+                                fontSize: 40,
+                                color: colors.ink,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 32),
-                          // Imagen de saludo del avatar (centrada) - cambia según el estado de error
-                          Consumer<AuthViewModel>(
-                            builder: (context, authViewModel, child) {
-                              // Determinar qué imagen mostrar según si hay error o no
-                              // Considerar tanto errores de AuthViewModel como errores de validación local
-                              final bool hasAnyError =
-                                  authViewModel.errorMessage != null ||
-                                  _hasValidationError;
-                              final String imagePath = hasAnyError
-                                  ? 'assets/images/icon-questionmark2x.png'
-                                  : 'assets/images/salute.png';
+                            const SizedBox(height: 4),
+                            Text(
+                              '¡Bienvenido! Por favor inicia sesión',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: colors.inkSoft,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            // Imagen del personaje interactiva
+                            Consumer<AuthViewModel>(
+                              builder: (context, authViewModel, _) {
+                                final imagePath =
+                                    authViewModel.errorMessage != null
+                                        ? 'assets/images/icon-questionmark2x.png'
+                                        : 'assets/images/salute.png';
 
-                              return Center(
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 800),
-                                  switchInCurve: Curves.easeInOutCubic,
-                                  switchOutCurve: Curves.easeInOutCubic,
-                                  transitionBuilder:
-                                      (
-                                        Widget child,
-                                        Animation<double> animation,
-                                      ) {
-                                        return FadeTransition(
-                                          opacity:
-                                              Tween<double>(
-                                                begin: 0.0,
-                                                end: 1.0,
-                                              ).animate(
-                                                CurvedAnimation(
-                                                  parent: animation,
-                                                  curve: Curves.easeInOutCubic,
-                                                ),
-                                              ),
-                                          child: ScaleTransition(
-                                            scale:
-                                                Tween<double>(
-                                                  begin: 0.8,
-                                                  end: 1.0,
-                                                ).animate(
-                                                  CurvedAnimation(
-                                                    parent: animation,
-                                                    curve: Curves.elasticOut,
-                                                  ),
-                                                ),
-                                            child: SlideTransition(
-                                              position:
-                                                  Tween<Offset>(
-                                                    begin: const Offset(
-                                                      0.0,
-                                                      0.1,
-                                                    ),
-                                                    end: Offset.zero,
-                                                  ).animate(
-                                                    CurvedAnimation(
-                                                      parent: animation,
-                                                      curve:
-                                                          Curves.easeOutCubic,
-                                                    ),
-                                                  ),
-                                              child: child,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                  child: Image.asset(
-                                    imagePath,
-                                    key: ValueKey(
-                                      imagePath,
-                                    ), // Importante para que AnimatedSwitcher detecte el cambio
-                                    width: 400 * avatarScale,
-                                    height: 486 * avatarScale,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.high,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 32),
-
-                          // Mostrar mensaje de error si existe
-                          Consumer<AuthViewModel>(
-                            builder: (context, authViewModel, child) {
-                              if (authViewModel.errorMessage != null) {
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.red.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.error_outline,
-                                        color: Colors.red.shade700,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          authViewModel.errorMessage!,
-                                          style: TextStyle(
-                                            color: Colors.red.shade700,
-                                          ),
+                                return Center(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, animation) {
+                                      return FadeTransition(
+                                        opacity: animation,
+                                        child: ScaleTransition(
+                                          scale: animation,
+                                          child: child,
                                         ),
+                                      );
+                                    },
+                                    child: ClipRRect(
+                                      key: ValueKey(imagePath),
+                                      borderRadius: BorderRadius.circular(32),
+                                      child: Image.asset(
+                                        imagePath,
+                                        height: 180,
+                                        fit: BoxFit.contain,
+                                        filterQuality: FilterQuality.high,
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-
-                          // Campo de texto para el correo electrónico
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(color: Colors.black87),
-                            cursorColor: primaryColor,
-                            decoration: InputDecoration(
-                              labelText: 'Correo electrónico',
-                              labelStyle: TextStyle(
-                                color: Colors.grey.shade800,
-                              ),
-                              border: const OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.white,
-                              hintText: 'usuario@correo.com',
-                              hintStyle: TextStyle(color: Colors.grey.shade600),
-                              prefixIcon: const Icon(
-                                Icons.email,
-                                color: Color(0xFF5B8DB3),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: primaryColor,
-                                  width: 1.8,
-                                ),
-                              ),
+                              },
                             ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa tu correo electrónico';
-                              }
-                              if (!value.contains('@')) {
-                                return 'Ingresa un correo electrónico válido';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          // Campo de texto para la contraseña
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            style: const TextStyle(color: Colors.black87),
-                            cursorColor: primaryColor,
-                            decoration: InputDecoration(
-                              labelText: 'Contraseña',
-                              labelStyle: TextStyle(
-                                color: Colors.grey.shade800,
-                              ),
-                              border: const OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.white,
-                              hintText: '••••••',
-                              hintStyle: TextStyle(color: Colors.grey.shade600),
-                              prefixIcon: const Icon(
-                                Icons.lock,
-                                color: Color(0xFF5B8DB3),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: primaryColor,
-                                  width: 1.8,
-                                ),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa tu contraseña';
-                              }
-                              if (value.length < 6) {
-                                return 'La contraseña debe tener al menos 6 caracteres';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 24),
+                            const SizedBox(height: 24),
 
-                          // Botón para iniciar sesión con indicador de carga
-                          Consumer<AuthViewModel>(
-                            builder: (context, authViewModel, child) {
-                              return SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: buttonColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
+                            // Mostrar mensaje de error si existe
+                            Consumer<AuthViewModel>(
+                              builder: (context, authViewModel, child) {
+                                if (authViewModel.errorMessage != null) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: scheme.errorContainer,
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.input,
+                                      ),
                                     ),
-                                    textStyle: const TextStyle(fontSize: 18),
-                                  ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: scheme.onErrorContainer,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            authViewModel.errorMessage!,
+                                            style: TextStyle(
+                                              color: scheme.onErrorContainer,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+
+                            // Campo de texto para el correo electrónico
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: 'Correo electrónico',
+                                hintText: 'usuario@correo.com',
+                                prefixIcon: Icon(Icons.email_outlined),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu correo electrónico';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Ingresa un correo electrónico válido';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            // Campo de texto para la contraseña
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Contraseña',
+                                hintText: '••••••',
+                                prefixIcon: Icon(Icons.lock_outline),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu contraseña';
+                                }
+                                if (value.length < 6) {
+                                  return 'La contraseña debe tener al menos 6 caracteres';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Botón para iniciar sesión con indicador de carga
+                            Consumer<AuthViewModel>(
+                              builder: (context, authViewModel, child) {
+                                return FilledButton(
                                   onPressed: authViewModel.isLoading
                                       ? null
                                       : _handleLogin,
@@ -437,74 +357,86 @@ class _LoginScreenState extends State<LoginScreen> {
                                           width: 20,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
                                           ),
                                         )
                                       : const Text('Iniciar sesión'),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          // Seccion para "¿Olvidaste tu contraseña?"
-                          TextButton(
-                            onPressed: () {
-                              Provider.of<AuthViewModel>(
-                                context,
-                                listen: false,
-                              ).clearError();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const ForgotPasswordScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              '¿Olvidaste tu contraseña?',
-                              style: TextStyle(color: Color(0xFF5A97B8)),
+                                );
+                              },
                             ),
-                          ),
-                          // Seccion para "¿No tienes una cuenta? Regístrate"
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                '¿No tienes una cuenta?',
-                                style: TextStyle(color: Colors.black),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  // Limpiar errores antes de navegar
-                                  Provider.of<AuthViewModel>(
-                                    context,
-                                    listen: false,
-                                  ).clearError();
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const RegisterScreen(),
+                            const SizedBox(height: 16),
+                            // Seccion para "¿Olvidaste tu contraseña?"
+                            TextButton(
+                              onPressed: () {
+                                Provider.of<AuthViewModel>(
+                                  context,
+                                  listen: false,
+                                ).clearError();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ForgotPasswordScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text('¿Olvidaste tu contraseña?'),
+                            ),
+                            // Seccion para "¿No tienes una cuenta? Regístrate"
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '¿No tienes una cuenta?',
+                                  style: TextStyle(color: colors.inkSoft),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    // Limpiar errores antes de navegar
+                                    Provider.of<AuthViewModel>(
+                                      context,
+                                      listen: false,
+                                    ).clearError();
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Regístrate'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 32),
+                            // Boton ultra discreto para volver al Onboarding
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => OnboardingScreen(
+                                      onFinished: () => Navigator.pop(context),
                                     ),
-                                  );
-                                },
-                                child: const Text(
-                                  'Regístrate',
-                                  style: TextStyle(color: Color(0xFF5A97B8)),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'Ver introducción',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: colors.inkSoft.withValues(alpha: 0.4),
+                                  fontSize: 11,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

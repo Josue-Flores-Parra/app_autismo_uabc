@@ -5,20 +5,53 @@
 enum StateOfStep { completed, blocked, inProgress }
 
 /*
+Estrellas necesarias para dar un nivel por terminado y abrir el siguiente.
+Cada modalidad del nivel (video, pictograma y minijuego) otorga una estrella,
+así que exigir 3 equivale a completar las tres modalidades.
+*/
+const int kLevelStarsToComplete = 3;
+
+/*
 Predicado que determina si un documento de progreso representa un nivel
-completado. Un nivel se considera completado cuando su `status` es
-'completed' o cuando tiene estrellas (> 0).
+completado. Un nivel se considera completado cuando reune
+`kLevelStarsToComplete` estrellas, es decir sus tres modalidades.
 
 Mantiene la misma regla usada por `LearningViewModel._determineLevelStates`,
 de modo que el badge de nivel y el estado de los nodos del timeline nunca
 diverjan. `estrellas` se parsea de forma robusta (int o String) igual que en
 `_createModuleLevelInfoWithProgress`.
+
+Los documentos escritos antes de registrar `activities` no pueden recalcularse
+por modalidad, así que conservan el desbloqueo que ya tenían.
 */
 bool isCompletedProgress(Map<String, dynamic>? progress) {
   if (progress == null) return false;
-  final status = progress['status']?.toString().toLowerCase();
-  final estrellas = parseProgressEstrellas(progress);
-  return status == 'completed' || estrellas > 0;
+  if (parseProgressEstrellas(progress) >= kLevelStarsToComplete) return true;
+  if (progress['activities'] == null) {
+    return progress['status']?.toString().toLowerCase() == 'completed';
+  }
+  return false;
+}
+
+/*
+Modalidades ya completadas dentro de un nivel, leidas del mapa `activities`
+del documento de progreso. La clave de cada entrada es el `actividadType`.
+*/
+Set<String> parseCompletedActivities(Map<String, dynamic>? progress) {
+  final raw = progress?['activities'];
+  if (raw is! Map) return <String>{};
+  return raw.keys.map((key) => key.toString()).toSet();
+}
+
+/*
+Estrellas del badge de modulo segun los niveles terminados:
+3 niveles dan 1 estrella, 6 dan 2 y terminar el modulo completo da 3.
+*/
+int moduleStarsForCompletedLevels(int completedLevels, int totalLevels) {
+  if (totalLevels > 0 && completedLevels >= totalLevels) return 3;
+  if (completedLevels >= 6) return 2;
+  if (completedLevels >= 3) return 1;
+  return 0;
 }
 
 /*

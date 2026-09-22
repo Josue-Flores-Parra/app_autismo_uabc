@@ -53,7 +53,6 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   final NegativeFeedbackHelper _negativeFeedbackHelper =
       NegativeFeedbackHelper();
 
-  int _attempts = 0;
   // Intentos restantes antes de fallar el rompecabezas. Se inicializa con
   // _maxAttempts y se decrementa en cada "COMPROBAR" con piezas incorrectas.
   late int _remainingAttempts;
@@ -482,7 +481,6 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
     }
 
     setState(() {
-      _attempts++;
       // Solo se consume un intento cuando el tablero NO es correcto. Un
       // "COMPROBAR" acertado no reduce los intentos restantes.
       if (incorrectSlots.isNotEmpty) {
@@ -514,7 +512,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       await _celebrationHelper.playCelebration();
       await Future<void>.delayed(_celebrationDuration);
       if (!mounted) return;
-      widget.onComplete(true, _attempts);
+      widget.onComplete(true, _maxAttempts - _remainingAttempts);
       return;
     }
     // Si hay celdas incorrectas, se muestra el feedback durante un tiempo y luego se devuelven las piezas incorrectas a la bandeja, limpiando el feedback.
@@ -549,7 +547,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
       _negativeFeedbackHelper.playNegativeBeep();
       await Future<void>.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
-      widget.onComplete(false, _attempts);
+      widget.onComplete(false, _maxAttempts - _remainingAttempts);
     }
   }
 
