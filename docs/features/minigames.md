@@ -150,6 +150,9 @@ Mecanica:
 - Permite reproducir pregunta con boton de volumen.
 - Mezcla opciones en cada pregunta.
 - Lleva intentos por pregunta (`_attempts`) y equivocaciones totales (`_totalErrors`).
+- Durante cada pregunta muestra `Intentos restantes: X` (`maxAttempts - _attempts`);
+  el contador vuelve a empezar en la pregunta siguiente. El resultado reporta
+  `_totalErrors` sin cambiar el calculo de intentos del servicio.
 - Muestra feedback inline "Correcto" o "Intenta de nuevo".
 - En exito reproduce confetti y `assets/audio/celebration.mp3`.
 - En fallo reproduce `assets/audio/negative_beeps.mp3`.
@@ -256,6 +259,8 @@ Mecanica:
 - Las incorrectas muestran feedback rojo, esperan 3 s y vuelven a la bandeja.
 - En exito reproduce celebracion, espera 3 s y llama `onComplete(true, attempts)`.
 - En maximo de intentos llama `onComplete(false, attempts)`.
+- Muestra `Intentos restantes: X` con `_remainingAttempts`; una comprobacion
+  correcta no consume intento. Al terminar, reporta los intentos consumidos.
 
 Imagen:
 

@@ -284,12 +284,14 @@ class LevelCompletionService {
     );
   }
 
-  /// Escribe la modalidad recien jugada y recalcula las estrellas del nivel.
+  /// Registra la modalidad recien jugada y recalcula las estrellas si el nivel
+  /// aun no estaba terminado.
   ///
-  /// Solo la primera vez que se completa una modalidad otorga monedas, de modo
-  /// que repetir una actividad ya terminada no vuelve a pagar.
+  /// Repasar una modalidad ya completada da [_repasoCoins], menos que la
+  /// primera vez pero nunca cero. Si el documento ya tiene
+  /// [kLevelStarsToComplete] estrellas, no se vuelve a escribir: el progreso
+  /// queda congelado aunque se repita (o se falle) una actividad.
   static Future<LevelCompletionResult?> _persistActivity({
-
     required BuildContext context,
     required String? moduleId,
     required String? levelId,
@@ -318,6 +320,12 @@ class LevelCompletionService {
         moduleId,
         levelId,
       );
+      // Basarse en las estrellas guardadas, no en `activities`: documentos
+      // antiguos pueden tener 3 estrellas sin registrar cada modalidad.
+      // Ningun replay debe modificar ese documento, ni siquiera al fallar.
+      final alreadyCompleted =
+          previous != null &&
+          parseProgressEstrellas(previous) >= kLevelStarsToComplete;
       final completedActivities = parseCompletedActivities(previous);
       final alreadyRewarded = completedActivities.contains(activityKey);
 
@@ -337,40 +345,48 @@ class LevelCompletionService {
 
       // 3 estrellas significa siempre "nivel terminado", sin importar cuántas
       // modalidades tenía; por eso las parciales nunca llegan a 3.
-      final stars = isLevelComplete
+      final stars = alreadyCompleted
           ? kLevelStarsToComplete
-          : (completadas > kLevelStarsToComplete - 1
-                ? kLevelStarsToComplete - 1
-                : completadas);
-      // Repasar una modalidad ya completada da menos monedas que la primera
-      // vez, pero nunca cero: repetir tiene que seguir valiendo la pena.
+          : (isLevelComplete
+                ? kLevelStarsToComplete
+                : (completadas > kLevelStarsToComplete - 1
+                      ? kLevelStarsToComplete - 1
+                      : completadas));
+      // Un nivel de 3 estrellas es repaso aun si su documento antiguo no
+      // incluye esta modalidad en `activities`. Conserva la recompensa y el
+      // efecto de descanso del avatar sin tocar el progreso.
       final coins = !success
           ? 0
-          : (alreadyRewarded ? _repasoCoins : coinsIfFirstTime);
+          : (alreadyCompleted || alreadyRewarded
+                ? _repasoCoins
+                : coinsIfFirstTime);
+      final esRepaso = success && (alreadyCompleted || alreadyRewarded);
 
-      final progressData = <String, dynamic>{
-        'status': isLevelComplete ? 'completed' : 'in_progress',
-        'estrellas': stars,
-        'attempts': attempts,
-        'updatedAt': nowIso,
-        if (isLevelComplete) 'completedAt': nowIso,
-        if (isObservation) 'type': 'observation',
-        if (success)
-          'activities': {
-            activityKey: {
-              'completedAt': nowIso,
-              'attempts': attempts,
-              'rewarded': alreadyRewarded || coins > 0,
+      if (!alreadyCompleted) {
+        final progressData = <String, dynamic>{
+          'status': isLevelComplete ? 'completed' : 'in_progress',
+          'estrellas': stars,
+          'attempts': attempts,
+          'updatedAt': nowIso,
+          if (isLevelComplete) 'completedAt': nowIso,
+          if (isObservation) 'type': 'observation',
+          if (success)
+            'activities': {
+              activityKey: {
+                'completedAt': nowIso,
+                'attempts': attempts,
+                'rewarded': alreadyRewarded || coins > 0,
+              },
             },
-          },
-      };
+        };
 
-      await service.updateUserLevelProgress(
-        user.uid,
-        moduleId,
-        levelId,
-        progressData,
-      );
+        await service.updateUserLevelProgress(
+          user.uid,
+          moduleId,
+          levelId,
+          progressData,
+        );
+      }
 
       var felicidadDelta = 0;
       var energiaDelta = 0;
@@ -380,7 +396,7 @@ class LevelCompletionService {
           final delta = await avatarViewModel.registrarActividad(
             success: success,
             monedas: coins,
-            esRepaso: success && alreadyRewarded,
+            esRepaso: esRepaso,
           );
           felicidadDelta = delta.felicidad;
           energiaDelta = delta.energia;
@@ -388,9 +404,8 @@ class LevelCompletionService {
       }
 
       if (context.mounted) {
-        // Aislado del resultado: si esta relectura falla (ej. hipo de red), el
-        // progreso ya quedó guardado arriba y el resultado no debe perderse
-        // por un fallo del refresco de cache local.
+        // Aislado del resultado: si la relectura falla, el resultado de la
+        // actividad sigue disponible (haya escritura nueva o sea repaso).
         try {
           final learningViewModel = context.read<LearningViewModel>();
           await learningViewModel.getModuleLevels(
@@ -410,7 +425,7 @@ class LevelCompletionService {
         coins: coins,
         felicidadDelta: felicidadDelta,
         energiaDelta: energiaDelta,
-        esRepaso: success && alreadyRewarded,
+        esRepaso: esRepaso,
       );
     } catch (_) {
       return null;

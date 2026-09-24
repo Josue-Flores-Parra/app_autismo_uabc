@@ -391,12 +391,14 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // El callback ya reporta equivocaciones (0 si se acierta a
+                  // la primera); solo cambia el texto, no el dato persistido.
                   Row(
                     children: [
                       const Icon(Icons.flag, color: Color(0xFFFFD700)),
                       const SizedBox(width: 8),
                       Text(
-                        'Intentos: $attempts',
+                        'Intentos usados: $attempts',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
