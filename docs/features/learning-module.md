@@ -395,6 +395,11 @@ Si un minijuego falla:
 - Si quedan reintentos, boton `Reintentar` recrea el minijuego con nueva key y decrementa `_retriesLeft`.
 - Si no quedan, boton sale al timeline.
 
+El dialogo de resultado muestra `Intentos usados: X` tambien cuando se agotan
+los disponibles. `X` conserva el valor de equivocaciones entregado por el
+minijuego y enviado a `LevelCompletionService`; `_retriesLeft` cuenta por
+separado los reintentos del minijuego completo.
+
 ### Telemetría de sesión
 
 `LevelPlayScreen` recibe un `ActivitySessionHandle?` opcional (null si el
@@ -478,8 +483,10 @@ Reglas:
   el tiempo acumulado del `VideoViewModel`; la actividad siempre comienza desde
   cero aunque el preview hubiera avanzado.
 - Marca `_isCompleted = true` la primera vez que el tiempo reproducido acumula
-  90% del video; buscar hacia adelante no aporta tiempo y dispara
-  `onObjectiveMet()` una sola vez.
+  90% del video. `VideoViewModel` no suma tiempo durante buffering o pausas,
+  ni cuando la posicion se estanca; limita el tiempo contabilizado al avance
+  efectivo de la posicion. No se puede alcanzar el umbral solo adelantando el
+  video; al alcanzarlo emite `onObjectiveMet()` una sola vez.
 - Muestra boton `COMPLETAR` solo cuando `_isCompleted`. Al presionarlo:
   bloquea nuevos controles, marca la finalizacion una sola vez, llama
   `onComplete()`, pausa, seek a cero, celebracion, espera 1.5 s y
@@ -516,6 +523,12 @@ nunca podria terminarse y dejaria bloqueado el resto del modulo.
 Invariante de UI: `estrellas == 3` significa siempre "nivel terminado". Un nivel
 incompleto nunca guarda 3, aunque su meta sea menor.
 
+Si el documento ya tenia 3 estrellas antes de jugar, el servicio no lo vuelve
+a escribir (ni siquiera ante un fallo): conserva `status`, `estrellas`,
+`attempts`, `activities` y las fechas originales. Se aplica tambien a
+documentos antiguos sin mapa `activities`. Un exito en este caso se trata
+como repaso y conserva sus 5 monedas y el efecto de descanso del avatar.
+
 `calculateCoins(attempts)`, donde `attempts` son equivocaciones y no
 selecciones totales:
 
@@ -527,8 +540,9 @@ selecciones totales:
 
 Una actividad de observacion (pictograma o video) paga 10 monedas fijas.
 
-Repasar una modalidad que el nivel ya tenia completada (`alreadyRewarded`)
-paga `_repasoCoins` (5 monedas) en vez de 0: repetir tiene que seguir
+Repasar una modalidad que el nivel ya tenia completada (`alreadyRewarded`) o
+una actividad de un nivel que ya tenia 3 estrellas paga `_repasoCoins`
+(5 monedas) en vez de 0: repetir tiene que seguir
 valiendo la pena, para que repasar un video o un minijuego ya superado no se
 sienta como tiempo perdido. Ese mismo repaso, en el avatar, no cansa: la
 energia sube en vez de bajar (ver `docs/features/avatar.md`, seccion
@@ -537,14 +551,16 @@ energia sube en vez de bajar (ver `docs/features/avatar.md`, seccion
 `completeInteractiveLevel()`:
 
 - Requiere `moduleId`, `levelId`, `actividadType` y usuario autenticado.
-- Escribe progreso, incluso al fallar, para que el timeline lo registre.
+- Escribe progreso, incluso al fallar, mientras el nivel aun no tiene 3
+  estrellas, para que el timeline lo registre.
 - La primera vez que se completa una modalidad paga `coinsIfFirstTime`
   completo; repetirla paga `_repasoCoins`. La marca de si ya se habia
   completado vive en `activities.<tipo>.rewarded`.
 - Aplica el efecto sobre el avatar con `AvatarViewModel.registrarActividad`
   (felicidad, energia y monedas en un solo guardado; `esRepaso: true` cuando
-  la modalidad ya estaba completada). Su resultado (`AvatarActivityDelta`) se
-  guarda en `LevelCompletionResult.felicidadDelta`/`energiaDelta`.
+  la modalidad o el nivel ya estaban completados). Su resultado
+  (`AvatarActivityDelta`) se guarda en
+  `LevelCompletionResult.felicidadDelta`/`energiaDelta`.
 - El refresco de cache local (`getModuleLevels(forceReload: true)` +
   `refreshModulesProgress()`) va en su propio try/catch: si falla (ej. hipo de
   red), no se pierde el resultado ya calculado ni las monedas ya guardadas en

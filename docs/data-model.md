@@ -194,7 +194,7 @@ interactivas y de observacion):
 | `attempts` | `int` | Equivocaciones de la ultima actividad jugada (no selecciones totales). |
 | `activities` | `Map<String, Map>` | Una entrada por modalidad completada. |
 | `completedAt` | `String?` ISO 8601 | Solo cuando el nivel llega a 3 estrellas. |
-| `updatedAt` | `String` ISO 8601 | Siempre. |
+| `updatedAt` | `String` ISO 8601 | En cada escritura del progreso. |
 | `type` | `String?` | `observation` en pictograma y video. |
 
 Cada entrada de `activities` esta indexada por `actividadType` (`video`,
@@ -206,9 +206,13 @@ Cada entrada de `activities` esta indexada por `actividadType` (`video`,
 | `attempts` | `int` | Equivocaciones de esa modalidad. |
 | `rewarded` | `bool` | Si esa modalidad ya pago monedas. |
 
-`activities` es la fuente de verdad de dos reglas: el nivel siguiente solo se
-abre al reunir las tres modalidades, y repetir una modalidad ya completada no
-vuelve a otorgar monedas.
+`activities` identifica las modalidades ya completadas. Las estrellas se
+calculan a partir de ellas y el nivel siguiente se abre al alcanzar 3 estrellas
+(aunque el nivel ofrezca menos de 3 modalidades). Repetir una modalidad
+completada paga 5 monedas de repaso. Si el documento ya tiene 3 estrellas, no
+se modifica ningun campo al repetir o fallar una actividad; un exito sigue
+pagando 5 monedas y aplicando el efecto de repaso al avatar, incluso en
+documentos antiguos sin `activities`.
 
 ## Firestore: telemetryActivitySessions
 
