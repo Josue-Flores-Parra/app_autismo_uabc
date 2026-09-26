@@ -71,7 +71,7 @@ class LearningViewModel extends ChangeNotifier {
   int get completedLevelsCount => _completedLevelsCount;
 
   /*
-  Obtiene el UID del usuario actual
+  Obtiene el UID del learner activo (no el UID Auth del parent).
   */
   String? get _currentUserId {
     return _learnerUid;

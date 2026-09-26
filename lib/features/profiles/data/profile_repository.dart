@@ -14,6 +14,9 @@ class ProfileRepository {
   CollectionReference<Map<String, dynamic>> _learners(String parentUid) =>
       _user(parentUid).collection('learners');
 
+  /// `profilesInitialized` distinguishes new accounts (first child is created
+  /// on demand) from older accounts that still own avatar/progress at their
+  /// Auth UID and must be migrated once.
   Future<bool> isInitialized(String parentUid) async {
     final snapshot = await _user(parentUid).get();
     return snapshot.data()?['profilesInitialized'] == true;
@@ -27,6 +30,8 @@ class ProfileRepository {
       if (data['role'] == 'parent' && data['profilesInitialized'] == true) {
         return;
       }
+      // Merge so legal acceptance, email, display name and old avatar data are
+      // preserved on pre-profile accounts.
       transaction.set(ref, {'role': 'parent'}, SetOptions(merge: true));
     });
   }
@@ -35,6 +40,7 @@ class ProfileRepository {
     final snapshot = await _learners(parentUid).orderBy('createdAt').get();
     return snapshot.docs
         .map((doc) => LearnerProfile.fromMap(doc.id, doc.data()))
+        // A partially copied legacy child must never look ready/selectable.
         .where((profile) => profile.migrationComplete)
         .toList();
   }
@@ -49,6 +55,8 @@ class ProfileRepository {
     final learnerRef = _db.collection('users').doc();
     final learnerId = learnerRef.id;
     final profileRef = _learners(parentUid).doc(learnerId);
+    // Both indexes commit together so neither a dangling profile link nor an
+    // unindexed `users/{learnerId}` child can be exposed after a partial write.
     final batch = _db.batch();
     final createdAt = DateTime.now().toIso8601String();
     batch.set(profileRef, {
@@ -83,6 +91,7 @@ class ProfileRepository {
   ) async {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Learner name is required');
+    // Keep the selector label and AvatarViewModel's fallback name in sync.
     final batch = _db.batch();
     batch.set(_learners(parentUid).doc(learner.id), {
       'name': cleanName,
@@ -113,6 +122,8 @@ class ProfileRepository {
     String learnerId,
     LearnerSettings settings,
   ) async {
+    // Replace only the nested settings map; profile identity and module limit
+    // remain in their own fields.
     await _learners(
       parentUid,
     ).doc(learnerId).update({'settings': settings.toMap()});
@@ -136,6 +147,8 @@ class ProfileRepository {
     String parentUid,
     Map<String, dynamic> settings,
   ) async {
+    // These settings apply before a learner is selected and are shared by all
+    // profiles on this parent's account.
     await _user(
       parentUid,
     ).set({'parentSettings': settings}, SetOptions(merge: true));
@@ -172,6 +185,8 @@ class ProfileRepository {
     final existing = existingProfiles.docs.where(
       (doc) => doc.data()['legacySourceUid'] == parentUid,
     );
+    // Reuse the migration ID across retries; creating a fresh ID after a
+    // network interruption would strand half-copied data and duplicate rows.
     final profileRef = existing.isNotEmpty
         ? existing.first.reference
         : learnersRef.doc();
@@ -220,6 +235,8 @@ class ProfileRepository {
         'avatarConfig': parentData['avatarConfig'],
     }, SetOptions(merge: true));
 
+    // Set completion markers last. If a copy batch fails, login can retry this
+    // same source-to-learner mapping rather than exposing partial progress.
     await _copyLegacyProgress(parentUid, learnerId);
     await profileRef.update({'migrationStatus': 'complete'});
     await parentRef.set({

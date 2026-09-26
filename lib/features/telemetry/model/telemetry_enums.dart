@@ -151,6 +151,9 @@ enum TelemetryActivityType {
 }
 
 /// Modelo de identidad semántica de una sesión.
+///
+/// `accountAsLearner` se conserva al leer/escribir histórico v1; las sesiones
+/// nuevas de perfiles infantiles usan `parentAsLearner` con IDs distintos.
 enum IdentityModel {
   accountAsLearner('account_as_learner'),
   parentAsLearner('parent_as_learner');

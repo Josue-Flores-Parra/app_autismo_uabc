@@ -305,6 +305,8 @@ class LevelCompletionService {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
+    // The signed-in UID is the parent; progress and rewards belong to the
+    // selected learner's users/{learnerUid} document.
     final learnerUid = context.read<ProfileViewModel>().learnerUid;
     if (learnerUid == null) return null;
 

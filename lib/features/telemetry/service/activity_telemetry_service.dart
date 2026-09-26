@@ -101,6 +101,8 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     if (!_consentActive) return null;
     final actorId = _uidProvider();
     if (actorId == null || actorId.isEmpty) return null;
+    // Auth remains the parent actor; views supply the selected learner ID.
+    // The fallback preserves legacy account-as-learner launches and tests.
     final subjectLearnerId = learnerId?.trim().isNotEmpty == true
         ? learnerId!.trim()
         : actorId;

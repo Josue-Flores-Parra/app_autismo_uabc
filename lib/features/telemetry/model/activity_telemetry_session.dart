@@ -42,6 +42,8 @@ class ActivityTelemetrySession {
   static const int currentSchemaVersion = 1;
 
   /// Construye el documento inicial de una sesión en estado `launch_requested`.
+  /// New profile sessions use `parentAsLearner`; `accountAsLearner` remains the
+  /// default so historical single-account clients retain their v1 contract.
   factory ActivityTelemetrySession.launchRequested({
     required String sessionId,
     required String learnerId,

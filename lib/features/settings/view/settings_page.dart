@@ -156,6 +156,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
+                  // This page is parent-wide. Child appearance/accessibility/
+                  // feedback/reminder values are edited on ChildSettingsScreen.
                   _Section(
                     title: l10n?.appearanceSection ?? 'Apariencia',
                     children: [

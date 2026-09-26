@@ -33,6 +33,8 @@ class AuthService {
         'name': name,
         'email': email,
         'createdAt': DateTime.now().toIso8601String(),
+        // The sole Auth account is the parent. Child profiles receive their
+        // own learner IDs only when added after sign-in.
         'role': 'parent',
         'profilesInitialized': true,
       };
@@ -123,6 +125,8 @@ class AuthService {
     await _firestoreService.setUserData(user.uid, {
       'deletedAt': DateTime.now().toIso8601String(),
     });
+    // Remove child documents/progress before deleting the parent document;
+    // already-sent telemetry stays as historical analytics.
     await _profileRepository.deleteFamily(user.uid);
     // El PIN vive en el dispositivo: si no se borra aquí, sobrevive a la
     // cuenta y la siguiente no puede definir uno nuevo.

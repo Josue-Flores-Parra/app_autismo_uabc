@@ -95,6 +95,7 @@ class MyApp extends StatelessWidget {
             settings.setAccount(auth.currentUser?.uid);
             // Los ajustes de aprendizaje y accesibilidad son por perfil: el
             // seleccionado define los valores efectivos de la app.
+            // Theme/locale intentionally stay parent-wide on this provider.
             settings.applyLearnerSettings(profiles.selectedLearner?.settings);
             return settings;
           },
@@ -107,6 +108,7 @@ class MyApp extends StatelessWidget {
           create: (_) => AvatarViewModel(estadoInicial),
           update: (context, auth, profiles, previous) {
             final avatarVM = previous ?? AvatarViewModel(estadoInicial);
+            // Never let the parent Auth UID address child avatar/coin data.
             avatarVM.setLearnerUid(profiles.learnerUid);
             if (auth.currentUser != null && profiles.learnerUid != null) {
               avatarVM.initialize(userId: profiles.learnerUid);
@@ -128,6 +130,8 @@ class MyApp extends StatelessWidget {
           create: (_) => LearningViewModel(),
           update: (context, profiles, previous) {
             final viewModel = previous ?? LearningViewModel();
+            // Changing profiles invalidates old caches and async loads so one
+            // sibling cannot briefly see another sibling's progress.
             viewModel.setLearnerUid(profiles.learnerUid);
             return viewModel;
           },

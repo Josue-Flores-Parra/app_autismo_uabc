@@ -17,7 +17,8 @@ import '../../../features/profiles/model/learner_profile.dart';
 /// Acts como una "puerta" (gate): escucha los cambios de [AuthViewModel] a
 /// través de un [Consumer] y, ante cualquier modificación de
 /// `currentUser` (login, logout, eliminación de cuenta), reconstruye
-/// automáticamente y swaps entre [LoginScreen] y [MainShell].
+/// automáticamente entre la entrada pública (`LoginScreen`) y la cadena
+/// legal/perfiles/app del usuario autenticado.
 ///
 /// Esto reemplaza la navegación imperativa anterior ( Navigator
 /// .pushReplacement / pushAndRemoveUntil ) por un enfoque reactivo basado en
@@ -61,8 +62,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     // El Consumer escucha a AuthViewModel; cada `notifyListeners()` (login,
-    // logout, deleteAccount) dispara un rebuild de este builder y, por ende,
-    // el swap automático entre LoginScreen y MainShell.
+    // logout, deleteAccount) dispara el rebuild del gate raíz.
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, _) {
         // 1) Splash inicial: mostramos un indicador de carga centrado hasta

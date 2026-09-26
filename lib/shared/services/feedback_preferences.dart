@@ -1,8 +1,9 @@
-/// Espejo en memoria de las preferencias de feedback de [SettingsViewModel].
+/// Espejo en memoria de los flags de feedback efectivos del perfil activo.
 ///
 /// Los helpers de audio, TTS y vibracion no tienen `BuildContext`, por lo que
-/// no pueden leer el provider. `SettingsViewModel` publica aqui cada cambio y
-/// esos servicios consultan estos flags antes de reproducir.
+/// no pueden leer el provider. `SettingsViewModel` aplica los valores del
+/// learner seleccionado (o defaults parent-wide sin learner) aquí y esos
+/// servicios consultan los flags antes de reproducir.
 class FeedbackPreferences {
   static bool _audioEnabled = true;
   static bool _hapticsEnabled = true;

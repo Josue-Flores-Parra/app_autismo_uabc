@@ -110,10 +110,7 @@ class SettingsAccessGuard {
       barrierDismissible: false,
       builder: builder,
     );
-    final result = await Navigator.of(
-      context,
-      rootNavigator: true,
-    ).push(route);
+    final result = await Navigator.of(context, rootNavigator: true).push(route);
     await route.completed;
     return result;
   }

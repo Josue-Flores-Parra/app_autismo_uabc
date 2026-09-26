@@ -12,6 +12,8 @@ class ProfileViewModel extends ChangeNotifier {
   final ProfileRepository? _providedRepository;
   late final ProfileRepository _repository =
       _providedRepository ?? ProfileRepository();
+
+  /// Auth UID for the adult account; child profile IDs are never Auth users.
   String? _parentUid;
   List<LearnerProfile> _learners = [];
   LearnerProfile? _selectedLearner;
@@ -41,7 +43,10 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> loadForParent(String parentUid) async {
     if (_parentUid == parentUid && isReady) {
+      // Every fresh return from auth starts at the locked hub, even if the
+      // same account was selected earlier in this process.
       _mode = null;
+      _parentUnlocked = false;
       notifyListeners();
       return;
     }
@@ -56,6 +61,7 @@ class ProfileViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final initialized = await _repository.isInitialized(parentUid);
       if (!initialized) {
+        // Preserve the old device-only learner choices on its migrated child.
         final migrated = await _repository.migrateLegacyLearner(
           parentUid,
           initialSettings: _deviceLearnerSettings(prefs),
@@ -213,6 +219,8 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> selectLearner(LearnerProfile learner) async {
     final parentUid = _requireParent();
+    // Remember the last child for cross-launch convenience, but still show the
+    // selector at login so parent entry is never inferred from that cache.
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selectedLearner_$parentUid', learner.id);
     _selectedLearner = learner;

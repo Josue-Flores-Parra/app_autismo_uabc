@@ -16,6 +16,8 @@ class SettingsViewModel extends ChangeNotifier {
   SharedPreferences? _prefs;
   bool _loading = true;
 
+  // Theme/language are parent-wide. The following child defaults are merely
+  // effective fallbacks until ProfileViewModel supplies the selected learner.
   ThemeMode _themeMode = ThemeMode.system;
   FontScaleOption _fontScale = FontScaleOption.medium;
   Locale _locale = const Locale('es');
@@ -42,6 +44,9 @@ class SettingsViewModel extends ChangeNotifier {
 
   /// Effective per-child preferences. When a learner is selected these come
   /// from its Firestore profile; otherwise the parent device defaults apply.
+  // Null in the selector, parent settings and login screens; populated only
+  // while a learner is active. Do not persist these fields to device-global
+  // keys or one child's accessibility choices leak into another.
   LearnerSettings? _activeChild;
   FontScaleOption get fontScale =>
       _fontScaleFromString(_activeChild?.fontScale ?? _fontScale.name);
@@ -62,6 +67,8 @@ class SettingsViewModel extends ChangeNotifier {
   void applyLearnerSettings(LearnerSettings? settings) {
     if (_activeChild == settings) return;
     _activeChild = settings;
+    // Audio helpers have no BuildContext, so mirror the selected child's
+    // effective toggles in their process-wide service flags.
     FeedbackPreferences.setAudioEnabled(audioFeedback);
     FeedbackPreferences.setHapticsEnabled(hapticFeedback);
     notifyListeners();

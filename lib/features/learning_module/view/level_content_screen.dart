@@ -391,6 +391,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     if (type == null || moduleId == null || levelId == null) return null;
 
     final service = context.read<ActivityTelemetryService>();
+    // Telemetry's actor is the Auth parent; the selected profile is its learner
+    // subject so dashboard/progress metrics remain child-specific.
     final learnerId = context.read<ProfileViewModel>().learnerUid;
     return service.requestLaunch(
       moduleId: moduleId,

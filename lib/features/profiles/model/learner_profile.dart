@@ -1,3 +1,5 @@
+/// Auth still represents the parent; this mode only selects which app surface
+/// the current device session shows.
 enum AppProfileMode { parent, learner }
 
 /// Per-child learning and accessibility preferences.
@@ -119,6 +121,9 @@ class LearnerSettings {
   );
 }
 
+/// A child profile has an independent data UID without creating another Auth
+/// account. Its data lives in `users/{id}` and its link/settings under the
+/// parent's `users/{parentUid}/learners/{id}` document.
 class LearnerProfile {
   const LearnerProfile({
     required this.id,
@@ -134,9 +139,14 @@ class LearnerProfile {
   final String name;
   final String? parentUid;
 
-  /// Zero means no module limit.
+  /// Zero means no module limit. Kept at the profile root for quick module
+  /// gating and migration from the former device-wide setting.
   final int allowedModules;
+
+  /// Incomplete legacy copies are hidden from the selector until copied.
   final bool migrationComplete;
+
+  /// Existing-account names need explicit parent review after migration.
   final bool needsNameConfirmation;
   final LearnerSettings settings;
 
