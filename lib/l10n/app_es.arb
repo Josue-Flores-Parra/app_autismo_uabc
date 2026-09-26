@@ -14,7 +14,7 @@
   "logout": "Cerrar sesión",
   "deleteAccount": "Eliminar cuenta",
   "deleteAccountConfirmTitle": "¿Eliminar cuenta?",
-  "deleteAccountConfirmBody": "Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.",
+  "deleteAccountConfirmBody": "Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.",
   "deleteAccountConfirmAction": "BORRAR",
   "languageSection": "Idioma",
   "languageSpanish": "Español",
@@ -63,6 +63,52 @@
   "displayNameUpdated": "Nombre actualizado",
   "deleteAccountFailed": "No se pudo eliminar la cuenta",
   "confirm": "Confirmar",
-  "cancel": "Cancelar"
+  "cancel": "Cancelar",
+  "profileHubTitle": "Perfiles de la familia",
+  "profileHubBody": "Elige un perfil para comenzar o edita sus ajustes.",
+  "profileWelcomeTitle": "¡Vamos a empezar!",
+  "profileWelcomeBody": "Crea el primer perfil para guardar el aprendizaje y el avatar de forma independiente.",
+  "profileAddTitle": "Agregar perfil infantil",
+  "profileAddFirst": "Crear primer perfil",
+  "profileNameLabel": "Nombre del perfil",
+  "profileManageTitle": "Perfiles infantiles",
+  "profileManageBody": "Cada perfil guarda su propio progreso, avatar, ajustes y límite de módulos.",
+  "profileEdit": "Editar perfil",
+  "profileAllowedModules": "Límite de módulos",
+  "profileSaveFailed": "No se pudo guardar el perfil. Revisa tu conexión e inténtalo de nuevo.",
+  "profileLegacyMigrated": "Encontramos el progreso y avatar anteriores. Se copiaron al perfil infantil; confirma o edita el nombre para continuar.",
+  "profileLegacyTitle": "Confirma el perfil infantil",
+  "profileConfirmName": "Confirmar nombre",
+  "profilePendingConfirmation": "Pendiente de confirmación",
+  "profileRetry": "Reintentar",
+  "profileLoadFailed": "No se pudieron cargar los perfiles. Revisa tu conexión e inténtalo de nuevo.",
+  "profileResetTitle": "¿Reiniciar el progreso?",
+  "profileReset": "Reiniciar progreso",
+  "profileResetPrompt": "Se borrará el progreso de niveles de {name}. El avatar y sus monedas se conservarán. ¿Continuar?",
+  "@profileResetPrompt": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileResetDone": "Se reinició el progreso de {name}.",
+  "@profileResetDone": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileOpenSettings": "Ajustes de la cuenta",
+  "profileOpenSettingsBody": "Tema, idioma, seguridad y privacidad.",
+  "profileResetHint": "Borra estrellas y niveles sin tocar el avatar.",
+  "childSettingsTitle": "Ajustes de {name}",
+  "@childSettingsTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "childSectionProfile": "Perfil",
+  "childSectionLearning": "Aprendizaje",
+  "childSectionDisplay": "Pantalla y accesibilidad",
+  "childSectionFeedback": "Sonido y vibración",
+  "childSectionReminders": "Recordatorios",
+  "childEditName": "Cambiar nombre del perfil"
 }
-

@@ -46,6 +46,7 @@ class ActivityTelemetrySession {
     required String sessionId,
     required String learnerId,
     required String actorId,
+    IdentityModel identityModel = IdentityModel.accountAsLearner,
     required TelemetryActivityType activityType,
     required String moduleId,
     required String levelId,
@@ -60,7 +61,7 @@ class ActivityTelemetrySession {
       subject: TelemetrySubject(
         learnerId: learnerId,
         actorId: actorId,
-        identityModel: IdentityModel.accountAsLearner,
+        identityModel: identityModel,
       ),
       activity: TelemetryActivity(
         activityId: activityId,
@@ -198,10 +199,10 @@ class TelemetrySubject {
   final IdentityModel identityModel;
 
   Map<String, dynamic> toMap() => {
-        'learnerId': learnerId,
-        'actorId': actorId,
-        'identityModel': identityModel.value,
-      };
+    'learnerId': learnerId,
+    'actorId': actorId,
+    'identityModel': identityModel.value,
+  };
 
   static TelemetrySubject? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -212,7 +213,8 @@ class TelemetrySubject {
       learnerId: learnerId,
       actorId: actorId,
       identityModel:
-          IdentityModel.accountAsLearner, // Fijo mientras rija este modelo.
+          IdentityModel.fromValue(data['identityModel'] as String?) ??
+          IdentityModel.accountAsLearner,
     );
   }
 }
@@ -236,23 +238,25 @@ class TelemetryActivity {
   final int? gridSize;
 
   Map<String, dynamic> toMap() => {
-        'activityId': activityId,
-        'moduleId': moduleId,
-        'levelId': levelId,
-        'activityType': activityType.value,
-        if (difficulty != null) 'difficulty': difficulty,
-        if (gridSize != null) 'gridSize': gridSize,
-      };
+    'activityId': activityId,
+    'moduleId': moduleId,
+    'levelId': levelId,
+    'activityType': activityType.value,
+    if (difficulty != null) 'difficulty': difficulty,
+    if (gridSize != null) 'gridSize': gridSize,
+  };
 
   static TelemetryActivity? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
     final moduleId = data['moduleId'] as String?;
     final levelId = data['levelId'] as String?;
-    final type = TelemetryActivityType.fromValue(data['activityType'] as String?);
+    final type = TelemetryActivityType.fromValue(
+      data['activityType'] as String?,
+    );
     if (moduleId == null || levelId == null || type == null) return null;
     return TelemetryActivity(
-      activityId: data['activityId'] as String? ??
-          '$moduleId:$levelId:${type.value}',
+      activityId:
+          data['activityId'] as String? ?? '$moduleId:$levelId:${type.value}',
       moduleId: moduleId,
       levelId: levelId,
       activityType: type,
@@ -298,12 +302,12 @@ class TelemetryOutcome {
   }
 
   Map<String, dynamic> toMap() => {
-        'hasStarted': hasStarted,
-        'objectiveReached': objectiveReached,
-        'isCompleted': isCompleted,
-        'navigationSuccessful': navigationSuccessful,
-        'terminalReason': terminalReason?.value,
-      };
+    'hasStarted': hasStarted,
+    'objectiveReached': objectiveReached,
+    'isCompleted': isCompleted,
+    'navigationSuccessful': navigationSuccessful,
+    'terminalReason': terminalReason?.value,
+  };
 
   static TelemetryOutcome? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -356,13 +360,13 @@ class TelemetryTiming {
   }
 
   Map<String, dynamic> toMap() => {
-        'activeDurationMs': activeDurationMs,
-        'activeSegmentCount': activeSegmentCount,
-        if (launchRequestedAt != null) 'launchRequestedAt': launchRequestedAt,
-        if (startedAt != null) 'startedAt': startedAt,
-        if (objectiveMetAt != null) 'objectiveMetAt': objectiveMetAt,
-        if (terminalAt != null) 'terminalAt': terminalAt,
-      };
+    'activeDurationMs': activeDurationMs,
+    'activeSegmentCount': activeSegmentCount,
+    if (launchRequestedAt != null) 'launchRequestedAt': launchRequestedAt,
+    if (startedAt != null) 'startedAt': startedAt,
+    if (objectiveMetAt != null) 'objectiveMetAt': objectiveMetAt,
+    if (terminalAt != null) 'terminalAt': terminalAt,
+  };
 
   static TelemetryTiming? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -410,12 +414,12 @@ class TelemetryLifecycle {
   }
 
   Map<String, dynamic> toMap() => {
-        'status': status.value,
-        'wasInterrupted': wasInterrupted,
-        'interruptionCount': interruptionCount,
-        if (lastBackgroundAt != null) 'lastBackgroundAt': lastBackgroundAt,
-        if (lastResumedAt != null) 'lastResumedAt': lastResumedAt,
-      };
+    'status': status.value,
+    'wasInterrupted': wasInterrupted,
+    'interruptionCount': interruptionCount,
+    if (lastBackgroundAt != null) 'lastBackgroundAt': lastBackgroundAt,
+    if (lastResumedAt != null) 'lastResumedAt': lastResumedAt,
+  };
 
   static TelemetryLifecycle? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -468,10 +472,10 @@ class TelemetryInteraction {
   }
 
   Map<String, dynamic> toMap() => {
-        'attemptsApplicable': attemptsApplicable,
-        'attempts': attempts,
-        'runCount': runCount,
-      };
+    'attemptsApplicable': attemptsApplicable,
+    'attempts': attempts,
+    'runCount': runCount,
+  };
 
   static TelemetryInteraction? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -485,18 +489,12 @@ class TelemetryInteraction {
 
 /// Métricas exclusivas de video, con defaults para esquema uniforme.
 class TelemetryVideo {
-  const TelemetryVideo({
-    this.replayCount = 0,
-    this.objectiveThreshold,
-  });
+  const TelemetryVideo({this.replayCount = 0, this.objectiveThreshold});
 
   final int replayCount;
   final double? objectiveThreshold;
 
-  TelemetryVideo copyWith({
-    int? replayCount,
-    double? objectiveThreshold,
-  }) {
+  TelemetryVideo copyWith({int? replayCount, double? objectiveThreshold}) {
     return TelemetryVideo(
       replayCount: replayCount ?? this.replayCount,
       objectiveThreshold: objectiveThreshold ?? this.objectiveThreshold,
@@ -506,18 +504,15 @@ class TelemetryVideo {
   /// Construye el valor por defecto según el tipo de actividad.
   factory TelemetryVideo.from(TelemetryActivityType type) {
     if (type == TelemetryActivityType.video) {
-      return const TelemetryVideo(
-        replayCount: 0,
-        objectiveThreshold: 0.9,
-      );
+      return const TelemetryVideo(replayCount: 0, objectiveThreshold: 0.9);
     }
     return const TelemetryVideo();
   }
 
   Map<String, dynamic> toMap() => {
-        'replayCount': replayCount,
-        'objectiveThreshold': objectiveThreshold,
-      };
+    'replayCount': replayCount,
+    'objectiveThreshold': objectiveThreshold,
+  };
 
   static TelemetryVideo? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
@@ -543,11 +538,11 @@ class TelemetryClient {
   final String locale;
 
   Map<String, dynamic> toMap() => {
-        'platform': platform,
-        'appVersion': appVersion,
-        'buildNumber': buildNumber,
-        'locale': locale,
-      };
+    'platform': platform,
+    'appVersion': appVersion,
+    'buildNumber': buildNumber,
+    'locale': locale,
+  };
 
   static TelemetryClient? fromMap(Map<String, dynamic>? data) {
     if (data == null) return null;

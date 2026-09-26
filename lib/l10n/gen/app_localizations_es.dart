@@ -55,7 +55,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.';
+      'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.';
 
   @override
   String get deleteAccountConfirmAction => 'BORRAR';
@@ -204,4 +204,113 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cancel => 'Cancelar';
+
+  @override
+  String get profileHubTitle => 'Perfiles de la familia';
+
+  @override
+  String get profileHubBody =>
+      'Elige un perfil para comenzar o edita sus ajustes.';
+
+  @override
+  String get profileWelcomeTitle => '¡Vamos a empezar!';
+
+  @override
+  String get profileWelcomeBody =>
+      'Crea el primer perfil para guardar el aprendizaje y el avatar de forma independiente.';
+
+  @override
+  String get profileAddTitle => 'Agregar perfil infantil';
+
+  @override
+  String get profileAddFirst => 'Crear primer perfil';
+
+  @override
+  String get profileNameLabel => 'Nombre del perfil';
+
+  @override
+  String get profileManageTitle => 'Perfiles infantiles';
+
+  @override
+  String get profileManageBody =>
+      'Cada perfil guarda su propio progreso, avatar, ajustes y límite de módulos.';
+
+  @override
+  String get profileEdit => 'Editar perfil';
+
+  @override
+  String get profileAllowedModules => 'Límite de módulos';
+
+  @override
+  String get profileSaveFailed =>
+      'No se pudo guardar el perfil. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get profileLegacyMigrated =>
+      'Encontramos el progreso y avatar anteriores. Se copiaron al perfil infantil; confirma o edita el nombre para continuar.';
+
+  @override
+  String get profileLegacyTitle => 'Confirma el perfil infantil';
+
+  @override
+  String get profileConfirmName => 'Confirmar nombre';
+
+  @override
+  String get profilePendingConfirmation => 'Pendiente de confirmación';
+
+  @override
+  String get profileRetry => 'Reintentar';
+
+  @override
+  String get profileLoadFailed =>
+      'No se pudieron cargar los perfiles. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get profileResetTitle => '¿Reiniciar el progreso?';
+
+  @override
+  String get profileReset => 'Reiniciar progreso';
+
+  @override
+  String profileResetPrompt(String name) {
+    return 'Se borrará el progreso de niveles de $name. El avatar y sus monedas se conservarán. ¿Continuar?';
+  }
+
+  @override
+  String profileResetDone(String name) {
+    return 'Se reinició el progreso de $name.';
+  }
+
+  @override
+  String get profileOpenSettings => 'Ajustes de la cuenta';
+
+  @override
+  String get profileOpenSettingsBody => 'Tema, idioma, seguridad y privacidad.';
+
+  @override
+  String get profileResetHint =>
+      'Borra estrellas y niveles sin tocar el avatar.';
+
+  @override
+  String childSettingsTitle(String name) {
+    return 'Ajustes de $name';
+  }
+
+  @override
+  String get childSectionProfile => 'Perfil';
+
+  @override
+  String get childSectionLearning => 'Aprendizaje';
+
+  @override
+  String get childSectionDisplay => 'Pantalla y accesibilidad';
+
+  @override
+  String get childSectionFeedback => 'Sonido y vibración';
+
+  @override
+  String get childSectionReminders => 'Recordatorios';
+
+  @override
+  String get childEditName => 'Cambiar nombre del perfil';
 }

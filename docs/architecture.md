@@ -251,7 +251,7 @@ Estado remoto:
 
 - `AuthService` escribe datos basicos del usuario en Firestore durante registro, cambio de nombre y eliminacion.
 - `AvatarViewModel` guarda `avatarConfig` dentro de `users/{uid}`.
-- `LevelCompletionService` guarda progreso en `users/{uid}/progress/{moduleId}/levels/{levelId}`.
+- `LevelCompletionService` guarda progreso en `users/{learnerUid}/progress/{moduleId}/levels/{levelId}`. Firebase Auth sigue identificando al parent; el perfil infantil activo proporciona `learnerUid`.
 
 Cache de runtime:
 

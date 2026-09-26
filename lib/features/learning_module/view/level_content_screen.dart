@@ -14,6 +14,7 @@ import '../../telemetry/model/activity_telemetry_session.dart';
 import '../../telemetry/model/telemetry_enums.dart';
 import '../../telemetry/model/telemetry_signals.dart';
 import '../../telemetry/service/activity_telemetry_service.dart';
+import '../../profiles/viewmodel/profile_viewmodel.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -390,6 +391,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     if (type == null || moduleId == null || levelId == null) return null;
 
     final service = context.read<ActivityTelemetryService>();
+    final learnerId = context.read<ProfileViewModel>().learnerUid;
     return service.requestLaunch(
       moduleId: moduleId,
       levelId: levelId,
@@ -399,6 +401,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           : null,
       gridSize: type == TelemetryActivityType.puzzle ? gridSize : null,
       client: await _buildTelemetryClient(),
+      learnerId: learnerId,
     );
   }
 

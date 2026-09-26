@@ -55,7 +55,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Your account and profile data will be removed. Anonymous usage metrics already sent cannot be deleted. Type DELETE to confirm.';
+      'Your account and linked child profiles, including their avatars and progress, will be removed. Anonymous metrics already sent cannot be deleted. Type DELETE to continue.';
 
   @override
   String get deleteAccountConfirmAction => 'DELETE';
@@ -205,4 +205,114 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancel => 'Cancel';
+
+  @override
+  String get profileHubTitle => 'Family profiles';
+
+  @override
+  String get profileHubBody =>
+      'Choose a profile to start learning, or edit its settings.';
+
+  @override
+  String get profileWelcomeTitle => 'Let’s get started!';
+
+  @override
+  String get profileWelcomeBody =>
+      'Create the first profile to keep learning progress and avatar data separate.';
+
+  @override
+  String get profileAddTitle => 'Add child profile';
+
+  @override
+  String get profileAddFirst => 'Create first profile';
+
+  @override
+  String get profileNameLabel => 'Profile name';
+
+  @override
+  String get profileManageTitle => 'Child profiles';
+
+  @override
+  String get profileManageBody =>
+      'Each profile has its own progress, avatar, settings, and module limit.';
+
+  @override
+  String get profileEdit => 'Edit profile';
+
+  @override
+  String get profileAllowedModules => 'Module limit';
+
+  @override
+  String get profileSaveFailed =>
+      'Could not save the profile. Check your connection and try again.';
+
+  @override
+  String get profileLegacyMigrated =>
+      'We found the existing progress and avatar and copied them to a child profile. Confirm or edit the name to continue.';
+
+  @override
+  String get profileLegacyTitle => 'Confirm child profile';
+
+  @override
+  String get profileConfirmName => 'Confirm name';
+
+  @override
+  String get profilePendingConfirmation => 'Pending confirmation';
+
+  @override
+  String get profileRetry => 'Retry';
+
+  @override
+  String get profileLoadFailed =>
+      'Could not load profiles. Check your connection and try again.';
+
+  @override
+  String get profileResetTitle => 'Reset progress?';
+
+  @override
+  String get profileReset => 'Reset progress';
+
+  @override
+  String profileResetPrompt(String name) {
+    return 'This will erase $name’s level progress. Their avatar and coins will be kept. Continue?';
+  }
+
+  @override
+  String profileResetDone(String name) {
+    return 'Reset $name’s progress.';
+  }
+
+  @override
+  String get profileOpenSettings => 'Account settings';
+
+  @override
+  String get profileOpenSettingsBody =>
+      'Theme, language, security, and privacy.';
+
+  @override
+  String get profileResetHint =>
+      'Clears stars and levels without touching the avatar.';
+
+  @override
+  String childSettingsTitle(String name) {
+    return '$name’s settings';
+  }
+
+  @override
+  String get childSectionProfile => 'Profile';
+
+  @override
+  String get childSectionLearning => 'Learning';
+
+  @override
+  String get childSectionDisplay => 'Display and accessibility';
+
+  @override
+  String get childSectionFeedback => 'Sound and vibration';
+
+  @override
+  String get childSectionReminders => 'Reminders';
+
+  @override
+  String get childEditName => 'Change profile name';
 }

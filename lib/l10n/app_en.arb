@@ -14,7 +14,7 @@
   "logout": "Sign out",
   "deleteAccount": "Delete account",
   "deleteAccountConfirmTitle": "Delete account?",
-  "deleteAccountConfirmBody": "Your account and profile data will be removed. Anonymous usage metrics already sent cannot be deleted. Type DELETE to confirm.",
+  "deleteAccountConfirmBody": "Your account and linked child profiles, including their avatars and progress, will be removed. Anonymous metrics already sent cannot be deleted. Type DELETE to continue.",
   "deleteAccountConfirmAction": "DELETE",
   "languageSection": "Language",
   "languageSpanish": "Spanish",
@@ -63,6 +63,52 @@
   "displayNameUpdated": "Name updated",
   "deleteAccountFailed": "Could not delete the account",
   "confirm": "Confirm",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "profileHubTitle": "Family profiles",
+  "profileHubBody": "Choose a profile to start learning, or edit its settings.",
+  "profileWelcomeTitle": "Let’s get started!",
+  "profileWelcomeBody": "Create the first profile to keep learning progress and avatar data separate.",
+  "profileAddTitle": "Add child profile",
+  "profileAddFirst": "Create first profile",
+  "profileNameLabel": "Profile name",
+  "profileManageTitle": "Child profiles",
+  "profileManageBody": "Each profile has its own progress, avatar, settings, and module limit.",
+  "profileEdit": "Edit profile",
+  "profileAllowedModules": "Module limit",
+  "profileSaveFailed": "Could not save the profile. Check your connection and try again.",
+  "profileLegacyMigrated": "We found the existing progress and avatar and copied them to a child profile. Confirm or edit the name to continue.",
+  "profileLegacyTitle": "Confirm child profile",
+  "profileConfirmName": "Confirm name",
+  "profilePendingConfirmation": "Pending confirmation",
+  "profileRetry": "Retry",
+  "profileLoadFailed": "Could not load profiles. Check your connection and try again.",
+  "profileResetTitle": "Reset progress?",
+  "profileReset": "Reset progress",
+  "profileResetPrompt": "This will erase {name}’s level progress. Their avatar and coins will be kept. Continue?",
+  "@profileResetPrompt": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileResetDone": "Reset {name}’s progress.",
+  "@profileResetDone": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileOpenSettings": "Account settings",
+  "profileOpenSettingsBody": "Theme, language, security, and privacy.",
+  "profileResetHint": "Clears stars and levels without touching the avatar.",
+  "childSettingsTitle": "{name}’s settings",
+  "@childSettingsTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "childSectionProfile": "Profile",
+  "childSectionLearning": "Learning",
+  "childSectionDisplay": "Display and accessibility",
+  "childSectionFeedback": "Sound and vibration",
+  "childSectionReminders": "Reminders",
+  "childEditName": "Change profile name"
 }
-

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../data/services/firestore_services.dart';
 import '../model/modulo_info.dart';
 import '../model/levels_models.dart';
@@ -12,7 +11,7 @@ Determina el estado de los niveles (completado, activo, bloqueado) basado en el 
 */
 class LearningViewModel extends ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? _learnerUid;
 
   // Estado de módulos
   List<ModuloInfo> _modulos = [];
@@ -38,11 +37,12 @@ class LearningViewModel extends ChangeNotifier {
   // Total de niveles completados (para el badge "NIVEL X" del header).
   // Se deriva del progreso ya cargado en _loadModulesProgress().
   int _completedLevelsCount = 0;
+  int _learnerGeneration = 0;
 
   Future<void> clearAllProgress() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await _firestoreService.clearUserProgress(user.uid);
+    final learnerUid = _learnerUid;
+    if (learnerUid != null) {
+      await _firestoreService.clearUserProgress(learnerUid);
       _userProgress.clear();
       _moduleLevels.clear();
       _completedLevelsCount = 0;
@@ -74,7 +74,7 @@ class LearningViewModel extends ChangeNotifier {
   Obtiene el UID del usuario actual
   */
   String? get _currentUserId {
-    return _auth.currentUser?.uid;
+    return _learnerUid;
   }
 
   /*
@@ -84,11 +84,32 @@ class LearningViewModel extends ChangeNotifier {
     loadModules();
   }
 
+  void setLearnerUid(String? learnerUid) {
+    if (_learnerUid == learnerUid) return;
+    _learnerUid = learnerUid;
+    _learnerGeneration++;
+    _moduleLevels.clear();
+    _userProgress.clear();
+    _pendingLevelLoads.clear();
+    _modulos = [];
+    _isLoadingModules = learnerUid != null;
+    _isLoadingLevels = false;
+    _errorMessageModules = null;
+    _errorMessageLevels = null;
+    _userLevel = 1;
+    _completedLevelsCount = 0;
+    if (learnerUid != null) {
+      Future<void>.microtask(loadModules);
+    }
+  }
+
   /*
   Carga todos los módulos desde Firestore.
   Paraleliza la carga del nivel de usuario y la lista de módulos.
   */
   Future<void> loadModules() async {
+    final generation = _learnerGeneration;
+    final learnerUid = _learnerUid;
     _isLoadingModules = true;
     _errorMessageModules = null;
     notifyListeners();
@@ -97,13 +118,14 @@ class LearningViewModel extends ChangeNotifier {
       // Cargar nivel del usuario y módulos en paralelo
       final results = await Future.wait([
         _firestoreService.getAllModules(),
-        if (_currentUserId != null)
-          _firestoreService.getUserLevel(_currentUserId!)
+        if (learnerUid != null)
+          _firestoreService.getUserLevel(learnerUid)
         else
           Future.value(1),
       ]);
 
       final modulesData = results[0] as List<Map<String, dynamic>>;
+      if (generation != _learnerGeneration || learnerUid != _learnerUid) return;
       _userLevel = results[1] as int;
 
       if (modulesData.isEmpty) {
@@ -135,11 +157,15 @@ class LearningViewModel extends ChangeNotifier {
         await _loadModulesProgress();
       }
     } catch (e) {
-      _errorMessageModules = 'Error al cargar módulos: $e';
-      _modulos = [];
+      if (generation == _learnerGeneration) {
+        _errorMessageModules = 'Error al cargar módulos: $e';
+        _modulos = [];
+      }
     } finally {
-      _isLoadingModules = false;
-      notifyListeners();
+      if (generation == _learnerGeneration) {
+        _isLoadingModules = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -151,7 +177,9 @@ class LearningViewModel extends ChangeNotifier {
   depende de cuántos niveles tiene el módulo completo.
   */
   Future<void> _loadModulesProgress() async {
-    if (_currentUserId == null || _modulos.isEmpty) return;
+    final learnerUid = _currentUserId;
+    final generation = _learnerGeneration;
+    if (learnerUid == null || _modulos.isEmpty) return;
 
     _completedLevelsCount = 0;
 
@@ -159,7 +187,7 @@ class LearningViewModel extends ChangeNotifier {
     final progressFutures = Future.wait(
       _modulos.map(
         (modulo) => _firestoreService
-            .getUserLevelsProgress(_currentUserId!, modulo.id)
+            .getUserLevelsProgress(learnerUid, modulo.id)
             .catchError((_) => <String, Map<String, dynamic>>{}),
       ),
     );
@@ -173,6 +201,7 @@ class LearningViewModel extends ChangeNotifier {
 
     final progressResults = await progressFutures;
     final levelCounts = await levelCountFutures;
+    if (generation != _learnerGeneration || learnerUid != _learnerUid) return;
 
     // Aplicar resultados a cada módulo
     for (int i = 0; i < _modulos.length; i++) {
@@ -252,6 +281,8 @@ class LearningViewModel extends ChangeNotifier {
   Realiza la carga real de niveles + progreso en paralelo con Future.wait
   */
   Future<List<ModuleLevelInfo>> _fetchModuleLevels(String moduleId) async {
+    final learnerUid = _learnerUid;
+    final generation = _learnerGeneration;
     _isLoadingLevels = true;
     _errorMessageLevels = null;
     notifyListeners();
@@ -260,14 +291,17 @@ class LearningViewModel extends ChangeNotifier {
       // Cargar niveles y progreso del usuario en paralelo
       final results = await Future.wait([
         _firestoreService.getModuleLevels(moduleId),
-        if (_currentUserId != null)
-          _firestoreService.getUserLevelsProgress(_currentUserId!, moduleId)
+        if (learnerUid != null)
+          _firestoreService.getUserLevelsProgress(learnerUid, moduleId)
         else
           Future.value(<String, Map<String, dynamic>>{}),
       ]);
 
       final levelsData = results[0] as List<Map<String, dynamic>>;
       final userProgress = results[1] as Map<String, Map<String, dynamic>>;
+      if (generation != _learnerGeneration || learnerUid != _learnerUid) {
+        return [];
+      }
 
       if (levelsData.isEmpty) {
         _errorMessageLevels = 'No se encontraron niveles para este módulo';

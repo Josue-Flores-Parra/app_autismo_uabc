@@ -178,10 +178,10 @@ Mecanica:
 - Usa `Consumer<LearningViewModel>`.
 - Muestra `_ModuleListSkeleton` mientras `isLoadingModules`.
 - Muestra error con boton `Reintentar` si `errorMessageModules != null`.
-- Lee nombre de usuario directamente desde `FirebaseAuth.instance.currentUser`.
+- Lee el nombre visible desde el perfil infantil seleccionado.
 - Usa `displayName`; si no, parte local del email; si no, `Usuario`.
 - El nivel mostrado en header sale de `completedLevelsCount`, con minimo `1`.
-- Lee `SettingsViewModel.parentalAllowedModules`.
+- Lee `allowedModules` del perfil infantil seleccionado.
 - El icono de ajustes del `AppBar` pasa por `SettingsAccessGuard`. Es la unica
   entrada a Ajustes; no hay pestana propia en el bottom nav.
 - Pasa modulos a `ModulosGridView`.
@@ -189,7 +189,7 @@ Mecanica:
 `ModulosGridView` reconstruye modulos y agrega bloqueo si:
 
 ```text
-modulo.bloqueado || (parentalAllowedModules > 0 && indice >= parentalAllowedModules)
+modulo.bloqueado || (allowedModules > 0 && indice >= allowedModules)
 ```
 
 `ModuloPlantilla`:

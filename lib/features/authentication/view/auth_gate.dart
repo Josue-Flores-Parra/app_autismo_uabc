@@ -8,6 +8,9 @@ import '../../legal/viewmodel/legal_viewmodel.dart';
 import '../../onboarding/data/onboarding_service.dart';
 import '../../onboarding/view/onboarding_screen.dart';
 import 'login_screen.dart';
+import '../../../features/profiles/viewmodel/profile_viewmodel.dart';
+import '../../../features/profiles/view/profile_screens.dart';
+import '../../../features/profiles/model/learner_profile.dart';
 
 /// Widget raíz que decide qué pantalla mostrar según el estado de autenticación.
 ///
@@ -72,6 +75,9 @@ class _AuthGateState extends State<AuthGate> {
         // 2) Sin usuario (sesión cerrada o nunca iniciada): bienvenida la
         //    primera vez, después LoginScreen.
         if (authViewModel.currentUser == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) context.read<ProfileViewModel>().reset();
+          });
           if (_onboardingSeen == null) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
@@ -126,7 +132,7 @@ class _LegalGateState extends State<_LegalGate> {
 
     switch (legal.status) {
       case LegalStatus.aceptado:
-        return const MainShell();
+        return const _ProfileGate();
       case LegalStatus.requiereAceptacion:
         return const LegalConsentScreen();
       case LegalStatus.desconocido:
@@ -136,6 +142,39 @@ class _LegalGateState extends State<_LegalGate> {
       case LegalStatus.cargando:
         return const _LegalLoading();
     }
+  }
+}
+
+class _ProfileGate extends StatefulWidget {
+  const _ProfileGate();
+
+  @override
+  State<_ProfileGate> createState() => _ProfileGateState();
+}
+
+class _ProfileGateState extends State<_ProfileGate> {
+  String? _loadingUid;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<AuthViewModel>().currentUser;
+    final profiles = context.watch<ProfileViewModel>();
+    if (user == null) return const SizedBox.shrink();
+    if (_loadingUid != user.uid) {
+      _loadingUid = user.uid;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<ProfileViewModel>().loadForParent(user.uid);
+      });
+    }
+    if (profiles.isLoading || !profiles.isReady) {
+      return const _LegalLoading();
+    }
+    // The designed selector doubles as the PIN-unlocked parent hub; learner
+    // mode enters the app, every other mode stays on the same screen.
+    if (profiles.mode == AppProfileMode.learner) {
+      return const MainShell();
+    }
+    return const ProfileSelectorScreen();
   }
 }
 

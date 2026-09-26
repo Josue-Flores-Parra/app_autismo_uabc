@@ -39,21 +39,32 @@ Constructor:
 - Mientras carga, `_loading = true`.
 - El getter `isReady` retorna `!_loading`.
 
-Estado y persistencia:
+## Estado y persistencia 
+La pantalla global de ajustes solo expone las
+preferencias parent-wide; las de aprendizaje y accesibilidad viven por perfil
+en `ChildSettingsScreen` (`lib/features/profiles/view/child_settings_screen.dart`):
 
-| Getter | Tipo | Clave SharedPreferences | Default |
-| --- | --- | --- | --- |
-| `themeMode` | `ThemeMode` | `themeMode` | `ThemeMode.system` |
-| `fontScale` | `FontScaleOption` | `fontScale` | `FontScaleOption.medium` |
-| `locale` | `Locale` | `locale` | `Locale('es')` |
-| `highContrast` | `bool` | `highContrast` | `false` |
-| `reduceAnimations` | `bool` | `reduceAnimations` | `false` |
-| `audioFeedback` | `bool` | `audioFeedback` | `true` |
-| `hapticFeedback` | `bool` | `hapticFeedback` | `true` |
-| `remindersEnabled` | `bool` | `remindersEnabled` | `false` |
-| `reminderTime` | `TimeOfDay` | `reminderTime` | `18:00` |
-| `sendMetrics` | `bool` | `sendMetrics_{uid}` | `false` |
-| `parentalAllowedModules` | `int` | `parentalAllowedModules` | `0` |
+| Alcance | Getter | Tipo | Persistencia | Default |
+| --- | --- | --- | --- | --- |
+| Parent | `themeMode` | `ThemeMode` | SharedPreferences `themeMode` + `users/{parentUid}.parentSettings.themeMode` | `ThemeMode.system` |
+| Parent | `locale` | `Locale` | SharedPreferences `locale` + `users/{parentUid}.parentSettings.locale` | `Locale('es')` |
+| Parent | `sendMetrics` | `bool` | `sendMetrics_{uid}` | `false` |
+| Por perfil | `fontScale` | `FontScaleOption` | `users/{parentUid}/learners/{learnerUid}.settings.fontScale` | `medium` |
+| Por perfil | `highContrast` | `bool` | `...learners/{learnerUid}.settings.highContrast` | `false` |
+| Por perfil | `reduceAnimations` | `bool` | `...learners/{learnerUid}.settings.reduceAnimations` | `false` |
+| Por perfil | `audioFeedback` | `bool` | `...learners/{learnerUid}.settings.audioFeedback` | `true` |
+| Por perfil | `hapticFeedback` | `bool` | `...learners/{learnerUid}.settings.hapticFeedback` | `true` |
+| Por perfil | `remindersEnabled` | `bool` | `...learners/{learnerUid}.settings.remindersEnabled` | `false` |
+| Por perfil | `reminderTime` | `String HH:mm` | `...learners/{learnerUid}.settings.reminderTime` | `18:00` |
+| Por perfil | `allowedModules` | `int` | `...learners/{learnerUid}.allowedModules` | `0` (sin límite) |
+
+Los getters efectivos de `SettingsViewModel` (`fontScale`, `highContrast`,
+`reduceAnimations`, `audioFeedback`, `hapticFeedback`, `remindersEnabled`,
+`reminderTime`, `textScaleFactor`) devuelven el perfil seleccionado cuando hay
+uno activo y los defaults parent del dispositivo cuando no. `main.dart` los
+aplica vía `applyLearnerSettings` al cambiar de perfil. Las claves
+SharedPreferences de aprendizaje anteriores solo se leen una vez para migrar la
+cuenta existente al primer perfil.
 
 El consentimiento de telemetría (`sendMetrics`) y el flag de onboarding
 (`telemetryOnboardingShown`) se guardan **por cuenta** (UID), no del dispositivo;
@@ -221,17 +232,20 @@ operacion si la sesion no es reciente.
    gating de PIN al entrar a Ajustes).
 2. Si el flujo termina bien, snackbar "PIN actualizado correctamente".
 
-### Reiniciar progreso
+### Configuración de perfiles infantiles
 
-1. Dialogo de confirmacion: borra estrellas, monedas ganadas en niveles y
-   vuelve a bloquear los niveles.
-2. En exito llama `LearningViewModel.clearAllProgress()` (la View no toca
-   Firestore directamente) y muestra snackbar.
-3. En error, snackbar con el mensaje de la excepcion.
-
-Fila destructiva; no forma parte de los ajustes que pidio el equipo
-originalmente. Confirmar con el equipo antes de subir si se quiere conservar
-para el usuario final o dejarla solo para pruebas internas.
+El selector diseñado (`ProfileSelectorScreen`) es el único hub, con un solo
+título ("Perfiles de la familia"): cada tarjeta permite entrar al perfil con
+un toque y muestra Editar, además hay botón de agregar y acceso a los ajustes
+globales. Editar, Agregar y Ajustes piden el PIN si la sesión aún está
+bloqueada y continúan solos al verificarse; el desbloqueo dura la sesión del
+parent (se pierde al cerrar sesión o cambiar de cuenta). Editar abre
+`ChildSettingsScreen` con nombre, límite de módulos, tamaño de texto,
+contraste, animaciones, feedback auditivo/háptico, recordatorios y reinicio de
+progreso de ese perfil. Todo se guarda en
+`users/{parentUid}/learners/{learnerUid}` (`settings` + `allowedModules`);
+`0` significa sin límite. El reinicio elimina los documentos `progress` del
+learner; su avatar y sus monedas permanecen.
 
 ### Cerrar sesion
 
@@ -247,8 +261,10 @@ para el usuario final o dejarla solo para pruebas internas.
 3. `AuthService.deleteAccount` reautentica con esa password antes de borrar.
    Firebase exige sesion reciente; sin este paso la operacion fallaba aunque la
    palabra de confirmacion fuera correcta.
-4. En exito, `deleteAccount()` limpia `_currentUser`, borra el PIN de esa cuenta
-   y `AuthGate` hace el swap a `LoginScreen` (sin navegacion imperativa).
+4. En éxito, `deleteAccount()` borra los perfiles infantiles vinculados, sus
+   avatares y progreso, limpia el PIN y preferencias locales de la cuenta; las
+   sesiones de telemetría ya enviadas se conservan. `AuthGate` vuelve a
+   `LoginScreen` (sin navegación imperativa).
 5. Si falla, muestra snackbar.
 
 ## PIN de acceso a Settings
@@ -274,8 +290,8 @@ Reglas reales de PIN debil en `SettingsAccessGuard.isWeakPin`:
 - Rechaza secuencias descendentes.
 - Rechaza blacklist: `0000`, `1234`, `4321`, `1111`, `2222`, `3333`.
 
-Si no hay PIN guardado y se toca el engrane de Ajustes en el `AppBar` de
-Modulos, se pide crear uno. Si hay PIN, se pide ingresarlo. Si se olvida, se
+Si no hay PIN guardado al salir del perfil infantil, se verifica la contraseña
+Auth del parent y se pide crear uno. Si hay PIN, se pide ingresarlo. Si se olvida, se
 reautentica con password de la cuenta actual y se borra el PIN local.
 
 Dialogo (`_PinDialog` en `settings_access_guard.dart`):
@@ -284,6 +300,7 @@ Dialogo (`_PinDialog` en `settings_access_guard.dart`):
 - Al escribir el cuarto digito se valida solo; no hay boton "Confirmar".
 - Con PIN guardado: correcto cierra con `true`; incorrecto muestra "PIN incorrecto" y limpia las casillas. "Olvide el PIN" cierra con `null` y dispara la reautenticacion.
 - Sin PIN guardado: primer ingreso se valida con `isWeakPin`, segundo ingreso debe coincidir ("Los PIN no coinciden" reinicia el flujo). Cierra con el PIN elegido o `null` al cancelar.
+- Los diálogos se abren con `DialogRoute` directo y resuelven tras `route.completed` (no con `showDialog`, que completa al hacer pop con el overlay aún animando). Quien verifica el PIN y luego cambia el gate de perfiles debe esperar a que el overlay salga del árbol; si no, el swap de pantallas se aborta y hay que tocar dos veces.
 
 El gating vive en `SettingsAccessGuard` y no en `MainShell` porque, cuando
 existia la pestana de Ajustes en el bottom nav, habia dos entradas al mismo
@@ -293,7 +310,8 @@ necesita para su icono de engrane.
 
 ## Control parental
 
-`SettingsViewModel.parentalAllowedModules` se aplica en:
+El límite de módulos se almacena como `allowedModules` en el perfil infantil y
+se configura desde Gestión de perfiles. Se aplica en:
 
 ```text
 lib/features/learning_module/view/module_list_screen.dart
@@ -302,7 +320,7 @@ lib/features/learning_module/view/module_list_screen.dart
 `ModulosGridView` reconstruye cada `ModuloInfo` y marca bloqueado si:
 
 ```text
-modulo.bloqueado || (parentalAllowedModules > 0 && indice >= parentalAllowedModules)
+modulo.bloqueado || (allowedModules > 0 && indice >= allowedModules)
 ```
 
 El valor configurado es "cuantos modulos, en el orden en que se muestran, puede

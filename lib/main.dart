@@ -14,6 +14,7 @@ import 'package:appy/firebase_options.dart';
 import 'package:appy/features/authentication/viewmodel/auth_viewmodel.dart';
 import 'package:appy/features/authentication/view/auth_gate.dart';
 import 'package:appy/features/settings/viewmodel/settings_viewmodel.dart';
+import 'package:appy/features/profiles/viewmodel/profile_viewmodel.dart';
 
 // Avatar
 import 'package:appy/features/avatar/model/avatar_models.dart';
@@ -80,21 +81,35 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        ChangeNotifierProxyProvider<AuthViewModel, SettingsViewModel>(
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+        ChangeNotifierProxyProvider2<
+          AuthViewModel,
+          ProfileViewModel,
+          SettingsViewModel
+        >(
           create: (_) => SettingsViewModel(),
-          update: (context, auth, previous) {
+          update: (context, auth, profiles, previous) {
+            final settings = previous ?? SettingsViewModel();
             // El consentimiento de telemetría es por cuenta: al cambiar de
             // usuario se carga su preferencia (sendMetrics/onboarding).
-            previous!.setAccount(auth.currentUser?.uid);
-            return previous;
+            settings.setAccount(auth.currentUser?.uid);
+            // Los ajustes de aprendizaje y accesibilidad son por perfil: el
+            // seleccionado define los valores efectivos de la app.
+            settings.applyLearnerSettings(profiles.selectedLearner?.settings);
+            return settings;
           },
         ),
-        ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>(
+        ChangeNotifierProxyProvider2<
+          AuthViewModel,
+          ProfileViewModel,
+          AvatarViewModel
+        >(
           create: (_) => AvatarViewModel(estadoInicial),
-          update: (context, auth, previous) {
+          update: (context, auth, profiles, previous) {
             final avatarVM = previous ?? AvatarViewModel(estadoInicial);
-            if (auth.currentUser != null) {
-              avatarVM.initialize();
+            avatarVM.setLearnerUid(profiles.learnerUid);
+            if (auth.currentUser != null && profiles.learnerUid != null) {
+              avatarVM.initialize(userId: profiles.learnerUid);
             }
             return avatarVM;
           },
@@ -109,9 +124,20 @@ class MyApp extends StatelessWidget {
             return legalVM;
           },
         ),
-        ChangeNotifierProvider(create: (_) => LearningViewModel()),
+        ChangeNotifierProxyProvider<ProfileViewModel, LearningViewModel>(
+          create: (_) => LearningViewModel(),
+          update: (context, profiles, previous) {
+            final viewModel = previous ?? LearningViewModel();
+            viewModel.setLearnerUid(profiles.learnerUid);
+            return viewModel;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => LoadingService()),
-        ProxyProvider2<SettingsViewModel, AuthViewModel, ActivityTelemetryService>(
+        ProxyProvider2<
+          SettingsViewModel,
+          AuthViewModel,
+          ActivityTelemetryService
+        >(
           create: (_) => telemetryService,
           update: (context, settings, auth, previous) {
             final service = previous ?? telemetryService;

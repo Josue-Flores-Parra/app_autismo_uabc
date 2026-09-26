@@ -6,6 +6,7 @@ import '../../data/services/firestore_services.dart';
 import '../../features/avatar/viewmodel/avatar_viewmodel.dart';
 import '../../features/learning_module/model/levels_models.dart';
 import '../../features/learning_module/viewmodel/learning_viewmodel.dart';
+import '../../features/profiles/viewmodel/profile_viewmodel.dart';
 
 class LevelCompletionResult {
   final bool success;
@@ -251,10 +252,7 @@ class LevelCompletionService {
                     felicidadDelta,
                     energiaDelta,
                     alignment: MainAxisAlignment.center,
-                  )) ...[
-                    const SizedBox(height: 8),
-                    row,
-                  ],
+                  )) ...[const SizedBox(height: 8), row],
                 ],
               ),
             ),
@@ -266,10 +264,7 @@ class LevelCompletionService {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF05E995),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
@@ -310,13 +305,15 @@ class LevelCompletionService {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
+    final learnerUid = context.read<ProfileViewModel>().learnerUid;
+    if (learnerUid == null) return null;
 
     final service = firestoreService ?? FirestoreService();
 
     try {
       final nowIso = DateTime.now().toIso8601String();
       final previous = await service.getUserLevelProgress(
-        user.uid,
+        learnerUid,
         moduleId,
         levelId,
       );
@@ -381,7 +378,7 @@ class LevelCompletionService {
         };
 
         await service.updateUserLevelProgress(
-          user.uid,
+          learnerUid,
           moduleId,
           levelId,
           progressData,
@@ -408,10 +405,7 @@ class LevelCompletionService {
         // actividad sigue disponible (haya escritura nueva o sea repaso).
         try {
           final learningViewModel = context.read<LearningViewModel>();
-          await learningViewModel.getModuleLevels(
-            moduleId,
-            forceReload: true,
-          );
+          await learningViewModel.getModuleLevels(moduleId, forceReload: true);
           await learningViewModel.refreshModulesProgress();
         } catch (e) {
           debugPrint('LevelCompletionService: refresco de modulos falló: $e');

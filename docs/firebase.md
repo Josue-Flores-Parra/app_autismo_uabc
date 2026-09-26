@@ -124,25 +124,28 @@ Metodos reales:
 | `getModuleData(moduleId)` | `modules/{moduleId}` | Lee un modulo y agrega `id` desde doc id. |
 | `getAllModules()` | `modules` | Lee todos los modulos y agrega `id`. Si falla retorna `[]`. |
 | `getModuleLevels(moduleId)` | `modules/{moduleId}/levels` | Ordena por `orden`; si `moduleId` vacio retorna `[]`. |
-| `updateUserLevelProgress(uid, moduleId, levelId, data)` | `users/{uid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; si falla lo silencia. |
-| `getUserLevelsProgress(uid, moduleId)` | `users/{uid}/progress/{moduleId}/levels` | Retorna map por `levelId`; si falla retorna `{}`. |
-| `getUserLevel(uid)` | `users/{uid}.nivel` | Lee `nivel` como `int` o `String`; default `1`. |
+| `updateUserLevelProgress(learnerUid, moduleId, levelId, data)` | `users/{learnerUid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; si falla lo silencia. |
+| `getUserLevelsProgress(learnerUid, moduleId)` | `users/{learnerUid}/progress/{moduleId}/levels` | Retorna map por `levelId`; si falla retorna `{}`. |
+| `getUserLevel(learnerUid)` | `users/{learnerUid}.nivel` | Lee `nivel` como `int` o `String`; default `1`. |
 
 ## Rutas Firestore usadas
 
 ```text
 users/{uid}
-users/{uid}/progress/{moduleId}
-users/{uid}/progress/{moduleId}/levels/{levelId}
+users/{parentUid}/learners/{learnerUid}
+users/{learnerUid}
+users/{learnerUid}/progress/{moduleId}
+users/{learnerUid}/progress/{moduleId}/levels/{levelId}
 modules/{moduleId}
 modules/{moduleId}/levels/{levelId}
 telemetryActivitySessions/{sessionId}
 ```
 
-El progreso del learning module vive agrupado por modulo:
+El progreso del learning module vive agrupado por learner, no por la cuenta Auth
+del parent:
 
 ```text
-users/{uid}/progress/{moduleId}/levels/{levelId}
+users/{learnerUid}/progress/{moduleId}/levels/{levelId}
 ```
 
 Usado por `LearningViewModel` y `LevelCompletionService`.
@@ -173,11 +176,14 @@ Campos escritos por el codigo actual:
 
 | Campo | Quien lo escribe | Detalle |
 | --- | --- | --- |
-| `name` | Registro y update display name | Nombre visible en Firestore. |
+| `name` | Registro/update display name o profile repository | Nombre de la cuenta parent o nombre visible del learner. |
 | `email` | Registro | Email usado para Auth. |
-| `createdAt` | Registro | String ISO 8601. |
-| `deletedAt` | Eliminacion de cuenta | String ISO 8601, escrito antes de `User.delete()`. |
+| `createdAt` | Registro / profile repository | String ISO 8601 en cuentas, learners y perfiles (la migración normaliza los Timestamps de prueba). |
+| `deletedAt` | Eliminacion de cuenta | Marcador ISO 8601 transitorio antes de limpiar learners y eliminar el documento parent. |
 | `avatarConfig` | `AvatarViewModel` | Mapa completo de personalizacion del avatar. |
+| `role` | Auth/profile repository | `parent` en el documento Auth; `learner` en cada documento infantil. |
+| `profilesInitialized` | Registro/migracion | Marca que ya se inicializo (o migró) la cuenta. |
+| `parentUid` | Profile repository | Parent propietario del documento de learner. |
 
 Campos leidos por el codigo actual:
 
@@ -209,7 +215,11 @@ Campos esperados por `ModuloInfo.fromFirestore`:
 
 `ModulosGridView` agrega otro bloqueo visual si:
 
-- El indice del modulo queda fuera de `SettingsViewModel.parentalAllowedModules`.
+- El indice del modulo queda fuera del `allowedModules` del learner seleccionado.
+
+El control en UI mejora la experiencia, pero no es una restriccion de seguridad
+del catálogo; Firestore Rules sí restringe el acceso a los datos privados al
+parent propietario del learner.
 
 ## modules/{moduleId}/levels/{levelId}
 

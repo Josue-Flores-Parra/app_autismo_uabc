@@ -191,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountConfirmBody.
   ///
   /// In es, this message translates to:
-  /// **'Se eliminará tu cuenta y los datos de tu perfil. Las métricas anónimas de uso ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.'**
+  /// **'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.'**
   String get deleteAccountConfirmBody;
 
   /// No description provided for @deleteAccountConfirmAction.
@@ -487,6 +487,198 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cancelar'**
   String get cancel;
+
+  /// No description provided for @profileHubTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Perfiles de la familia'**
+  String get profileHubTitle;
+
+  /// No description provided for @profileHubBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige un perfil para comenzar o edita sus ajustes.'**
+  String get profileHubBody;
+
+  /// No description provided for @profileWelcomeTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Vamos a empezar!'**
+  String get profileWelcomeTitle;
+
+  /// No description provided for @profileWelcomeBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Crea el primer perfil para guardar el aprendizaje y el avatar de forma independiente.'**
+  String get profileWelcomeBody;
+
+  /// No description provided for @profileAddTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar perfil infantil'**
+  String get profileAddTitle;
+
+  /// No description provided for @profileAddFirst.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear primer perfil'**
+  String get profileAddFirst;
+
+  /// No description provided for @profileNameLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre del perfil'**
+  String get profileNameLabel;
+
+  /// No description provided for @profileManageTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Perfiles infantiles'**
+  String get profileManageTitle;
+
+  /// No description provided for @profileManageBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Cada perfil guarda su propio progreso, avatar, ajustes y límite de módulos.'**
+  String get profileManageBody;
+
+  /// No description provided for @profileEdit.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar perfil'**
+  String get profileEdit;
+
+  /// No description provided for @profileAllowedModules.
+  ///
+  /// In es, this message translates to:
+  /// **'Límite de módulos'**
+  String get profileAllowedModules;
+
+  /// No description provided for @profileSaveFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo guardar el perfil. Revisa tu conexión e inténtalo de nuevo.'**
+  String get profileSaveFailed;
+
+  /// No description provided for @profileLegacyMigrated.
+  ///
+  /// In es, this message translates to:
+  /// **'Encontramos el progreso y avatar anteriores. Se copiaron al perfil infantil; confirma o edita el nombre para continuar.'**
+  String get profileLegacyMigrated;
+
+  /// No description provided for @profileLegacyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma el perfil infantil'**
+  String get profileLegacyTitle;
+
+  /// No description provided for @profileConfirmName.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar nombre'**
+  String get profileConfirmName;
+
+  /// No description provided for @profilePendingConfirmation.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente de confirmación'**
+  String get profilePendingConfirmation;
+
+  /// No description provided for @profileRetry.
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar'**
+  String get profileRetry;
+
+  /// No description provided for @profileLoadFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron cargar los perfiles. Revisa tu conexión e inténtalo de nuevo.'**
+  String get profileLoadFailed;
+
+  /// No description provided for @profileResetTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Reiniciar el progreso?'**
+  String get profileResetTitle;
+
+  /// No description provided for @profileReset.
+  ///
+  /// In es, this message translates to:
+  /// **'Reiniciar progreso'**
+  String get profileReset;
+
+  /// No description provided for @profileResetPrompt.
+  ///
+  /// In es, this message translates to:
+  /// **'Se borrará el progreso de niveles de {name}. El avatar y sus monedas se conservarán. ¿Continuar?'**
+  String profileResetPrompt(String name);
+
+  /// No description provided for @profileResetDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Se reinició el progreso de {name}.'**
+  String profileResetDone(String name);
+
+  /// No description provided for @profileOpenSettings.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustes de la cuenta'**
+  String get profileOpenSettings;
+
+  /// No description provided for @profileOpenSettingsBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Tema, idioma, seguridad y privacidad.'**
+  String get profileOpenSettingsBody;
+
+  /// No description provided for @profileResetHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Borra estrellas y niveles sin tocar el avatar.'**
+  String get profileResetHint;
+
+  /// No description provided for @childSettingsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustes de {name}'**
+  String childSettingsTitle(String name);
+
+  /// No description provided for @childSectionProfile.
+  ///
+  /// In es, this message translates to:
+  /// **'Perfil'**
+  String get childSectionProfile;
+
+  /// No description provided for @childSectionLearning.
+  ///
+  /// In es, this message translates to:
+  /// **'Aprendizaje'**
+  String get childSectionLearning;
+
+  /// No description provided for @childSectionDisplay.
+  ///
+  /// In es, this message translates to:
+  /// **'Pantalla y accesibilidad'**
+  String get childSectionDisplay;
+
+  /// No description provided for @childSectionFeedback.
+  ///
+  /// In es, this message translates to:
+  /// **'Sonido y vibración'**
+  String get childSectionFeedback;
+
+  /// No description provided for @childSectionReminders.
+  ///
+  /// In es, this message translates to:
+  /// **'Recordatorios'**
+  String get childSectionReminders;
+
+  /// No description provided for @childEditName.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar nombre del perfil'**
+  String get childEditName;
 }
 
 class _AppLocalizationsDelegate

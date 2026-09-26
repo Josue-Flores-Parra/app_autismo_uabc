@@ -10,10 +10,7 @@ import 'pending_session_store.dart';
 
 /// Resultado de una operación de consentimiento opt-out.
 class OptOutResult {
-  const OptOutResult({
-    required this.sessionClosed,
-    this.error,
-  });
+  const OptOutResult({required this.sessionClosed, this.error});
 
   final bool sessionClosed;
   final TelemetryRepositoryException? error;
@@ -38,12 +35,12 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     Uuid? uuid,
     DateTime Function()? now,
     this.inactivityWindow = const Duration(minutes: 15),
-  })  : _repository = repository,
-        _pendingStore = pendingStore,
-        _uidProvider = uidProvider,
-        _clockFactory = clockFactory ?? ActiveSessionClock.new,
-        _uuid = uuid ?? const Uuid(),
-        _now = now ?? DateTime.now {
+  }) : _repository = repository,
+       _pendingStore = pendingStore,
+       _uidProvider = uidProvider,
+       _clockFactory = clockFactory ?? ActiveSessionClock.new,
+       _uuid = uuid ?? const Uuid(),
+       _now = now ?? DateTime.now {
     WidgetsBinding.instance.addObserver(this);
     instance = this;
   }
@@ -99,17 +96,24 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     String? difficulty,
     int? gridSize,
     required TelemetryClient client,
+    String? learnerId,
   }) {
     if (!_consentActive) return null;
     final actorId = _uidProvider();
     if (actorId == null || actorId.isEmpty) return null;
+    final subjectLearnerId = learnerId?.trim().isNotEmpty == true
+        ? learnerId!.trim()
+        : actorId;
     if (moduleId.trim().isEmpty || levelId.trim().isEmpty) return null;
 
     final sessionId = _uuid.v4();
     final session = ActivityTelemetrySession.launchRequested(
       sessionId: sessionId,
-      learnerId: actorId,
+      learnerId: subjectLearnerId,
       actorId: actorId,
+      identityModel: subjectLearnerId == actorId
+          ? IdentityModel.accountAsLearner
+          : IdentityModel.parentAsLearner,
       activityType: activityType,
       moduleId: moduleId,
       levelId: levelId,
@@ -118,10 +122,7 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       client: client,
     );
 
-    final runtime = _SessionRuntime(
-      session: session,
-      clock: _clockFactory(),
-    );
+    final runtime = _SessionRuntime(session: session, clock: _clockFactory());
     _sessions[sessionId] = runtime;
     runtime.chain = runtime.chain.then((_) async {
       try {
@@ -162,8 +163,12 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     runtime.clock.startSegment();
     runtime.session = runtime.session.copyWith(
       outcome: runtime.session.outcome.copyWith(hasStarted: true),
-      timing: runtime.session.timing.copyWith(activeSegmentCount: runtime.clock.segmentCount),
-      lifecycle: runtime.session.lifecycle.copyWith(status: SessionState.started),
+      timing: runtime.session.timing.copyWith(
+        activeSegmentCount: runtime.clock.segmentCount,
+      ),
+      lifecycle: runtime.session.lifecycle.copyWith(
+        status: SessionState.started,
+      ),
     );
 
     _enqueue(runtime, {
@@ -291,14 +296,11 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
   void abandon(String sessionId, TerminalReason reason) {
     final runtime = _runtime(sessionId);
     if (runtime == null || runtime.terminal) return;
-    if (!runtime.started) return; // Salir antes de started es launch_error, no abandono.
+    if (!runtime.started)
+      return; // Salir antes de started es launch_error, no abandono.
     if (!TerminalReason.abandonedReasons.contains(reason)) return;
     runtime.clock.stopSegment();
-    _terminalize(
-      runtime,
-      status: SessionState.abandoned,
-      reason: reason,
-    );
+    _terminalize(runtime, status: SessionState.abandoned, reason: reason);
   }
 
   /// Cierra como `launch_error` una sesión que no llegó a `started`
@@ -317,17 +319,13 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       ),
     );
 
-    _enqueue(
-      runtime,
-      {
-        'lifecycle.status': SessionState.launchError.value,
-        'outcome.isCompleted': false,
-        'outcome.navigationSuccessful': false,
-        'outcome.terminalReason': reason.value,
-        'timing.terminalAt': ServerTimestamp.instance,
-      },
-      terminal: true,
-    );
+    _enqueue(runtime, {
+      'lifecycle.status': SessionState.launchError.value,
+      'outcome.isCompleted': false,
+      'outcome.navigationSuccessful': false,
+      'outcome.terminalReason': reason.value,
+      'timing.terminalAt': ServerTimestamp.instance,
+    }, terminal: true);
   }
 
   void _terminalize(
@@ -344,7 +342,8 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       outcome: outcome.copyWith(
         isCompleted: status == SessionState.completed,
         navigationSuccessful:
-            status == SessionState.completed && !runtime.session.lifecycle.wasInterrupted,
+            status == SessionState.completed &&
+            !runtime.session.lifecycle.wasInterrupted,
         terminalReason: reason,
       ),
       timing: runtime.session.timing.copyWith(
@@ -357,7 +356,8 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       'lifecycle.status': status.value,
       'outcome.isCompleted': status == SessionState.completed,
       'outcome.navigationSuccessful':
-          status == SessionState.completed && !runtime.session.lifecycle.wasInterrupted,
+          status == SessionState.completed &&
+          !runtime.session.lifecycle.wasInterrupted,
       'outcome.terminalReason': reason.value,
       'timing.terminalAt': ServerTimestamp.instance,
       'timing.activeDurationMs': runtime.clock.activeMs,
@@ -375,7 +375,10 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     runtime.chain = runtime.chain.then((_) async {
       try {
         if (terminal) {
-          await _repository.updateIfNotTerminal(runtime.session.sessionId, patch);
+          await _repository.updateIfNotTerminal(
+            runtime.session.sessionId,
+            patch,
+          );
         } else {
           await _repository.update(runtime.session.sessionId, patch);
         }
@@ -421,7 +424,8 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final background = state == AppLifecycleState.inactive ||
+    final background =
+        state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached;
@@ -435,7 +439,9 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
         _onBackground(runtime);
       } else if (state == AppLifecycleState.resumed && runtime.inBackground) {
         runtime.inBackground = false;
-        final elapsed = _now().difference(runtime.backgroundStartedAt ?? _now());
+        final elapsed = _now().difference(
+          runtime.backgroundStartedAt ?? _now(),
+        );
         if (elapsed >= inactivityWindow) {
           _onInactivityTimeout(runtime);
         } else {
@@ -499,17 +505,14 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       // Un único intento best-effort, serializado tras escrituras en vuelo.
       final task = runtime.chain.then((_) async {
         try {
-          await _repository.updateIfNotTerminal(
-            runtime.session.sessionId,
-            {
-              'lifecycle.status': SessionState.abandoned.value,
-              'outcome.isCompleted': false,
-              'outcome.navigationSuccessful': false,
-              'outcome.terminalReason': TerminalReason.telemetryOptOut.value,
-              'timing.terminalAt': ServerTimestamp.instance,
-              'timing.activeDurationMs': runtime.clock.activeMs,
-            },
-          );
+          await _repository.updateIfNotTerminal(runtime.session.sessionId, {
+            'lifecycle.status': SessionState.abandoned.value,
+            'outcome.isCompleted': false,
+            'outcome.navigationSuccessful': false,
+            'outcome.terminalReason': TerminalReason.telemetryOptOut.value,
+            'timing.terminalAt': ServerTimestamp.instance,
+            'timing.activeDurationMs': runtime.clock.activeMs,
+          });
           closed = true;
         } on TelemetryRepositoryException catch (e) {
           error = e;
@@ -532,15 +535,12 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       runtime.clock.stopSegment();
       final task = runtime.chain.then((_) async {
         try {
-          await _repository.updateIfNotTerminal(
-            runtime.session.sessionId,
-            {
-              'lifecycle.status': SessionState.abandoned.value,
-              'outcome.terminalReason': TerminalReason.userExit.value,
-              'timing.terminalAt': ServerTimestamp.instance,
-              'timing.activeDurationMs': runtime.clock.activeMs,
-            },
-          );
+          await _repository.updateIfNotTerminal(runtime.session.sessionId, {
+            'lifecycle.status': SessionState.abandoned.value,
+            'outcome.terminalReason': TerminalReason.userExit.value,
+            'timing.terminalAt': ServerTimestamp.instance,
+            'timing.activeDurationMs': runtime.clock.activeMs,
+          });
         } catch (_) {}
         await _pendingStore.clear(runtime.session.subject.actorId);
       });
@@ -585,15 +585,12 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     final elapsed = _now().difference(marker.lastLocalBackgroundAt);
     if (elapsed >= inactivityWindow) {
       try {
-        await _repository.updateIfNotTerminal(
-          marker.sessionId,
-          {
-            'lifecycle.status': SessionState.abandoned.value,
-            'outcome.terminalReason': TerminalReason.staleSession.value,
-            'timing.terminalAt': ServerTimestamp.instance,
-            'timing.activeDurationMs': marker.activeDurationMs,
-          },
-        );
+        await _repository.updateIfNotTerminal(marker.sessionId, {
+          'lifecycle.status': SessionState.abandoned.value,
+          'outcome.terminalReason': TerminalReason.staleSession.value,
+          'timing.terminalAt': ServerTimestamp.instance,
+          'timing.activeDurationMs': marker.activeDurationMs,
+        });
       } catch (_) {}
       await _pendingStore.clear(actorId);
       return;
@@ -602,15 +599,12 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     // Ausencia < 15 min: no podemos garantizar el mismo contexto de ruta;
     // abandonar como stale_session para no dejar un documento abierto.
     try {
-      await _repository.updateIfNotTerminal(
-        marker.sessionId,
-        {
-          'lifecycle.status': SessionState.abandoned.value,
-          'outcome.terminalReason': TerminalReason.staleSession.value,
-          'timing.terminalAt': ServerTimestamp.instance,
-          'timing.activeDurationMs': marker.activeDurationMs,
-        },
-      );
+      await _repository.updateIfNotTerminal(marker.sessionId, {
+        'lifecycle.status': SessionState.abandoned.value,
+        'outcome.terminalReason': TerminalReason.staleSession.value,
+        'timing.terminalAt': ServerTimestamp.instance,
+        'timing.activeDurationMs': marker.activeDurationMs,
+      });
     } catch (_) {}
     await _pendingStore.clear(actorId);
   }

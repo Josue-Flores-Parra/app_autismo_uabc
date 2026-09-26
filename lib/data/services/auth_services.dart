@@ -1,12 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firestore_services.dart';
 import '../../features/learning_module/data/video_controller_manager.dart';
 import '../../features/telemetry/service/activity_telemetry_service.dart';
 import '../../shared/services/pin_service.dart';
+import '../../features/profiles/data/profile_repository.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
+  final ProfileRepository _profileRepository = ProfileRepository();
 
   User? get currentUser => _auth.currentUser;
 
@@ -30,6 +33,8 @@ class AuthService {
         'name': name,
         'email': email,
         'createdAt': DateTime.now().toIso8601String(),
+        'role': 'parent',
+        'profilesInitialized': true,
       };
 
       if (legalVersionAccepted != null) {
@@ -105,22 +110,27 @@ class AuthService {
   Future<bool> deleteAccount(String password) async {
     final user = _auth.currentUser;
     if (user == null) return false;
-    // Cierre best-effort de la sesión de telemetría activa mientras el UID
-    // sigue autorizado (antes de eliminar la cuenta).
-    await ActivityTelemetryService.instance?.closeActiveSessionForLogout();
-
     final email = user.email;
     if (email == null) return false;
 
     final cred = EmailAuthProvider.credential(email: email, password: password);
     await user.reauthenticateWithCredential(cred);
 
+    // Cierre best-effort de la sesión de telemetría activa mientras el UID
+    // sigue autorizado (después de validar la contraseña).
+    await ActivityTelemetryService.instance?.closeActiveSessionForLogout();
+
     await _firestoreService.setUserData(user.uid, {
       'deletedAt': DateTime.now().toIso8601String(),
     });
+    await _profileRepository.deleteFamily(user.uid);
     // El PIN vive en el dispositivo: si no se borra aquí, sobrevive a la
     // cuenta y la siguiente no puede definir uno nuevo.
     await PinService.clearPin(user.uid);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove('selectedLearner_${user.uid}');
+    await preferences.remove('sendMetrics_${user.uid}');
+    await preferences.remove('telemetryOnboardingShown_${user.uid}');
     VideoControllerManager().disposeAll();
     await user.delete();
     return true;

@@ -40,9 +40,9 @@ enum SessionState {
   }
 
   bool get isTerminal => switch (this) {
-        completed || abandoned || failed || launchError => true,
-        launchRequested || started => false,
-      };
+    completed || abandoned || failed || launchError => true,
+    launchRequested || started => false,
+  };
 
   bool get isLaunched => this == launchRequested || this == started;
 
@@ -91,9 +91,7 @@ enum TerminalReason {
   }
 
   /// Razones válidas para cerrar un estado `completed`.
-  static const Set<TerminalReason> completedReasons = {
-    objectiveCompleted,
-  };
+  static const Set<TerminalReason> completedReasons = {objectiveCompleted};
 
   /// Razones válidas para cerrar un estado `abandoned`.
   static const Set<TerminalReason> abandonedReasons = {
@@ -143,8 +141,7 @@ enum TelemetryActivityType {
   }
 
   /// Las actividades interactivas acumulan intentos KPI.
-  bool get attemptsApplicable =>
-      this == simpleSelection || this == puzzle;
+  bool get attemptsApplicable => this == simpleSelection || this == puzzle;
 
   /// Normaliza el valor de entrada (mayúsculas/espacios) a un tipo, o `null`.
   static TelemetryActivityType? normalize(String? raw) {
@@ -153,12 +150,20 @@ enum TelemetryActivityType {
   }
 }
 
-/// Modelo de identidad semántica. Fijo a `account_as_learner` en esta etapa.
+/// Modelo de identidad semántica de una sesión.
 enum IdentityModel {
-  accountAsLearner('account_as_learner');
+  accountAsLearner('account_as_learner'),
+  parentAsLearner('parent_as_learner');
 
   const IdentityModel(this.value);
 
   /// Valor persistido en Firestore.
   final String value;
+
+  static IdentityModel? fromValue(String? value) {
+    for (final model in values) {
+      if (model.value == value) return model;
+    }
+    return null;
+  }
 }

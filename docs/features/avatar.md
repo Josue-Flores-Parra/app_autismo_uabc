@@ -2,10 +2,10 @@
 
 ## Proposito
 
-La feature de avatar permite personalizar el personaje de la app con skin,
+La feature de avatar permite personalizar el personaje de cada learner con skin,
 expresion, fondo, accesorio, nombre, felicidad, energia y monedas. El catalogo
 de opciones es local y hardcodeado; la configuracion elegida por el usuario se
-guarda en Firestore dentro de `users/{uid}.avatarConfig`.
+guarda en Firestore dentro de `users/{learnerUid}.avatarConfig`.
 
 ## Archivos principales
 
@@ -155,18 +155,20 @@ listas en Firestore. `loadAvatarConfigFromFirestore()` las rellena al vuelo
 con lo que esa cuenta ya tenia puesto (`skinActual`/`backgroundActual`), para
 no bloquearle a nadie algo que ya estaba usando.
 
-`AvatarViewModel.isLoaded` es `false` hasta que `initialize()` leyo
-`users/{uid}`. Mientras tanto la pantalla muestra `—` en felicidad, energia y
+`AvatarViewModel.isLoaded` es `false` hasta que `initialize()` leyó el documento
+`users/{learnerUid}`. Mientras tanto la pantalla muestra `—` en felicidad, energia y
 monedas, y la cara feliz; nunca cifras inventadas. Un guardado antes de cargar
 se ignora para no pisar el documento real con valores por defecto.
 
 Luego registra:
 
 ```text
-ChangeNotifierProxyProvider<AuthViewModel, AvatarViewModel>
+ChangeNotifierProxyProvider2<AuthViewModel, ProfileViewModel, AvatarViewModel>
 ```
 
-En `update`, si `auth.currentUser != null`, llama `avatarVM.initialize()`.
+En `update`, si hay un learner seleccionado, llama
+`avatarVM.initialize(userId: learnerUid)`. El avatar se carga desde el documento
+`users/{learnerUid}`, no desde el documento Auth del parent.
 
 ## AvatarViewModel
 
@@ -182,8 +184,9 @@ Estado privado:
 | --- | --- |
 | `_showEditPanel` | Controla si el panel inferior de edicion esta visible. |
 | `_currentEstado` | Estado actual del avatar. |
-| `_estadoInicial` | Estado con el que se construyo el viewmodel; se reusa cuando entra otra cuenta. |
-| `_loadedUid` | uid cuya configuracion ya se leyo. Mientras sea `null` no se escribe nada en Firestore. |
+| `_estadoInicial` | Estado con el que se construyo el viewmodel; se reusa cuando cambia el learner. |
+| `_learnerUid` | ID del perfil actualmente seleccionado. |
+| `_loadedUid` | ID del learner cuya configuracion ya se leyó. Mientras sea `null` no se escribe nada en Firestore. |
 | `_isLoading` | Evita cargas concurrentes. |
 | `_energiaActualizadaEn` | Momento del ultimo calculo de energia; base del descanso. |
 | `_availableSkins` | Cache local del repositorio. |
@@ -207,18 +210,19 @@ Ruta:
 users/{uid}.avatarConfig
 ```
 
-`saveAvatarConfigToFirestore()` obtiene el usuario con:
+`saveAvatarConfigToFirestore()` comprueba que Firebase Auth siga activa y escribe
+en `users/{learnerUid}`:
 
 ```text
 FirebaseAuth.instance.currentUser
 ```
 
-y no escribe si `_loadedUid` no coincide con ese uid. Esa guarda es la que
+y no escribe si `_loadedUid` no coincide con el learner activo. Esa guarda es la que
 evita el bug de monedas: antes, una escritura disparada antes de terminar la
 carga sobrescribia las monedas reales con el estado inicial hardcodeado, de modo
 que un saldo de varios cientos volvia a `150` mas la recompensa recien ganada.
 
-`initialize()` tambien detecta el cambio de cuenta: si entra otro uid, vuelve al
+`initialize()` tambien detecta el cambio de perfil: si entra otro learner, vuelve al
 estado inicial antes de cargar, para no heredar monedas ni accesorios.
 
 Si no hay usuario, lanza excepcion. Si hay usuario, guarda:
@@ -251,9 +255,9 @@ No pasa por `AuthService`.
 
 `loadAvatarConfigFromFirestore()`:
 
-1. Toma `FirebaseAuth.instance.currentUser`.
-2. Si no hay usuario, retorna sin cambiar estado.
-3. Lee `users/{uid}` con `FirestoreService.getUserData`.
+1. Toma `FirebaseAuth.instance.currentUser` y el learner seleccionado.
+2. Si falta cualquiera de los dos, retorna sin cambiar estado.
+3. Lee `users/{learnerUid}` con `FirestoreService.getUserData`.
 4. Si existe `avatarConfig`, reconstruye:
    - skin por `skinActual`.
    - expresion por path.
@@ -266,8 +270,8 @@ No pasa por `AuthService`.
 Fallback de nombre:
 
 - Si `avatarConfig.nombre` existe, no esta vacio y no es el valor por defecto `nombre`, usa ese valor.
-- Si no, intenta `user.displayName`.
-- Si no, intenta `users/{uid}.name`.
+- Si no, intenta `users/{learnerUid}.name`.
+- Si no, intenta `user.displayName` como último fallback.
 - Si no, conserva `_currentEstado.nombre`.
 
 Si no existe `avatarConfig`, intenta usar displayName o `name`, pero solo guarda
