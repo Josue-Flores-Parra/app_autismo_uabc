@@ -1,12 +1,12 @@
-/// Auth still represents the parent; this mode only selects which app surface
-/// the current device session shows.
+/// Auth sigue representando al parent; este modo solo elige qué superficie de
+/// la app muestra la sesión actual del dispositivo.
 enum AppProfileMode { parent, learner }
 
-/// Per-child learning and accessibility preferences.
+/// Preferencias de aprendizaje y accesibilidad por perfil infantil.
 ///
-/// Stored in the learner profile document (`settings` map) so they follow the
-/// account across devices. The module limit lives alongside them as the
-/// top-level `allowedModules` field for backwards compatibility.
+/// Se guardan en el documento del perfil (`settings`) para seguir a la cuenta
+/// entre dispositivos. El límite de módulos vive junto a ellas como campo
+/// `allowedModules` de nivel superior por compatibilidad.
 class LearnerSettings {
   const LearnerSettings({
     this.fontScale = 'medium',
@@ -18,7 +18,7 @@ class LearnerSettings {
     this.reminderTime = '18:00',
   });
 
-  /// Explicit defaults for newly created profiles.
+  /// Defaults explícitos para perfiles recién creados.
   static const LearnerSettings defaults = LearnerSettings();
 
   final String fontScale;
@@ -28,7 +28,7 @@ class LearnerSettings {
   final bool hapticFeedback;
   final bool remindersEnabled;
 
-  /// `HH:mm`, 24-hour clock. Actual notification scheduling is pending.
+  /// `HH:mm`, reloj de 24 horas. La programación real aún está pendiente.
   final String reminderTime;
 
   static String _fontScaleFrom(dynamic value) {
@@ -121,9 +121,9 @@ class LearnerSettings {
   );
 }
 
-/// A child profile has an independent data UID without creating another Auth
-/// account. Its data lives in `users/{id}` and its link/settings under the
-/// parent's `users/{parentUid}/learners/{id}` document.
+/// Un perfil infantil tiene UID de datos propio sin crear otra cuenta Auth.
+/// Sus datos viven en `users/{id}` y su enlace/ajustes bajo el documento
+/// `users/{parentUid}/learners/{id}` del parent.
 class LearnerProfile {
   const LearnerProfile({
     required this.id,
@@ -139,14 +139,15 @@ class LearnerProfile {
   final String name;
   final String? parentUid;
 
-  /// Zero means no module limit. Kept at the profile root for quick module
-  /// gating and migration from the former device-wide setting.
+  /// Cero significa sin límite de módulos. Se conserva en la raíz del perfil
+  /// para el gating rápido de módulos y la migración del ajuste anterior.
   final int allowedModules;
 
-  /// Incomplete legacy copies are hidden from the selector until copied.
+  /// Las copias legacy incompletas se ocultan del selector hasta copiarse.
   final bool migrationComplete;
 
-  /// Existing-account names need explicit parent review after migration.
+  /// Los nombres de cuentas existentes requieren revisión explícita del
+  /// parent tras la migración.
   final bool needsNameConfirmation;
   final LearnerSettings settings;
 

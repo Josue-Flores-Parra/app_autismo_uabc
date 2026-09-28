@@ -13,7 +13,7 @@ class ProfileViewModel extends ChangeNotifier {
   late final ProfileRepository _repository =
       _providedRepository ?? ProfileRepository();
 
-  /// Auth UID for the adult account; child profile IDs are never Auth users.
+  /// UID Auth de la cuenta adulta; los IDs infantiles nunca son usuarios Auth.
   String? _parentUid;
   List<LearnerProfile> _learners = [];
   LearnerProfile? _selectedLearner;
@@ -34,17 +34,17 @@ class ProfileViewModel extends ChangeNotifier {
   bool get didMigrateLegacy => _didMigrateLegacy;
   bool get isReady => !_loading && _parentUid != null;
 
-  /// Whether management actions (Edit, Add, account settings) are unlocked
-  /// for this parent session. The hub screen is always the same; this flag
-  /// only decides if those actions run directly or ask for the PIN first.
-  /// It resets on every fresh account load and on logout.
+  /// Si las acciones de gestión (Editar, Agregar, ajustes de cuenta) están
+  /// desbloqueadas en esta sesión parent. La pantalla del hub siempre es la
+  /// misma; esta bandera solo decide si esas acciones corren directo o piden
+  /// el PIN primero. Se reinicia con cada carga fresca y al cerrar sesión.
   bool _parentUnlocked = false;
   bool get parentUnlocked => _parentUnlocked;
 
   Future<void> loadForParent(String parentUid) async {
     if (_parentUid == parentUid && isReady) {
-      // Every fresh return from auth starts at the locked hub, even if the
-      // same account was selected earlier in this process.
+      // Cada regreso fresco desde auth arranca en el hub bloqueado, aunque la
+      // misma cuenta se hubiera seleccionado antes en este proceso.
       _mode = null;
       _parentUnlocked = false;
       notifyListeners();
@@ -61,7 +61,7 @@ class ProfileViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final initialized = await _repository.isInitialized(parentUid);
       if (!initialized) {
-        // Preserve the old device-only learner choices on its migrated child.
+        // Conserva las decisiones previas del dispositivo en su perfil migrado.
         final migrated = await _repository.migrateLegacyLearner(
           parentUid,
           initialSettings: _deviceLearnerSettings(prefs),
@@ -97,9 +97,9 @@ class ProfileViewModel extends ChangeNotifier {
     await loadForParent(uid);
   }
 
-  /// Copies the device-level learning preferences into the migrated
-  /// profile so the first child keeps its previous behaviour. Parent-wide
-  /// choices (theme, language) stay on the account instead.
+  /// Copia las preferencias de aprendizaje del dispositivo al perfil
+  /// migrado para que el primer perfil conserve su comportamiento previo.
+  /// Las decisiones globales (tema, idioma) quedan en la cuenta.
   LearnerSettings _deviceLearnerSettings(SharedPreferences prefs) {
     String time = '18:00';
     final storedTime = prefs.getString('reminderTime');
@@ -182,7 +182,7 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Persists per-child learning and accessibility preferences.
+  /// Guarda las preferencias de aprendizaje y accesibilidad por perfil.
   Future<void> updateLearnerSettings(
     LearnerProfile learner,
     LearnerSettings settings,
@@ -217,10 +217,33 @@ class ProfileViewModel extends ChangeNotifier {
     await _repository.clearLearnerProgress(learner.id);
   }
 
+  /// Borra para siempre un perfil infantil y todos sus datos de Firestore
+  /// (progreso, avatar, ajustes). Si era el perfil seleccionado, limpia la
+  /// selección con su preferencia vieja para que el hub nunca apunte a un
+  /// documento que ya no existe.
+  Future<void> deleteLearner(LearnerProfile learner) async {
+    final parentUid = _requireParent();
+    await _repository.deleteLearner(parentUid, learner.id);
+    _learners = [
+      for (final item in _learners)
+        if (item.id != learner.id) item,
+    ];
+    if (_selectedLearner?.id == learner.id) {
+      _selectedLearner = null;
+      _mode = null;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('selectedLearner_$parentUid');
+    }
+    _needsInitialLearner = _learners.isEmpty;
+    _didMigrateLegacy = _learners.any((item) => item.needsNameConfirmation);
+    notifyListeners();
+  }
+
   Future<void> selectLearner(LearnerProfile learner) async {
     final parentUid = _requireParent();
-    // Remember the last child for cross-launch convenience, but still show the
-    // selector at login so parent entry is never inferred from that cache.
+    // Recuerda el último perfil por comodidad entre arranques, pero muestra
+    // igual el selector al iniciar sesión para nunca inferir la entrada
+    // parent desde ese caché.
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selectedLearner_$parentUid', learner.id);
     _selectedLearner = learner;
@@ -228,10 +251,10 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Unlocks management actions for this parent session and returns to the
-  /// hub. The module gear always asks for the PIN first, so reaching here
-  /// means the parent was verified; the hub actions then run without asking
-  /// again until logout or account change.
+  /// Desbloquea las acciones de gestión en esta sesión parent y vuelve al
+  /// hub. El engrane de módulos siempre pide el PIN primero, así que llegar
+  /// aquí significa que el parent se verificó; las acciones del hub ya no
+  /// vuelven a pedirlo hasta cerrar sesión o cambiar de cuenta.
   void unlockParent() {
     if (_parentUid == null) return;
     _parentUnlocked = true;
@@ -239,9 +262,9 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Ensures management actions may run, asking for the PIN when the session
-  /// is still locked. Returns `false` when the action must not continue.
-  /// Override in tests to avoid the Firebase-backed PIN gate.
+  /// Asegura que las acciones de gestión puedan correr, pidiendo el PIN si la
+  /// sesión sigue bloqueada. Devuelve `false` cuando la acción no debe
+  /// continuar. Se sobrescribe en tests para evitar el gate con Firebase.
   Future<bool> ensureParentUnlocked(BuildContext context) async {
     if (parentUnlocked) return true;
     final verified = await SettingsAccessGuard.ensureAccess(context);

@@ -62,7 +62,16 @@ class SettingsAccessGuard {
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email;
     if (user == null || email == null) return false;
-    final password = await _promptPassword(context, email);
+    // First-time setup, not recovery: this account has no PIN yet, so the
+    // dialog must not look like a "forgot PIN" flow.
+    final password = await _promptPassword(
+      context,
+      email,
+      title: 'Verifica tu contraseña',
+      body:
+          'Esta cuenta aún no tiene PIN. Ingresa la contraseña de la cuenta '
+          'para crear uno por primera vez.',
+    );
     if (password == null || password.isEmpty || !context.mounted) return false;
     try {
       await user.reauthenticateWithCredential(
@@ -175,20 +184,23 @@ class SettingsAccessGuard {
 
   static Future<String?> _promptPassword(
     BuildContext context,
-    String email,
-  ) async {
+    String email, {
+    String title = 'Recuperar PIN',
+    String? body,
+  }) async {
     final controller = TextEditingController();
     return showDialog<String?>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Recuperar PIN'),
+          title: Text(title),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Correo: $email'),
+              if (body != null) ...[const SizedBox(height: 8), Text(body)],
               const SizedBox(height: 12),
               TextField(
                 controller: controller,

@@ -156,8 +156,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
-                  // This page is parent-wide. Child appearance/accessibility/
-                  // feedback/reminder values are edited on ChildSettingsScreen.
+                  // Esta página es de la cuenta parent. Los valores de
+                  // apariencia/accesibilidad/feedback/recordatorios del
+                  // perfil se editan en ChildSettingsScreen.
                   _Section(
                     title: l10n?.appearanceSection ?? 'Apariencia',
                     children: [
@@ -184,9 +185,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
-                  // Learning and accessibility preferences (text size,
-                  // contrast, animations, feedback, reminders) are per-child
-                  // and live in ChildSettingsScreen, not here.
+                  // Las preferencias de aprendizaje y accesibilidad (tamaño de
+                  // texto, contraste, animaciones, feedback, recordatorios)
+                  // son por perfil y viven en ChildSettingsScreen, no aquí.
                   _Section(
                     title: l10n?.privacySection ?? 'Privacidad y datos',
                     children: [
@@ -442,7 +443,15 @@ class _SettingsPageState extends State<SettingsPage> {
     if (confirmed == true) {
       final success = await auth.deleteAccount(passwordController.text);
       if (!mounted) return;
-      if (!success) {
+      if (success) {
+        // El gate de autenticación cambia esta pantalla por LoginScreen en el
+        // siguiente frame; el messenger a nivel de app sobrevive al cambio,
+        // así que el aviso llega ahí.
+        _showSnack(
+          l10n?.deleteAccountSuccess ?? 'Cuenta eliminada correctamente',
+          destructive: true,
+        );
+      } else {
         _showSnack(
           l10n?.deleteAccountFailed ?? 'No se pudo eliminar la cuenta',
         );
@@ -469,15 +478,18 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _showSnack(String message) {
+  void _showSnack(String message, {bool destructive = false}) {
     if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           message,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          style: TextStyle(
+            color: destructive ? scheme.onError : scheme.onSurface,
+          ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: destructive ? scheme.error : scheme.surface,
         behavior: SnackBarBehavior.floating,
       ),
     );

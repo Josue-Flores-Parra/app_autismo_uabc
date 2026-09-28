@@ -241,11 +241,13 @@ globales. Editar, Agregar y Ajustes piden el PIN si la sesión aún está
 bloqueada y continúan solos al verificarse; el desbloqueo dura la sesión del
 parent (se pierde al cerrar sesión o cambiar de cuenta). Editar abre
 `ChildSettingsScreen` con nombre, límite de módulos, tamaño de texto,
-contraste, animaciones, feedback auditivo/háptico, recordatorios y reinicio de
-progreso de ese perfil. Todo se guarda en
+contraste, animaciones, feedback auditivo/háptico, recordatorios, reinicio de
+progreso y eliminación del perfil. Todo se guarda en
 `users/{parentUid}/learners/{learnerUid}` (`settings` + `allowedModules`);
 `0` significa sin límite. El reinicio elimina los documentos `progress` del
-learner; su avatar y sus monedas permanecen.
+learner; su avatar y sus monedas permanecen. La eliminación pide confirmación
+y borra en orden el progreso, el enlace del perfil y el documento
+`users/{learnerId}`; el historial de telemetría se conserva.
 
 ### Cerrar sesion
 
@@ -291,8 +293,11 @@ Reglas reales de PIN debil en `SettingsAccessGuard.isWeakPin`:
 - Rechaza blacklist: `0000`, `1234`, `4321`, `1111`, `2222`, `3333`.
 
 Si no hay PIN guardado al salir del perfil infantil, se verifica la contraseña
-Auth del parent y se pide crear uno. Si hay PIN, se pide ingresarlo. Si se olvida, se
-reautentica con password de la cuenta actual y se borra el PIN local.
+Auth del parent con el título "Verifica tu contraseña" (no es recuperación: la
+cuenta aún no tiene PIN) y se pide crear uno. Si hay PIN, se pide ingresarlo.
+Si se olvida, se reautentica con password de la cuenta actual —ese diálogo sí
+se titula "Recuperar PIN"— y se borra solo el PIN de esa cuenta. La llave
+global anterior (`settingsPin`) se descarta al leer y nunca se hereda.
 
 Dialogo (`_PinDialog` en `settings_access_guard.dart`):
 

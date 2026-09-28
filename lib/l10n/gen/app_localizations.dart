@@ -679,6 +679,60 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cambiar nombre del perfil'**
   String get childEditName;
+
+  /// No description provided for @childSectionDanger.
+  ///
+  /// In es, this message translates to:
+  /// **'Zona de peligro'**
+  String get childSectionDanger;
+
+  /// No description provided for @profileDelete.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar perfil'**
+  String get profileDelete;
+
+  /// No description provided for @profileDeleteHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Elimina el perfil, su avatar y su progreso para siempre.'**
+  String get profileDeleteHint;
+
+  /// No description provided for @profileDeleteTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Eliminar a {name}?'**
+  String profileDeleteTitle(String name);
+
+  /// No description provided for @profileDeleteBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Se eliminará el perfil de {name}, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.'**
+  String profileDeleteBody(String name);
+
+  /// No description provided for @profileDeleteConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar'**
+  String get profileDeleteConfirm;
+
+  /// No description provided for @profileDeleteFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo eliminar el perfil. Revisa tu conexión e inténtalo de nuevo.'**
+  String get profileDeleteFailed;
+
+  /// No description provided for @profileDeleteDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Se eliminó el perfil de {name}.'**
+  String profileDeleteDone(String name);
+
+  /// No description provided for @deleteAccountSuccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuenta eliminada correctamente.'**
+  String get deleteAccountSuccess;
 }
 
 class _AppLocalizationsDelegate

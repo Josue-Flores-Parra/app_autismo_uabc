@@ -110,5 +110,29 @@
   "childSectionDisplay": "Pantalla y accesibilidad",
   "childSectionFeedback": "Sonido y vibración",
   "childSectionReminders": "Recordatorios",
-  "childEditName": "Cambiar nombre del perfil"
+  "childEditName": "Cambiar nombre del perfil",
+  "childSectionDanger": "Zona de peligro",
+  "profileDelete": "Eliminar perfil",
+  "profileDeleteHint": "Elimina el perfil, su avatar y su progreso para siempre.",
+  "profileDeleteTitle": "¿Eliminar a {name}?",
+  "@profileDeleteTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileDeleteBody": "Se eliminará el perfil de {name}, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.",
+  "@profileDeleteBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileDeleteConfirm": "Eliminar",
+  "profileDeleteFailed": "No se pudo eliminar el perfil. Revisa tu conexión e inténtalo de nuevo.",
+  "profileDeleteDone": "Se eliminó el perfil de {name}.",
+  "@profileDeleteDone": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "deleteAccountSuccess": "Cuenta eliminada correctamente."
 }

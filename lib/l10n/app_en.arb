@@ -110,5 +110,29 @@
   "childSectionDisplay": "Display and accessibility",
   "childSectionFeedback": "Sound and vibration",
   "childSectionReminders": "Reminders",
-  "childEditName": "Change profile name"
+  "childEditName": "Change profile name",
+  "childSectionDanger": "Danger zone",
+  "profileDelete": "Delete profile",
+  "profileDeleteHint": "Permanently deletes the profile, its avatar and its progress.",
+  "profileDeleteTitle": "Delete {name}?",
+  "@profileDeleteTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileDeleteBody": "This will permanently delete {name}’s profile, including avatar, settings and progress. This cannot be undone.",
+  "@profileDeleteBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "profileDeleteConfirm": "Delete",
+  "profileDeleteFailed": "Could not delete the profile. Check your connection and try again.",
+  "profileDeleteDone": "{name}'s profile was deleted.",
+  "@profileDeleteDone": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "deleteAccountSuccess": "Account deleted successfully."
 }

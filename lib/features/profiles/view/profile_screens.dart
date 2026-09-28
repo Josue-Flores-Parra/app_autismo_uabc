@@ -58,18 +58,38 @@ class ProfileSelectorScreen extends StatelessWidget {
     }
   }
 
-  /// Opens the per-child settings for [learner] from the parent hub.
-  static void openChildSettings(BuildContext context, LearnerProfile learner) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ChildSettingsScreen(learnerId: learner.id),
+  /// Abre los ajustes del perfil infantil [learner] desde el hub parent.
+  /// Cuando la pantalla hija hace pop con el nombre eliminado, muestra aquí
+  /// el aviso rojo de éxito: solo después de que la transición de ruta
+  /// terminó por completo, para que el snackbar se monte una sola vez bajo
+  /// esta pantalla.
+  static Future<void> openChildSettings(
+    BuildContext context,
+    LearnerProfile learner,
+  ) async {
+    final route = MaterialPageRoute<String?>(
+      builder: (_) => ChildSettingsScreen(learnerId: learner.id),
+    );
+    final deletedName = await Navigator.of(context).push(route);
+    await route.completed;
+    if (deletedName == null || !context.mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.profileDeleteDone(deletedName),
+          style: TextStyle(color: scheme.onError),
+        ),
+        backgroundColor: scheme.error,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  /// Runs [action] immediately when the parent session is unlocked, or asks
-  /// for the PIN first and then continues automatically on success. Selecting
-  /// a child never asks: it stays one tap.
+  /// Ejecuta [action] de inmediato si la sesión parent está desbloqueada,
+  /// o pide el PIN primero y continúa solo al verificarse. Elegir un perfil
+  /// nunca pide PIN: sigue siendo un toque.
   static Future<void> _withParentUnlock(
     BuildContext context,
     ProfileViewModel profiles,
@@ -85,9 +105,9 @@ class ProfileSelectorScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final colors = context.appColors;
     final profiles = context.watch<ProfileViewModel>();
-    // Single family hub: the same heading and layout for locked and unlocked
-    // sessions. Only the management actions gate on the PIN; entering a
-    // profile stays one tap.
+    // Hub familiar único: mismo encabezado y diseño con la sesión
+    // bloqueada o desbloqueada. Solo las acciones de gestión piden el PIN;
+    // entrar a un perfil sigue siendo un toque.
     final title = profiles.needsInitialLearner
         ? l10n.profileWelcomeTitle
         : l10n.profileHubTitle;
@@ -255,8 +275,9 @@ Future<ProfileDetailsResult?> showProfileDetailsDialog({
     ),
   );
   final result = await Navigator.of(context, rootNavigator: true).push(route);
-  // Navigator.pop completes before the dialog's reverse animation finishes.
-  // Wait for its overlay to leave the tree before changing profile mode.
+  // Navigator.pop completa antes de que termine la animación de salida del
+  // diálogo. Espera a que su overlay salga del árbol antes de cambiar el
+  // modo de perfil.
   await route.completed;
   return result;
 }
@@ -363,8 +384,9 @@ class _ProfileCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
 
-  /// Visual-only cue for profiles awaiting name confirmation. Taps are
-  /// already disabled by the caller; this only dims the card and labels it.
+  /// Señal solo visual para perfiles que esperan confirmación de nombre. El
+  /// llamador ya deshabilitó los toques; esto solo atenúa la tarjeta y la
+  /// etiqueta.
   final bool pending;
 
   @override

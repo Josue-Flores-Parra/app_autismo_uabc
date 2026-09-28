@@ -14,9 +14,9 @@ class ProfileRepository {
   CollectionReference<Map<String, dynamic>> _learners(String parentUid) =>
       _user(parentUid).collection('learners');
 
-  /// `profilesInitialized` distinguishes new accounts (first child is created
-  /// on demand) from older accounts that still own avatar/progress at their
-  /// Auth UID and must be migrated once.
+  /// `profilesInitialized` distingue cuentas nuevas (el primer perfil se crea
+  /// bajo demanda) de cuentas anteriores que aún guardan avatar/progreso en
+  /// su UID de Auth y deben migrarse una vez.
   Future<bool> isInitialized(String parentUid) async {
     final snapshot = await _user(parentUid).get();
     return snapshot.data()?['profilesInitialized'] == true;
@@ -30,8 +30,8 @@ class ProfileRepository {
       if (data['role'] == 'parent' && data['profilesInitialized'] == true) {
         return;
       }
-      // Merge so legal acceptance, email, display name and old avatar data are
-      // preserved on pre-profile accounts.
+      // Merge para conservar aceptación legal, correo, nombre visible y datos
+      // de avatar anteriores en cuentas previas a perfiles.
       transaction.set(ref, {'role': 'parent'}, SetOptions(merge: true));
     });
   }
@@ -40,7 +40,7 @@ class ProfileRepository {
     final snapshot = await _learners(parentUid).orderBy('createdAt').get();
     return snapshot.docs
         .map((doc) => LearnerProfile.fromMap(doc.id, doc.data()))
-        // A partially copied legacy child must never look ready/selectable.
+        // Un perfil legacy copiado a medias nunca debe verse listo/elegible.
         .where((profile) => profile.migrationComplete)
         .toList();
   }
@@ -55,8 +55,8 @@ class ProfileRepository {
     final learnerRef = _db.collection('users').doc();
     final learnerId = learnerRef.id;
     final profileRef = _learners(parentUid).doc(learnerId);
-    // Both indexes commit together so neither a dangling profile link nor an
-    // unindexed `users/{learnerId}` child can be exposed after a partial write.
+    // Ambos índices se confirman juntos para no exponer tras una escritura
+    // parcial ni un enlace suelto ni un `users/{learnerId}` sin índice.
     final batch = _db.batch();
     final createdAt = DateTime.now().toIso8601String();
     batch.set(profileRef, {
@@ -91,7 +91,7 @@ class ProfileRepository {
   ) async {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Learner name is required');
-    // Keep the selector label and AvatarViewModel's fallback name in sync.
+    // Mantiene sincronizados la etiqueta del selector y el nombre fallback de AvatarViewModel.
     final batch = _db.batch();
     batch.set(_learners(parentUid).doc(learner.id), {
       'name': cleanName,
@@ -114,25 +114,26 @@ class ProfileRepository {
     ).doc(learner.id).update({'allowedModules': count.clamp(0, 10)});
   }
 
-  /// Persists per-child learning and accessibility preferences.
+  /// Guarda las preferencias de aprendizaje y accesibilidad por perfil.
   ///
-  /// The module limit keeps its top-level field and is managed separately.
+  /// El límite de módulos conserva su campo de nivel superior y se gestiona
+  /// por separado.
   Future<void> updateLearnerSettings(
     String parentUid,
     String learnerId,
     LearnerSettings settings,
   ) async {
-    // Replace only the nested settings map; profile identity and module limit
-    // remain in their own fields.
+    // Reemplaza solo el mapa anidado de ajustes; la identidad del perfil y el
+    // límite de módulos quedan en sus propios campos.
     await _learners(
       parentUid,
     ).doc(learnerId).update({'settings': settings.toMap()});
   }
 
-  /// Parent-wide preferences shared by every profile on the account.
+  /// Preferencias globales de la cuenta, compartidas por todos sus perfiles.
   ///
-  /// Only theme and language live here; everything learning- or
-  /// accessibility-related belongs to each learner profile instead.
+  /// Solo viven aquí tema e idioma; todo lo de aprendizaje o accesibilidad
+  /// pertenece a cada perfil infantil.
   Future<Map<String, dynamic>?> getParentSettings(String parentUid) async {
     final snapshot = await _user(parentUid).get();
     final data = snapshot.data();
@@ -147,8 +148,8 @@ class ProfileRepository {
     String parentUid,
     Map<String, dynamic> settings,
   ) async {
-    // These settings apply before a learner is selected and are shared by all
-    // profiles on this parent's account.
+    // Estos ajustes aplican antes de elegir perfil y los comparten todos los
+    // perfiles de la cuenta parent.
     await _user(
       parentUid,
     ).set({'parentSettings': settings}, SetOptions(merge: true));
@@ -163,19 +164,32 @@ class ProfileRepository {
     await _deleteRefs(modules.docs.map((doc) => doc.reference).toList());
   }
 
-  /// Migrates the existing account-owned data into a new learner ID.
+  /// Elimina para siempre un perfil infantil: su progreso de niveles, su
+  /// enlace bajo el parent y su documento `users/{learnerId}` (avatar,
+  /// nombre y ajustes incluidos). El historial de telemetría se conserva a
+  /// propósito. El orden importa: las reglas de progreso y del documento
+  /// resuelven propiedad vía `users/{learnerId}.parentUid`, así que el
+  /// progreso va primero y el documento al final.
+  Future<void> deleteLearner(String parentUid, String learnerId) async {
+    await clearLearnerProgress(learnerId);
+    await _learners(parentUid).doc(learnerId).delete();
+    await _user(learnerId).delete();
+  }
+
+  /// Migra los datos actuales de la cuenta a un ID infantil nuevo.
   ///
-  /// The profile document is first marked `copying`; AuthGate does not expose
-  /// it until all copied progress batches have committed. Re-running this
-  /// method uses the same ID and merge writes, so a partial migration is safe
-  /// to retry. The original account data is deliberately retained.
+  /// El documento del perfil primero se marca `copying`; AuthGate no lo
+  /// expone hasta confirmar todos los lotes de progreso copiados. Reejecutar
+  /// este método reusa el mismo ID con escrituras merge, así que reintentar
+  /// una migración parcial es seguro. Los datos originales se conservan a
+  /// propósito.
   Future<LearnerProfile> migrateLegacyLearner(
     String parentUid, {
     LearnerSettings initialSettings = LearnerSettings.defaults,
   }) async {
     final parentRef = _user(parentUid);
-    // Claim the parent role first, without touching existing profile data.
-    // The account is only marked initialized after the copy below commits.
+    // Reclama primero el rol parent, sin tocar los datos existentes del
+    // perfil. La cuenta solo se marca inicializada tras confirmar la copia.
     await parentRef.set({'role': 'parent'}, SetOptions(merge: true));
 
     final parent = await parentRef.get();
@@ -185,16 +199,16 @@ class ProfileRepository {
     final existing = existingProfiles.docs.where(
       (doc) => doc.data()['legacySourceUid'] == parentUid,
     );
-    // Reuse the migration ID across retries; creating a fresh ID after a
-    // network interruption would strand half-copied data and duplicate rows.
+    // Reusa el ID de migración entre reintentos; crear uno nuevo tras un
+    // corte de red dejaría datos a medias y filas duplicadas.
     final profileRef = existing.isNotEmpty
         ? existing.first.reference
         : learnersRef.doc();
     final learnerId = profileRef.id;
     final legacyName = _legacyName(parentData);
 
-    // Reuse the in-progress profile link when retrying, normalizing its
-    // creation date to the ISO-8601 strings used everywhere else.
+    // Reusa el enlace en curso al reintentar, normalizando su fecha de
+    // creación a los strings ISO-8601 usados en el resto.
     String? profileCreatedAt;
     if (existing.isNotEmpty) {
       profileCreatedAt = _isoCreatedAt(existing.first.data()['createdAt']);
@@ -212,8 +226,8 @@ class ProfileRepository {
       'createdAt': profileCreatedAt,
     }, SetOptions(merge: true));
 
-    // Create the learner document before reading it: reads are authorized by
-    // the stored parentUid, which cannot exist until this write commits.
+    // Crea el documento infantil antes de leerlo: las lecturas se autorizan
+    // por el parentUid guardado, que no existe hasta confirmar esta escritura.
     final childRef = _user(learnerId);
     await childRef.set({
       'role': 'learner',
@@ -235,8 +249,8 @@ class ProfileRepository {
         'avatarConfig': parentData['avatarConfig'],
     }, SetOptions(merge: true));
 
-    // Set completion markers last. If a copy batch fails, login can retry this
-    // same source-to-learner mapping rather than exposing partial progress.
+    // Marca completado al final. Si falla un lote, el login reintenta este
+    // mismo mapeo origen→perfil en vez de exponer progreso parcial.
     await _copyLegacyProgress(parentUid, learnerId);
     await profileRef.update({'migrationStatus': 'complete'});
     await parentRef.set({
@@ -252,8 +266,9 @@ class ProfileRepository {
     );
   }
 
-  /// Normalizes a stored creation date to ISO-8601, preserving the instant
-  /// of feature-created Firestore Timestamps. Returns null when absent.
+  /// Normaliza una fecha de creación guardada a ISO-8601, conservando el
+  /// instante de los Timestamps de Firestore creados por la feature.
+  /// Devuelve null si no hay valor.
   String? _isoCreatedAt(dynamic value) {
     if (value is String && value.isNotEmpty) return value;
     if (value is Timestamp) return value.toDate().toIso8601String();
@@ -270,10 +285,10 @@ class ProfileRepository {
   }
 
   Future<void> _copyLegacyProgress(String sourceUid, String learnerUid) async {
-    // Level writes never create their intermediate progress/{moduleId}
-    // document, so listing that collection can miss modules entirely. Read
-    // each catalog module's levels directly, plus any intermediate documents
-    // that do exist.
+    // Las escrituras de nivel nunca crean su documento intermedio
+    // progress/{moduleId}, así que listar esa colección puede omitir módulos
+    // por completo. Lee los niveles de cada módulo del catálogo directo,
+    // más los documentos intermedios que sí existan.
     final moduleIds = <String>{};
     try {
       final catalog = await _db.collection('modules').get();
@@ -281,7 +296,7 @@ class ProfileRepository {
         moduleIds.add(module.id);
       }
     } catch (_) {
-      // Offline or denied catalog: fall back to whatever parents exist.
+      // Catálogo sin conexión o denegado: usa los padres que existan.
     }
     final existingParents = await _user(sourceUid).collection('progress').get();
     for (final module in existingParents.docs) {
@@ -291,8 +306,8 @@ class ProfileRepository {
       final levels = await _user(
         sourceUid,
       ).collection('progress').doc(moduleId).collection('levels').get();
-      // Each batch remains bounded; levels can exceed Firestore's 500-write
-      // batch limit in accounts with unusually large histories.
+      // Cada lote queda acotado; los niveles pueden superar el límite de
+      // 500 escrituras por lote de Firestore en historiales muy grandes.
       for (var start = 0; start < levels.docs.length; start += 400) {
         final batch = _db.batch();
         final end = (start + 400).clamp(0, levels.docs.length);
@@ -312,8 +327,8 @@ class ProfileRepository {
     }
   }
 
-  /// Removes learner data and profile links before deleting the parent Auth
-  /// account. Telemetry is deliberately retained as aggregate history.
+  /// Borra datos infantiles y enlaces de perfil antes de eliminar la cuenta
+  /// Auth parent. La telemetría se conserva a propósito como historial.
   Future<void> deleteFamily(String parentUid) async {
     final profiles = await _learners(parentUid).get();
     final learnerIds = <String>{

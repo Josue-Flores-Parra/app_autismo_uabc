@@ -7,12 +7,12 @@ import '../model/learner_profile.dart';
 import '../viewmodel/profile_viewmodel.dart';
 import 'profile_screens.dart';
 
-/// Per-child settings, opened from the parent hub with the Edit action.
+/// Ajustes por perfil infantil, se abre desde el hub parent con Editar.
 ///
-/// Only learning and accessibility preferences live here: name, allowed
-/// modules, text size, contrast, animations, feedback, reminders and progress
-/// reset. Account-wide choices (theme, language, legal, telemetry) stay in
-/// the global settings screen.
+/// Solo viven aquí las preferencias de aprendizaje y accesibilidad: nombre,
+/// límite de módulos, tamaño de texto, contraste, animaciones, feedback,
+/// recordatorios y reinicio de progreso. Las decisiones de la cuenta (tema,
+/// idioma, legal, telemetría) quedan en la pantalla global de ajustes.
 class ChildSettingsScreen extends StatelessWidget {
   const ChildSettingsScreen({super.key, required this.learnerId});
 
@@ -107,6 +107,45 @@ class ChildSettingsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _deleteProfile(
+    BuildContext context,
+    ProfileViewModel profiles,
+    LearnerProfile learner,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.profileDeleteTitle(learner.name)),
+        content: Text(l10n.profileDeleteBody(learner.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.profileDeleteConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await profiles.deleteLearner(learner);
+      if (!context.mounted) return;
+      // De vuelta al hub con el nombre eliminado: el hub muestra el aviso
+      // de éxito una vez que su transición de ruta terminó por completo.
+      Navigator.of(context).pop(learner.name);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.profileDeleteFailed)));
+      }
+    }
+  }
+
   Future<void> _pickReminderTime(
     BuildContext context,
     LearnerProfile learner,
@@ -134,6 +173,7 @@ class ChildSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = context.appColors;
+    final errorColor = Theme.of(context).colorScheme.error;
     final profiles = context.watch<ProfileViewModel>();
     final learner = _learnerOf(profiles);
     if (learner == null) {
@@ -325,6 +365,28 @@ class ChildSettingsScreen extends StatelessWidget {
                         onTap: settings.remindersEnabled
                             ? () => _pickReminderTime(context, learner)
                             : null,
+                      ),
+                    ],
+                  ),
+                  _ChildSection(
+                    title: l10n.childSectionDanger,
+                    children: [
+                      ListTile(
+                        leading: Icon(
+                          Icons.delete_outline_rounded,
+                          color: errorColor,
+                        ),
+                        title: Text(
+                          l10n.profileDelete,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: errorColor,
+                          ),
+                        ),
+                        subtitle: Text(l10n.profileDeleteHint),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _deleteProfile(context, profiles, learner),
                       ),
                     ],
                   ),

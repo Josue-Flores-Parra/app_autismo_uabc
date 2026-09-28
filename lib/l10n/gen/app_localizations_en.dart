@@ -315,4 +315,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get childEditName => 'Change profile name';
+
+  @override
+  String get childSectionDanger => 'Danger zone';
+
+  @override
+  String get profileDelete => 'Delete profile';
+
+  @override
+  String get profileDeleteHint =>
+      'Permanently deletes the profile, its avatar and its progress.';
+
+  @override
+  String profileDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String profileDeleteBody(String name) {
+    return 'This will permanently delete $name’s profile, including avatar, settings and progress. This cannot be undone.';
+  }
+
+  @override
+  String get profileDeleteConfirm => 'Delete';
+
+  @override
+  String get profileDeleteFailed =>
+      'Could not delete the profile. Check your connection and try again.';
+
+  @override
+  String profileDeleteDone(String name) {
+    return '$name\'s profile was deleted.';
+  }
+
+  @override
+  String get deleteAccountSuccess => 'Account deleted successfully.';
 }
