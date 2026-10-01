@@ -104,6 +104,12 @@ abstract class AppLocalizations {
   /// **'Appy'**
   String get appTitle;
 
+  /// No description provided for @appTagline.
+  ///
+  /// In es, this message translates to:
+  /// **'TEApoya TEAcompaña'**
+  String get appTagline;
+
   /// No description provided for @navModules.
   ///
   /// In es, this message translates to:

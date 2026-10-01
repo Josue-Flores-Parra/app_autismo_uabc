@@ -12,6 +12,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appTitle => 'Appy';
 
   @override
+  String get appTagline => 'TEApoya TEAcompaña';
+
+  @override
   String get navModules => 'Módulos';
 
   @override
