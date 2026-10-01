@@ -51,7 +51,7 @@ void main() {
       final file = File('docs/legal/${page.fileName}');
       expect(file.existsSync(), isTrue, reason: '${page.fileName} falta');
       expect(
-        file.readAsStringSync(),
+        file.readAsStringSync().replaceAll('\r\n', '\n'),
         page.html,
         reason:
             '${page.fileName} esta viejo: corre '
