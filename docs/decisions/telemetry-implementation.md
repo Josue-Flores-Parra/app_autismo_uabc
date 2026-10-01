@@ -14,6 +14,13 @@ Firestore será la fuente de verdad de sesiones y la única persistencia remota 
 
 ## 2. Decisiones cerradas
 
+> **Cambio de identidad:** la decisión original de `account_as_learner` en este
+> documento quedó supersedida al introducir perfiles infantiles. El cliente
+> sigue autenticando al parent, pero cada perfil tiene ID propio. Para sesiones
+> nuevas, `identityModel` es `parent_as_learner`, `actorId` es el UID Auth del
+> parent y `learnerId` es el ID del perfil seleccionado. Se conserva
+> `account_as_learner` para documentos históricos y compatibilidad.
+
 1. La arquitectura del flujo será:
 
    ```text
@@ -24,12 +31,12 @@ Firestore será la fuente de verdad de sesiones y la única persistencia remota 
 
 2. La colección es raíz para facilitar consultas y futuros dashboards web: `telemetryActivitySessions/{sessionId}`.
 3. `sessionId` es un UUID v4 nuevo por cada ejecución. Se agregará una dependencia de generación UUID compatible con el SDK declarado en `../../pubspec.yaml`; no se derivará de UID, nivel, hora ni ruta.
-4. La cuenta representa al niño, aunque un padre use su correo para registrarla. Por ello:
+4. En el modelo histórico `account_as_learner`, la cuenta representa al niño. En el modelo actual de perfiles:
    - `subject.learnerId` identifica al niño cuya actividad se mide.
    - `subject.actorId` identifica la cuenta autenticada que ejecuta la acción.
-   - En el modelo actual ambos contienen el Firebase Auth UID.
-   - `subject.identityModel` vale `account_as_learner`.
-   - No se generará un segundo UUID artificial para fingir dos identidades.
+   - `subject.actorId` contiene el Firebase Auth UID del parent.
+   - `subject.learnerId` contiene el ID estable del perfil infantil.
+   - `subject.identityModel` vale `parent_as_learner`; datos anteriores conservan `account_as_learner`.
 5. No se copiarán nombre, correo, `displayName` ni otra PII al documento. Un dashboard resolverá la identidad visible mediante `users/{learnerId}` cuando sus permisos lo permitan.
 6. Preview, carrusel, popup y selección de dificultad no son actividad iniciada. Se distingue `launch_requested` de `started`; todos los denominadores de “iniciadas” requieren `outcome.hasStarted == true`.
 7. El documento representa el estado actual de la sesión mediante escrituras idempotentes. No se requiere un log de eventos ni una subcolección.
@@ -200,9 +207,9 @@ No habrá campos `archive`, `archived`, `archiveAt` ni equivalentes.
 | `schemaVersion` | `int` | Sí | Inicia en `1`; permite evolución compatible. |
 | `sessionId` | `string` UUID v4 | Sí | Igual al ID del documento. Facilita resultados de aggregate/query sin depender de metadata del snapshot. |
 | `subject` | `map` | Sí | Identidad semántica sin PII. |
-| `subject.learnerId` | `string` | Sí | UID de la cuenta que representa al niño. |
-| `subject.actorId` | `string` | Sí | UID autenticado que ejecuta. Actualmente igual a `learnerId`. |
-| `subject.identityModel` | `string` | Sí | Valor fijo `account_as_learner`. |
+| `subject.learnerId` | `string` | Sí | ID del perfil infantil activo. |
+| `subject.actorId` | `string` | Sí | UID Firebase Auth del parent. |
+| `subject.identityModel` | `string` | Sí | `parent_as_learner` para sesiones nuevas; `account_as_learner` en registros históricos. |
 | `activity` | `map` | Sí | Identidad y clasificación de la actividad. |
 | `activity.activityId` | `string` | Sí | ID transitorio estable `{moduleId}:{levelId}:{activityType}`. |
 | `activity.moduleId` | `string` | Sí | ID real de `modules/{moduleId}`. No permitir vacío al solicitar launch. |
@@ -249,7 +256,7 @@ No habrá campos `archive`, `archived`, `archiveAt` ni equivalentes.
 ### 5.2 Invariantes
 
 - `documentId == sessionId`.
-- `subject.actorId == request.auth.uid` y, mientras rija `account_as_learner`, `subject.learnerId == subject.actorId`.
+- `subject.actorId == request.auth.uid`; sesiones `parent_as_learner` deben referenciar un perfil infantil propiedad de ese parent.
 - `activity.activityId == "${moduleId}:${levelId}:${activityType}"` durante esta etapa.
 - `outcome.hasStarted == false` para `launch_requested` y `launch_error`.
 - `outcome.hasStarted == true` para `started`, `completed`, `abandoned` y `failed`.
@@ -555,7 +562,8 @@ Reglas mínimas del cliente móvil:
 
 - Requerir `request.auth != null`.
 - En create, exigir `subject.actorId == request.auth.uid`.
-- Mientras `identityModel == account_as_learner`, exigir también `subject.learnerId == request.auth.uid`.
+- Si `identityModel == account_as_learner`, exigir `subject.learnerId == request.auth.uid`.
+- Si `identityModel == parent_as_learner`, exigir que `subject.learnerId` exista bajo `users/{request.auth.uid}/learners/{learnerId}`.
 - Validar UUID/document ID, `schemaVersion`, tipos, estados y límites no negativos.
 - Impedir cualquier cambio de `subject.actorId`, `subject.learnerId`, `identityModel`, `sessionId`, `activity.*`, `createdAt` y `schemaVersion`.
 - Permitir update sólo si el documento existente pertenece al actor autenticado.
@@ -656,7 +664,7 @@ Ubicación sugerida: `../../test/features/telemetry`.
 - Reloj: múltiples segmentos, pausa/background, objective antes de delay, nunca duración negativa.
 - Timeout: 14:59 continúa; 15:00 terminaliza anterior y una continuación usa nuevo UUID.
 - Consentimiento: Settings no listo, activación a mitad, desactivación activa, fallo del cierre best-effort y descarte de payload.
-- Identidad: learner/actor iguales bajo `account_as_learner`, sin UUID adicional.
+- Identidad actual: actor Auth parent y learner ID del perfil; compatibilidad histórica con actor/learner iguales bajo `account_as_learner`.
 - Intentos: suma entre runs, callback duplicado no suma dos veces, media produce null.
 - Video: replay explícito suma y reinicia el tiempo visto; pause/resume/scrub/seek no suman; adelantar no habilita el 90% y `objective_met` se emite una sola vez por sesión.
 - Serialización: esquema v1 completo, sin PII ni campos archive.
@@ -688,7 +696,7 @@ Ubicación sugerida: `../../test/features/telemetry`.
 
 - Cada ejecución instrumentada crea como máximo un documento cuyo ID es UUID v4.
 - No existe nombre, correo, URL de recurso, stack trace ni otro dato PII en telemetría.
-- `subject.learnerId` y `subject.actorId` son campos separados, iguales al UID actual, con `identityModel = account_as_learner`.
+- `subject.learnerId` y `subject.actorId` son campos separados: perfil infantil y UID Auth parent, con `identityModel = parent_as_learner`. Los documentos históricos `account_as_learner` siguen siendo válidos.
 - Ningún documento/código de esquema incluye campos archive.
 - Preview y dificultad nunca producen `outcome.hasStarted = true`.
 - Sesiones terminales no cambian ante callbacks, lifecycle o retries posteriores.

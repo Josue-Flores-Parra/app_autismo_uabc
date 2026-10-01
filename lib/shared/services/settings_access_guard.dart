@@ -5,31 +5,31 @@ import 'package:flutter/services.dart';
 import '../../core/app_theme.dart';
 import 'pin_service.dart';
 
-/// Gating de PIN para entrar a Ajustes.
+/// Gating de PIN para cambiar del perfil infantil a la zona parent.
 ///
-/// Vive fuera de `MainShell` porque `ModuleListScreen` tambien abre Ajustes
-/// desde su `AppBar`; ambas entradas deben pedir el mismo PIN.
+/// La zona parent incluye ajustes de cuenta y administración de perfiles. El
+/// mismo guard se usa desde el selector y el acceso en `ModuleListScreen`.
 class SettingsAccessGuard {
   /// Devuelve `true` solo si el usuario definio o ingreso su PIN.
   static Future<bool> changePinFlow(BuildContext context) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
     final current = await PinService.getPin(uid);
-    if (current == null) return false;
-    
+    if (current == null || !context.mounted) return false;
+
     final verified = await showDialog<bool?>(
       context: context,
       barrierDismissible: false,
       builder: (c) => _PinDialog(storedPin: current),
     );
-    if (verified != true) return false;
+    if (verified != true || !context.mounted) return false;
 
     final newPin = await showDialog<String?>(
       context: context,
       barrierDismissible: false,
       builder: (c) => const _PinDialog(),
     );
-    
+
     if (newPin != null) {
       await PinService.setPin(uid, newPin);
       return true;
@@ -48,9 +48,42 @@ class SettingsAccessGuard {
     if (!context.mounted) return false;
 
     if (storedPin == null) {
+      // On the first device setup there is no secret to verify yet. Requiring
+      // the account password prevents a learner from claiming the parent area
+      // by creating a PIN themselves.
+      final passwordVerified = await _verifyParentPassword(context);
+      if (!passwordVerified || !context.mounted) return false;
       return _promptCreatePin(context, uid);
     }
     return _promptEnterPin(context, uid, storedPin);
+  }
+
+  static Future<bool> _verifyParentPassword(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) return false;
+    // First-time setup, not recovery: this account has no PIN yet, so the
+    // dialog must not look like a "forgot PIN" flow.
+    final password = await _promptPassword(
+      context,
+      email,
+      title: 'Verifica tu contraseña',
+      body:
+          'Esta cuenta aún no tiene PIN. Ingresa la contraseña de la cuenta '
+          'para crear uno por primera vez.',
+    );
+    if (password == null || password.isEmpty || !context.mounted) return false;
+    try {
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+      return true;
+    } catch (_) {
+      if (context.mounted) {
+        _showMessage(context, 'No se pudo validar la contraseña.');
+      }
+      return false;
+    }
   }
 
   static bool isWeakPin(String pin) {
@@ -70,10 +103,30 @@ class SettingsAccessGuard {
     return blacklist.contains(pin);
   }
 
-  static Future<bool> _promptCreatePin(BuildContext context, String uid) async {
-    final result = await showDialog<String?>(
+  /// Pushes a PIN dialog and resolves only after its exit animation finishes.
+  ///
+  /// `showDialog` completes as soon as the dialog is popped, while its overlay
+  /// is still animating out. Callers switch the profile gate right after a
+  /// successful PIN, which used to swap the whole screen tree underneath that
+  /// overlay and abort the navigation (the user had to tap a second time).
+  /// Waiting for [Route.completed] avoids it, same as the profile dialogs.
+  static Future<T?> _showPinDialog<T>({
+    required BuildContext context,
+    required WidgetBuilder builder,
+  }) async {
+    final route = DialogRoute<T>(
       context: context,
       barrierDismissible: false,
+      builder: builder,
+    );
+    final result = await Navigator.of(context, rootNavigator: true).push(route);
+    await route.completed;
+    return result;
+  }
+
+  static Future<bool> _promptCreatePin(BuildContext context, String uid) async {
+    final result = await _showPinDialog<String?>(
+      context: context,
       builder: (_) => const _PinDialog(),
     );
 
@@ -89,9 +142,8 @@ class SettingsAccessGuard {
     String uid,
     String storedPin,
   ) async {
-    final result = await showDialog<bool?>(
+    final result = await _showPinDialog<bool?>(
       context: context,
-      barrierDismissible: false,
       builder: (_) => _PinDialog(storedPin: storedPin),
     );
 
@@ -132,20 +184,23 @@ class SettingsAccessGuard {
 
   static Future<String?> _promptPassword(
     BuildContext context,
-    String email,
-  ) async {
+    String email, {
+    String title = 'Recuperar PIN',
+    String? body,
+  }) async {
     final controller = TextEditingController();
     return showDialog<String?>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Recuperar PIN'),
+          title: Text(title),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Correo: $email'),
+              if (body != null) ...[const SizedBox(height: 8), Text(body)],
               const SizedBox(height: 12),
               TextField(
                 controller: controller,

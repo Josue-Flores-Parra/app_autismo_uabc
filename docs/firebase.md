@@ -124,25 +124,28 @@ Metodos reales:
 | `getModuleData(moduleId)` | `modules/{moduleId}` | Lee un modulo y agrega `id` desde doc id. |
 | `getAllModules()` | `modules` | Lee todos los modulos y agrega `id`. Si falla retorna `[]`. |
 | `getModuleLevels(moduleId)` | `modules/{moduleId}/levels` | Ordena por `orden`; si `moduleId` vacio retorna `[]`. |
-| `updateUserLevelProgress(uid, moduleId, levelId, data)` | `users/{uid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; si falla lo silencia. |
-| `getUserLevelsProgress(uid, moduleId)` | `users/{uid}/progress/{moduleId}/levels` | Retorna map por `levelId`; si falla retorna `{}`. |
-| `getUserLevel(uid)` | `users/{uid}.nivel` | Lee `nivel` como `int` o `String`; default `1`. |
+| `updateUserLevelProgress(learnerUid, moduleId, levelId, data)` | `users/{learnerUid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; si falla lo silencia. |
+| `getUserLevelsProgress(learnerUid, moduleId)` | `users/{learnerUid}/progress/{moduleId}/levels` | Retorna map por `levelId`; si falla retorna `{}`. |
+| `getUserLevel(learnerUid)` | `users/{learnerUid}.nivel` | Lee `nivel` como `int` o `String`; default `1`. |
 
 ## Rutas Firestore usadas
 
 ```text
 users/{uid}
-users/{uid}/progress/{moduleId}
-users/{uid}/progress/{moduleId}/levels/{levelId}
+users/{parentUid}/learners/{learnerUid}
+users/{learnerUid}
+users/{learnerUid}/progress/{moduleId}
+users/{learnerUid}/progress/{moduleId}/levels/{levelId}
 modules/{moduleId}
 modules/{moduleId}/levels/{levelId}
 telemetryActivitySessions/{sessionId}
 ```
 
-El progreso del learning module vive agrupado por modulo:
+El progreso del learning module vive agrupado por learner, no por la cuenta Auth
+del parent:
 
 ```text
-users/{uid}/progress/{moduleId}/levels/{levelId}
+users/{learnerUid}/progress/{moduleId}/levels/{levelId}
 ```
 
 Usado por `LearningViewModel` y `LevelCompletionService`.
@@ -173,11 +176,14 @@ Campos escritos por el codigo actual:
 
 | Campo | Quien lo escribe | Detalle |
 | --- | --- | --- |
-| `name` | Registro y update display name | Nombre visible en Firestore. |
+| `name` | Registro/update display name o profile repository | Nombre de la cuenta parent o nombre visible del learner. |
 | `email` | Registro | Email usado para Auth. |
-| `createdAt` | Registro | String ISO 8601. |
-| `deletedAt` | Eliminacion de cuenta | String ISO 8601, escrito antes de `User.delete()`. |
+| `createdAt` | Registro / profile repository | String ISO 8601 en cuentas, learners y perfiles (la migración normaliza los Timestamps de prueba). |
+| `deletedAt` | Eliminacion de cuenta | Marcador ISO 8601 transitorio antes de limpiar learners y eliminar el documento parent. |
 | `avatarConfig` | `AvatarViewModel` | Mapa completo de personalizacion del avatar. |
+| `role` | Auth/profile repository | `parent` en el documento Auth; `learner` en cada documento infantil. |
+| `profilesInitialized` | Registro/migracion | Marca que ya se inicializo (o migró) la cuenta. |
+| `parentUid` | Profile repository | Parent propietario del documento de learner. |
 
 Campos leidos por el codigo actual:
 
@@ -209,7 +215,11 @@ Campos esperados por `ModuloInfo.fromFirestore`:
 
 `ModulosGridView` agrega otro bloqueo visual si:
 
-- El indice del modulo queda fuera de `SettingsViewModel.parentalAllowedModules`.
+- El indice del modulo queda fuera del `allowedModules` del learner seleccionado.
+
+El control en UI mejora la experiencia, pero no es una restriccion de seguridad
+del catálogo; Firestore Rules sí restringe el acceso a los datos privados al
+parent propietario del learner.
 
 ## modules/{moduleId}/levels/{levelId}
 
@@ -234,9 +244,8 @@ en timeline no depende solo de `estado` del documento; se recalcula con progreso
 
 ## Progreso por nivel
 
-La escritura principal se hace desde `LevelCompletionService`.
-
-Para niveles interactivos exitosos:
+La escritura principal se hace desde `LevelCompletionService`, tanto para
+actividades interactivas como de observacion:
 
 ```text
 users/{uid}/progress/{moduleId}/levels/{levelId}
@@ -246,31 +255,28 @@ Campos escritos:
 
 | Campo | Valor |
 | --- | --- |
-| `status` | `completed` si `success == true`; `in_progress` si no. |
-| `estrellas` | `3` si `attempts <= 1`, `2` si `attempts == 2`, `1` para mas intentos. |
-| `attempts` | Intentos reportados por el minijuego. |
-| `completedAt` | ISO 8601 si hubo exito; `null` si no. |
-| `updatedAt` | ISO 8601. |
+| `status` | `completed` al completar todas las modalidades del nivel; `in_progress` en otro caso. |
+| `estrellas` | Cantidad de modalidades completadas; 3 al terminar el nivel, incluso si ofrece menos de 3. |
+| `attempts` | Equivocaciones de la ultima actividad (0 en observacion). |
+| `activities` | Mapa de modalidades completadas con su fecha, intentos y marca `rewarded`. |
+| `completedAt` | ISO 8601 al terminar el nivel. |
+| `updatedAt` | ISO 8601 en cada escritura. |
+| `type` | `observation` en actividades de pictograma y video. |
 
-Para niveles de observacion:
-
-| Campo | Valor |
-| --- | --- |
-| `status` | `completed` |
-| `estrellas` | `2` |
-| `attempts` | `0` |
-| `completedAt` | ISO 8601 |
-| `updatedAt` | ISO 8601 |
-| `type` | `observation` |
+El servicio lee el documento antes de escribir. Si ya tiene 3 estrellas, ni
+un reintento exitoso ni uno fallido modifican sus campos (incluidas fechas e
+intentos); un exito aun puede dar recompensa de repaso al avatar.
 
 Recompensas:
 
-| Caso | Estrellas | Monedas |
-| --- | --- | --- |
-| Interactivo en 1 intento o menos | 3 | 30 |
-| Interactivo en 2 intentos | 2 | 20 |
-| Interactivo en 3+ intentos | 1 | 10 |
-| Observacion | 2 | 20 |
+| Caso | Monedas |
+| --- | --- |
+| Interactivo sin equivocaciones | 30 |
+| Interactivo con 1 o 2 equivocaciones | 20 |
+| Interactivo con 3 o mas equivocaciones | 10 |
+| Observacion (primera vez) | 10 |
+| Repaso exitoso | 5 |
+| Actividad fallida | 0 |
 
 Las monedas se suman en el `AvatarViewModel` actual y se guardan dentro de
 `avatarConfig.monedas`.

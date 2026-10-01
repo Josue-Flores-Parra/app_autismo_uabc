@@ -57,7 +57,9 @@ class AvatarViewModel extends ChangeNotifier {
   // escribe nada en Firestore: guardar antes de leer sobrescribía las monedas
   // del usuario con los valores por defecto.
   String? _loadedUid;
+  String? _learnerUid;
   bool _isLoading = false;
+  int _learnerGeneration = 0;
 
   // Momento del último cálculo de energía, persistido junto al avatar.
   DateTime? _energiaActualizadaEn;
@@ -78,14 +80,24 @@ class AvatarViewModel extends ChangeNotifier {
     _availableFondos = AvatarRepository.obtenerFondosDisponibles();
   }
 
-  Future<void> initialize() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+  void setLearnerUid(String? uid) {
+    if (_learnerUid == uid) return;
+    _learnerUid = uid;
+    _learnerGeneration++;
+    _loadedUid = null;
+    _currentEstado = _estadoInicial;
+    _energiaActualizadaEn = null;
+  }
+
+  Future<void> initialize({String? userId}) async {
+    final uid = userId ?? _learnerUid;
     if (uid == null || _isLoading) return;
     if (_loadedUid == uid) {
       return; // Ya cargado para esta cuenta.
     }
 
     _isLoading = true;
+    final generation = _learnerGeneration;
     try {
       if (_loadedUid != null) {
         // Cambió la cuenta: no heredar monedas ni accesorios de la anterior.
@@ -95,16 +107,19 @@ class AvatarViewModel extends ChangeNotifier {
       await loadAvatarConfigFromFirestore();
     } finally {
       _isLoading = false;
+      if (generation != _learnerGeneration && _learnerUid != null) {
+        initialize(userId: _learnerUid);
+      }
     }
   }
 
   Future<void> saveAvatarConfigToFirestore() async {
     try {
       final User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
+      final userId = _learnerUid;
+      if (user == null || userId == null) {
         throw Exception('No user is currently signed in.');
       }
-      final userId = user.uid;
 
       // Nunca escribir sobre una configuración que todavía no se ha leído.
       if (_loadedUid != userId) return;
@@ -131,13 +146,12 @@ class AvatarViewModel extends ChangeNotifier {
 
   Future<void> loadAvatarConfigFromFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) return;
-
-    final userId = user.uid;
+    final userId = _learnerUid;
+    if (user == null || userId == null) return;
 
     try {
       final userData = await _firestoreService.getUserData(userId);
+      if (userId != _learnerUid) return;
 
       final nombreEnFirestore = userData?['name'] as String?;
 
@@ -159,9 +173,7 @@ class AvatarViewModel extends ChangeNotifier {
         final skinsDesbloqueadasGuardadas =
             (configMap['skinsDesbloqueadas'] as List?)?.cast<String>().toSet();
         final fondosDesbloqueadosGuardados =
-            (configMap['fondosDesbloqueados'] as List?)
-                ?.cast<String>()
-                .toSet();
+            (configMap['fondosDesbloqueados'] as List?)?.cast<String>().toSet();
 
         final skinActual = _availableSkins.firstWhere(
           (s) => s.nombre == skinNombre,
@@ -184,10 +196,10 @@ class AvatarViewModel extends ChangeNotifier {
         // Firestore "name") como en Módulos.
         final nombreFinal = !_esNombreSinDefinir(nombre)
             ? nombre!
-            : (user.displayName?.trim().isNotEmpty == true
-                  ? user.displayName!
-                  : (nombreEnFirestore?.trim().isNotEmpty == true
-                        ? nombreEnFirestore!
+            : (nombreEnFirestore?.trim().isNotEmpty == true
+                  ? nombreEnFirestore!
+                  : (user.displayName?.trim().isNotEmpty == true
+                        ? user.displayName!
                         : _currentEstado.nombre));
 
         _energiaActualizadaEn = _parseFecha(configMap['energiaActualizadaEn']);
@@ -227,10 +239,10 @@ class AvatarViewModel extends ChangeNotifier {
         notifyListeners();
       } else {
         // Usuario nuevo o sin avatarConfig: usar nombre de la cuenta (como en Módulos).
-        final nombreAUsar = user.displayName?.trim().isNotEmpty == true
-            ? user.displayName!
-            : (nombreEnFirestore?.trim().isNotEmpty == true
-                  ? nombreEnFirestore!
+        final nombreAUsar = nombreEnFirestore?.trim().isNotEmpty == true
+            ? nombreEnFirestore!
+            : (user.displayName?.trim().isNotEmpty == true
+                  ? user.displayName!
                   : null);
         _loadedUid = userId;
         // Solo se toma el nombre de la cuenta si el de memoria sigue siendo
@@ -397,7 +409,8 @@ class AvatarViewModel extends ChangeNotifier {
         : (success ? _felicidadPorExito : _felicidadPorIntento);
     final energiaDelta = esRepaso ? _energiaPorRepaso : -_energiaPorActividad;
 
-    final felicidad = _felicidadConTiempo(_currentEstado.felicidad) + felicidadDelta;
+    final felicidad =
+        _felicidadConTiempo(_currentEstado.felicidad) + felicidadDelta;
     final energia = _energiaConDescanso(_currentEstado.energia) + energiaDelta;
 
     _currentEstado = _currentEstado.copyWith(
@@ -408,7 +421,10 @@ class AvatarViewModel extends ChangeNotifier {
     _energiaActualizadaEn = DateTime.now();
     notifyListeners();
     await saveAvatarConfigToFirestore();
-    return AvatarActivityDelta(felicidad: felicidadDelta, energia: energiaDelta);
+    return AvatarActivityDelta(
+      felicidad: felicidadDelta,
+      energia: energiaDelta,
+    );
   }
 
   /*

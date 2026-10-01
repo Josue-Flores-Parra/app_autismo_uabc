@@ -627,14 +627,15 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                // Indicador de intentos restantes, alimentado por _remainingAttempts.
+                // Una comprobacion correcta no consume intento; mostrar los
+                // disponibles, no los errores ya registrados.
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.flag, color: Color(0xFFFFD700), size: 16),
                     const SizedBox(width: 4),
                     Text(
-                      'Intentos: $_remainingAttempts',
+                      'Intentos restantes: $_remainingAttempts',
                       style: const TextStyle(
                         color: Color(0xFFFFD700),
                         fontSize: 13,

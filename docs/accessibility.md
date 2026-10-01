@@ -7,19 +7,20 @@ lo que debe cuidarse al agregar UI.
 
 ## Preferencias actuales
 
-`SettingsViewModel` controla:
+`SettingsViewModel` controla las preferencias parent-wide (tema, idioma) y
+resuelve las efectivas por perfil seleccionado:
 
-| Preferencia | Estado actual |
-| --- | --- |
-| `themeMode` | Conectado a `MaterialApp.themeMode`. |
-| `fontScale` | Conectado a `MediaQuery.textScaler` con factores 0.9, 1.0 y 1.15. |
-| `locale` | Conectado a `MaterialApp.locale`. |
-| `highContrast` | Conectado a `AppTheme.light/dark`. |
-| `reduceAnimations` | Conectado a transiciones de pagina en `AppTheme` y a `AnimatedSwitcher` de `MainShell`. |
-| `audioFeedback` | Conectado via `FeedbackPreferences` a `TtsService`, `CelebrationHelper` y `NegativeFeedbackHelper`. Apagarlo silencia el dictado de pictogramas y los sonidos de acierto y fallo. |
-| `hapticFeedback` | Conectado via `FeedbackPreferences` a `HapticsService`, que vibra al abrir y cerrar elementos y al resolver una actividad. |
-| `remindersEnabled` | Persistido; permite elegir hora, pero no programa notificaciones reales. La pantalla lo advierte junto al horario. |
-| `parentalAllowedModules` | Conectado a bloqueo visual de modulos en `ModuleListScreen`. |
+| Preferencia | Alcance | Estado actual |
+| --- | --- | --- |
+| `themeMode` | Parent | Conectado a `MaterialApp.themeMode`. |
+| `locale` | Parent | Conectado a `MaterialApp.locale`. |
+| `fontScale` | Por perfil | Conectado a `MediaQuery.textScaler` con factores 0.9, 1.0 y 1.15. |
+| `highContrast` | Por perfil | Conectado a `AppTheme.light/dark`. |
+| `reduceAnimations` | Por perfil | Conectado a transiciones de pagina en `AppTheme` y a `AnimatedSwitcher` de `MainShell`. |
+| `audioFeedback` | Por perfil | Conectado via `FeedbackPreferences` a `TtsService`, `CelebrationHelper` y `NegativeFeedbackHelper`. Apagarlo silencia el dictado de pictogramas y los sonidos de acierto y fallo. |
+| `hapticFeedback` | Por perfil | Conectado via `FeedbackPreferences` a `HapticsService`, que vibra al abrir y cerrar elementos y al resolver una actividad. |
+| `remindersEnabled` | Por perfil | Persistido; permite elegir hora, pero no programa notificaciones reales. La pantalla lo advierte junto al horario. |
+| Límite de módulos | Por perfil | Se guarda por perfil infantil en Firestore y se aplica en `ModuleListScreen`. |
 
 ## Escala de texto
 
@@ -112,13 +113,13 @@ deben tener label semantico o texto equivalente visible.
 
 ## PIN y control parental
 
-`SettingsAccessGuard` protege Ajustes con PIN desde su unico punto de entrada:
-el icono del `AppBar` en `ModuleListScreen`. El PIN se guarda por cuenta
-(`settingsPin_<uid>`), asi que no se filtra entre usuarios del dispositivo ni
-sobrevive a borrar y recrear la cuenta.
+`SettingsAccessGuard` protege el cambio desde el perfil infantil a la zona
+parent de administración y ajustes. El PIN se guarda por cuenta
+(`settingsPin_<parentUid>`). Si todavía no existe PIN, primero se verifica la
+contraseña Auth del parent y después se crea.
 
-`parentalAllowedModules` limita cuantos modulos, en el orden mostrado, puede
-abrir el nino. Es bloqueo visual en la lista; no es una regla de seguridad en
+`allowedModules` limita por perfil cuántos módulos, en el orden mostrado, puede
+abrir el niño. Es bloqueo visual en la lista; no es una regla de seguridad en
 Firestore.
 
 ## Consideraciones para usuarios con autismo

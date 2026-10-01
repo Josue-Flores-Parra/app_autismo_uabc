@@ -162,7 +162,8 @@ redundantes "por si acaso" (cada índice aumenta costo de escritura/almacenamien
 
 ## Resolución de identidad visible
 
-`subject.learnerId` / `subject.actorId` son UIDs sin PII. Para mostrar un nombre
+`subject.learnerId` es el ID del perfil y `subject.actorId` el UID del parent,
+ambos sin PII. Para mostrar un nombre
 visible, el dashboard (rol/backend privilegiado, no cliente móvil) resuelve
 `users/{learnerId}` con permiso verificable. No se copia PII a telemetría.
 ## Validación y despliegue
@@ -234,7 +235,7 @@ consulta KPI requiere un índice no declarado, el error del emulador muestra el
 {
   "schemaVersion": 1,
   "sessionId": "c93e3713-7399-450e-9a66-ff9657000741",
-  "subject": { "learnerId": "uid-abc", "actorId": "uid-abc", "identityModel": "account_as_learner" },
+  "subject": { "learnerId": "learner-abc", "actorId": "parent-uid", "identityModel": "parent_as_learner" },
   "activity": { "activityId": "m1:l1:simple_selection", "moduleId": "m1", "levelId": "l1", "activityType": "simple_selection" },
   "outcome": { "hasStarted": true, "objectiveReached": true, "isCompleted": true, "navigationSuccessful": true, "terminalReason": "objective_completed" },
   "timing": { "activeDurationMs": 12500, "activeSegmentCount": 1, "launchRequestedAt": "<server>", "startedAt": "<server>", "objectiveMetAt": "<server>", "terminalAt": "<server>" },
