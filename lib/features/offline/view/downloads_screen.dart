@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../core/app_theme.dart';
 import '../../../data/services/offline_assets_service.dart';
 import '../../../l10n/gen/app_localizations.dart';
-import '../../learning_module/viewmodel/learning_viewmodel.dart';
 import '../viewmodel/downloads_viewmodel.dart';
 
 /// Pantalla para descargar módulos y usarlos sin conexión. Se abre desde los
@@ -15,10 +14,8 @@ class DownloadsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => DownloadsViewModel(
-        context.read<LearningViewModel>(),
-        OfflineAssetsService.instance,
-      )..load(),
+      create: (context) =>
+          DownloadsViewModel(OfflineAssetsService.instance)..load(),
       child: const _DownloadsView(),
     );
   }

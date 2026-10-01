@@ -21,7 +21,7 @@ pictogramas, audio e imagenes de los minijuegos) vive en Firebase Storage.
 | --- | --- | --- |
 | `OfflineAssetsService` | `lib/data/services/offline_assets_service.dart` | Unico punto que toca red y disco para este contenido. Descarga, valida, borra y responde "donde esta este archivo". |
 | `OfflineManifest` | `lib/data/models/offline_manifest.dart` | Lista por modulo de URL original, nombre local y bytes. |
-| `DownloadsViewModel` | `lib/features/offline/viewmodel/downloads_viewmodel.dart` | Estado de cada modulo y acciones descargar y borrar. |
+| `DownloadsViewModel` | `lib/features/offline/viewmodel/downloads_viewmodel.dart` | Estado de cada modulo y acciones descargar y borrar. Lee el catalogo de Firestore por su cuenta: la pantalla vive en la zona del padre, donde `LearningViewModel` no tiene perfil activo. |
 | `DownloadsScreen` | `lib/features/offline/view/downloads_screen.dart` | Lista de modulos con estado, progreso, errores y boton de borrar. |
 
 ## Almacenamiento

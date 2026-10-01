@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/firestore_services.dart';
 import '../../../data/services/offline_assets_service.dart';
 import '../../learning_module/model/levels_models.dart';
-import '../../learning_module/viewmodel/learning_viewmodel.dart';
+import '../../learning_module/model/modulo_info.dart';
 
 /// Qué hace ahora mismo la descarga de un módulo.
 enum ModuleDownloadPhase { idle, downloading, failed }
@@ -55,11 +56,21 @@ class ModuleDownloadInfo {
 
 /// Lógica de la pantalla de descargas: qué módulos hay, cuáles están
 /// disponibles sin conexión y las acciones de descargar y borrar.
+///
+/// Lee el catálogo de Firestore por su cuenta. La pantalla vive en la zona del
+/// padre, donde el [LearningViewModel] no tiene un perfil activo y está vacío.
 class DownloadsViewModel extends ChangeNotifier {
-  DownloadsViewModel(this._learning, this._service);
+  DownloadsViewModel(
+    this._service, {
+    Future<List<Map<String, dynamic>>> Function()? loadModules,
+    Future<List<Map<String, dynamic>>> Function(String moduleId)? loadLevels,
+  }) : _loadModules = loadModules ?? FirestoreService().getAllModules,
+       _loadLevels = loadLevels ?? FirestoreService().getModuleLevels;
 
-  final LearningViewModel _learning;
   final OfflineAssetsService _service;
+  final Future<List<Map<String, dynamic>>> Function() _loadModules;
+  final Future<List<Map<String, dynamic>>> Function(String moduleId)
+  _loadLevels;
 
   final Map<String, Set<String>> _urls = {};
   List<ModuleDownloadInfo> _modules = [];
@@ -76,13 +87,28 @@ class DownloadsViewModel extends ChangeNotifier {
     _isLoading = true;
     _notify();
 
+    List<ModuloInfo> modules;
+    try {
+      modules = [
+        for (final data in await _loadModules()) ModuloInfo.fromFirestore(data),
+      ];
+    } catch (e) {
+      debugPrint('DownloadsViewModel: módulos no leídos: $e');
+      modules = [];
+    }
+
     final infos = <ModuleDownloadInfo>[];
-    for (final module in _learning.modulos) {
+    for (final module in modules) {
       Set<String>? urls;
       try {
-        final levels = await _learning.getModuleLevels(module.id);
-        urls = collectLevelAssetUrls(levels);
-        _urls[module.id] = urls;
+        final levels = [
+          for (final data in await _loadLevels(module.id))
+            ModuleLevelInfo.fromFirestore(data),
+        ];
+        if (levels.isNotEmpty) {
+          urls = collectLevelAssetUrls(levels);
+          _urls[module.id] = urls;
+        }
       } catch (e) {
         debugPrint('DownloadsViewModel: niveles de ${module.id} no leídos: $e');
       }
