@@ -598,3 +598,10 @@ dialogo de `LevelPlayScreen` como `showVideoCompletionDialog`.
 - Si agregas minijuego, actualiza `LevelPlayScreen`, `MinigameType`, registros en `main.dart` y docs de minigames.
 - Si cambias progreso, actualiza `LevelCompletionService`, `LearningViewModel` y `docs/data-model.md`.
 - Si agregas imagen remota masiva, revisar cache/pinning para no saturar conexiones.
+
+## Salir del video en pantalla completa
+
+Salir de `VideoPlayerScreen` sin completar devuelve un `VideoResume` (posicion y
+segundos vistos). `LevelContentScreen` reabre la vista previa y esta retoma el
+video en esa posicion; al volver a la pantalla completa se conservan los segundos
+vistos. Completar el video si regresa al menu de orbes.

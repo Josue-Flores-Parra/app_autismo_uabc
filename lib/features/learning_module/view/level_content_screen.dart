@@ -7,6 +7,7 @@ import 'level_play_screen.dart';
 import 'popup_preview.dart';
 import 'puzzle_grid_background.dart';
 import 'video_player_screen.dart';
+import '../model/video_resume.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
@@ -267,7 +268,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     });
   }
 
-  Future<void> _openSelectedPreviewFlow() async {
+  Future<void> _openSelectedPreviewFlow({VideoResume? resume}) async {
     if (_isLaunchingActivity) return;
 
     final selected = _selectedContent;
@@ -292,6 +293,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           canLaunch: _canPlaySelectedContent,
           previewImageUrl: _selectedPreviewImageUrl,
           videoPreviewPath: selectedVideoPath,
+          videoStartAt: resume?.position ?? Duration.zero,
           onLaunch: () => Navigator.of(dialogContext).pop(true),
         ),
       );
@@ -306,6 +308,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     }
 
     ActivitySessionHandle? telemetryHandle;
+    VideoResume? videoResume;
     try {
       // Para el rompecabezas se pide elegir la dificultad antes de entrar.
       int? puzzleGridSize;
@@ -333,7 +336,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       // preview, y siempre entra por esta ruta instrumentada.
       if (activityType == 'video') {
         final videoUrl = selectedVideoPath ?? '';
-        await Navigator.push(
+        videoResume = await Navigator.push<VideoResume?>(
           context,
           MaterialPageRoute(
             builder: (context) => VideoPlayerScreen(
@@ -342,6 +345,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               levelId: widget.levelId,
               moduleId: widget.moduleId,
               telemetryHandle: telemetryHandle,
+              resume: resume,
             ),
           ),
         );
@@ -369,6 +373,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       _isLaunchingActivity = false;
     }
     if (!mounted) return;
+
+    // Salir de la pantalla completa sin terminar vuelve a la vista previa, que
+    // retoma el video donde se quedó, en vez de sacar al menú de orbes.
+    if (videoResume != null) {
+      await _openSelectedPreviewFlow(resume: videoResume);
+      return;
+    }
 
     // Recargar datos después de regresar
     if (widget.moduleId != null) {

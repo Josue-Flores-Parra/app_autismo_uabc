@@ -249,6 +249,10 @@ class VideoPreviewCard extends StatefulWidget {
   final VideoPlayerController? externalController;
   final VoidCallback? onLaunch;
 
+  /// Posición desde donde se muestra el video, para retomarlo al volver de la
+  /// pantalla completa.
+  final Duration startAt;
+
   const VideoPreviewCard({
     super.key,
     required this.videoPath,
@@ -258,6 +262,7 @@ class VideoPreviewCard extends StatefulWidget {
     this.isActive = true,
     this.externalController,
     this.onLaunch,
+    this.startAt = Duration.zero,
   });
 
   @override
@@ -293,6 +298,14 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.addListener(() {
       if (mounted) setState(() {});
     });
+    if (widget.startAt > Duration.zero) {
+      _viewModel.initializeVideoFuture
+          .then((_) async {
+            if (!mounted) return;
+            await _viewModel.videoController.seekTo(widget.startAt);
+          })
+          .catchError((_) {});
+    }
   }
 
   @override
