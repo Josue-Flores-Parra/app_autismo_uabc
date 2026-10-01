@@ -315,6 +315,12 @@ Mecanica:
 - Notifica `onIndexChanged` solo cuando cambia el item logico.
 - Tocar el nodo enfocado llama `onFocusedNodePressed`; tocar un satelite lo trae al frente (`_bringToFront`).
 - Muestra labels `PICTOGRAMA`, `VIDEO`, `AUDIO`, `MINIJUEGO`.
+- El enfocado muestra su label grande al pie del selector. Cada orbe satelite
+  muestra una pill compacta con su tipo bajo el orbe, centrada en su columna y
+  limitada al ancho del orbe. La pill se desvanece a medida que el orbe se
+  acerca al foco. El orbe superior del arco (cuando hay cuatro tarjetas) lleva
+  la pill encima para no quedar tapado por el enfocado. Tocar la pill equivale
+  a tocar el orbe.
 - Usa iconos PNG locales para pictograma, video y simple selection.
 
 Disposicion en cruz: todos los nodos son visibles a la vez. El enfocado va al

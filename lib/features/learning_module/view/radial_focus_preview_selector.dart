@@ -44,6 +44,9 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
   // Valor > 1 se siente mas "nervioso" y puede generar saltos involuntarios.
   static const double _dragSensitivity = 0.62;
 
+  // Alto de la etiqueta del tipo bajo cada orbe satelite.
+  static const double _nodeLabelHeight = 22;
+
   late int _virtualIndex;
   late final AnimationController _snapController;
   Animation<double>? _snapAnimation;
@@ -387,6 +390,15 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                 // para que quede al frente.
                 nodes.sort((a, b) => a.depth.compareTo(b.depth));
 
+                void handleNodeTap(_RadialNodeLayout node) {
+                  if (_isDragging) return;
+                  if (node.offset == 0) {
+                    widget.onFocusedNodePressed?.call(_selectedLogicalIndex);
+                  } else {
+                    _bringToFront(node.offset);
+                  }
+                }
+
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -406,16 +418,7 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                           opacity: node.opacity,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              if (_isDragging) return;
-                              if (node.offset == 0) {
-                                widget.onFocusedNodePressed?.call(
-                                  _selectedLogicalIndex,
-                                );
-                              } else {
-                                _bringToFront(node.offset);
-                              }
-                            },
+                            onTap: () => handleNodeTap(node),
                             child: _RadialNode(
                               size: node.size,
                               blurSigma: node.blurSigma,
@@ -431,6 +434,15 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
                           ),
                         ),
                       ),
+                    for (final node in nodes)
+                      if (_nodeLabelOpacity(node) > 0)
+                        _buildNodeLabel(
+                          node: node,
+                          focusCenter: focusCenter,
+                          focusSize: focusSize,
+                          maxHeight: height,
+                          onTap: () => handleNodeTap(node),
+                        ),
                   ],
                 );
               },
@@ -516,11 +528,18 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
     }
   }
 
-  Widget _buildTypeLabel(BuildContext context, String text) {
+  Widget _buildTypeLabel(
+    BuildContext context,
+    String text, {
+    bool compact = false,
+  }) {
     final colors = context.appColors;
     // Chip compacto para reforzar el tipo de contenido sin ocupar altura extra.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 14,
+        vertical: compact ? 3 : 6,
+      ),
       decoration: BoxDecoration(
         color: colors.accentSoft,
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -530,9 +549,55 @@ class _RadialFocusPreviewSelectorState extends State<RadialFocusPreviewSelector>
         text,
         style: TextStyle(
           color: colors.ink,
-          fontSize: 13,
+          fontSize: compact ? 10 : 13,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
+          letterSpacing: compact ? 0.4 : 0.8,
+        ),
+      ),
+    );
+  }
+
+  // Opacidad de la etiqueta segun cuanto se acerca el orbe al foco.
+  double _nodeLabelOpacity(_RadialNodeLayout node) =>
+      ((1.0 - node.depth) / 0.45).clamp(0.0, 1.0);
+
+  // Etiqueta del tipo bajo cada orbe satelite, centrada en la columna del
+  // orbe. El enfocado ya muestra la etiqueta grande al pie del selector, asi
+  // que esta se desvanece a medida que el orbe pasa al foco.
+  Widget _buildNodeLabel({
+    required _RadialNodeLayout node,
+    required Offset focusCenter,
+    required double focusSize,
+    required double maxHeight,
+    required VoidCallback onTap,
+  }) {
+    final labelOpacity = _nodeLabelOpacity(node);
+
+    // El orbe superior del arco queda sobre el enfocado: su etiqueta va
+    // arriba para no quedar tapada.
+    final isUpper = node.center.dy < focusCenter.dy - focusSize * 0.35;
+    final top = isUpper
+        ? node.center.dy - (node.size / 2) - _nodeLabelHeight - 2
+        : node.center.dy + (node.size / 2) + 2;
+
+    return Positioned(
+      left: node.center.dx - (node.size / 2),
+      width: node.size,
+      top: top.clamp(0.0, math.max(0.0, maxHeight - _nodeLabelHeight)),
+      height: _nodeLabelHeight,
+      child: Opacity(
+        opacity: labelOpacity,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: _buildTypeLabel(
+              context,
+              _typeLabelFor(widget.contents[node.logicalIndex]),
+              compact: true,
+            ),
+          ),
         ),
       ),
     );
