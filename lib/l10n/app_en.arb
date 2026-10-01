@@ -36,7 +36,16 @@
   "notificationsSection": "Notifications & reminders",
   "enableReminders": "Enable practice reminders",
   "scheduleReminder": "Suggested schedule",
-  "reminderPlaceholder": "Scheduling coming soon",
+  "reminderPlaceholder": "Turn on reminders to choose the time",
+  "reminderDailyAt": "Every day at {time}",
+  "@reminderDailyAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "reminderNotificationTitle": "Time to practice with Appy",
+  "reminderNotificationBody": "There are activities waiting for you.",
+  "reminderPermissionDenied": "Turn on Appy notifications in the phone settings to get reminders.",
   "privacySection": "Privacy & data",
   "clearCache": "Clear cached resources",
   "sendMetrics": "Send anonymous metrics",
@@ -87,7 +96,6 @@
   "savedSnackbar": "Settings updated",
   "errorSnackbar": "Something went wrong",
   "cacheClearedSnackbar": "Cache cleaned",
-  "reminderNotImplemented": "Reminder scheduling will be available soon",
   "logoutSuccess": "You signed out",
   "passwordUpdated": "Password updated",
   "displayNameUpdated": "Name updated",

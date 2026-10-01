@@ -19,7 +19,7 @@ resuelve las efectivas por perfil seleccionado:
 | `reduceAnimations` | Por perfil | Conectado a transiciones de pagina en `AppTheme` y a `AnimatedSwitcher` de `MainShell`. |
 | `audioFeedback` | Por perfil | Conectado via `FeedbackPreferences` a `TtsService`, `CelebrationHelper` y `NegativeFeedbackHelper`. Apagarlo silencia el dictado de pictogramas y los sonidos de acierto y fallo. |
 | `hapticFeedback` | Por perfil | Conectado via `FeedbackPreferences` a `HapticsService`, que vibra al abrir y cerrar elementos y al resolver una actividad. |
-| `remindersEnabled` | Por perfil | Persistido; permite elegir hora, pero no programa notificaciones reales. La pantalla lo advierte junto al horario. |
+| `remindersEnabled` | Por perfil | Persistido. Al activarlo se pide el permiso de notificaciones y se programa un aviso local diario a la hora elegida (`ReminderService`). Si el permiso se niega, queda apagado. |
 | Límite de módulos | Por perfil | Se guarda por perfil infantil en Firestore y se aplica en `ModuleListScreen`. |
 
 ## Escala de texto

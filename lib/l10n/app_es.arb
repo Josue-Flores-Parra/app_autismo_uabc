@@ -36,7 +36,16 @@
   "notificationsSection": "Notificaciones y recordatorios",
   "enableReminders": "Activar recordatorios de práctica",
   "scheduleReminder": "Horario sugerido",
-  "reminderPlaceholder": "Programación disponible pronto",
+  "reminderPlaceholder": "Activa los recordatorios para elegir la hora",
+  "reminderDailyAt": "Todos los días a las {time}",
+  "@reminderDailyAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "reminderNotificationTitle": "Hora de practicar con Appy",
+  "reminderNotificationBody": "Hay actividades esperándote.",
+  "reminderPermissionDenied": "Activa las notificaciones de Appy en los ajustes del teléfono para recibir recordatorios.",
   "privacySection": "Privacidad y datos",
   "clearCache": "Limpiar caché de recursos",
   "sendMetrics": "Enviar métricas anónimas",
@@ -87,7 +96,6 @@
   "savedSnackbar": "Ajustes actualizados",
   "errorSnackbar": "Ocurrió un problema",
   "cacheClearedSnackbar": "Caché limpiada",
-  "reminderNotImplemented": "La programación llegará pronto",
   "logoutSuccess": "Sesión cerrada",
   "passwordUpdated": "Contraseña actualizada",
   "displayNameUpdated": "Nombre actualizado",

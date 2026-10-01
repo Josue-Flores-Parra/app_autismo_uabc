@@ -189,7 +189,7 @@ Secciones visibles:
 | Idioma | Chips `es` y `en`. |
 | Apariencia | Chips de tema sistema/claro/oscuro y de tamano de fuente. |
 | Accesibilidad | Alto contraste, reducir animaciones, feedback auditivo, feedback haptico. |
-| Notificaciones y recordatorios | Toggle de recordatorios y selector de hora si esta activo. |
+| Notificaciones y recordatorios | Toggle de recordatorios y selector de hora si esta activo. Ver `Recordatorios de practica`. |
 | Privacidad y datos | Limpiar cache y enviar metricas anonimas. |
 | Control parental | Modulos permitidos, con resumen en el subtitulo (`_parentalSummary`). |
 | Informacion y soporte | Version, terminos, privacy policy y mailto de soporte. |
@@ -313,6 +313,34 @@ existia la pestana de Ajustes en el bottom nav, habia dos entradas al mismo
 PIN. Esa pestana se elimino por redundante (ver `docs/architecture.md`); el
 gating se quedo en `SettingsAccessGuard` porque `ModuleListScreen` tambien lo
 necesita para su icono de engrane.
+
+## Recordatorios de practica
+
+El toggle y la hora son por perfil infantil (`remindersEnabled`, `reminderTime`) y
+viven en `ChildSettingsScreen`. Lo programa `ReminderService`
+(`lib/shared/services/reminder_service.dart`) con notificaciones locales
+(`flutter_local_notifications`):
+
+- Al activar, `ProfileViewModel.requestReminderPermission` pide el permiso de
+  notificaciones. Si no se concede, el interruptor queda apagado y se muestra un
+  aviso con la instruccion para activarlas en los ajustes del telefono.
+- `ProfileViewModel.updateLearnerSettings(..., reminderMessage:)` guarda los
+  ajustes y despues programa o cancela el aviso. Un fallo del sistema de
+  notificaciones se registra y nunca impide guardar. Borrar el perfil cancela su
+  aviso.
+- Cada perfil tiene su notificacion, con un id estable derivado del id del perfil
+  (`ReminderService.reminderIdFor`). El aviso se repite todos los dias a la misma
+  hora local (`DateTimeComponents.time`) y el plugin lo reprograma al reiniciar el
+  telefono.
+- La entrega es inexacta (`inexactAllowWhileIdle`): no requiere el permiso de
+  alarmas exactas y un aviso de practica no necesita llegar al minuto.
+- El texto sale del idioma de la app al guardar. Si despues se cambia el idioma,
+  el aviso conserva el idioma anterior hasta que se vuelva a guardar la hora.
+
+Configuracion nativa: Android declara `POST_NOTIFICATIONS`,
+`RECEIVE_BOOT_COMPLETED` y los receptores del plugin en `AndroidManifest.xml`, y
+activa desugaring en `android/app/build.gradle.kts`. iOS asigna el delegado de
+notificaciones en `AppDelegate.swift`.
 
 ## Contenido sin conexion
 

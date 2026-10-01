@@ -121,7 +121,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scheduleReminder => 'Suggested schedule';
 
   @override
-  String get reminderPlaceholder => 'Scheduling coming soon';
+  String get reminderPlaceholder => 'Turn on reminders to choose the time';
+
+  @override
+  String reminderDailyAt(String time) {
+    return 'Every day at $time';
+  }
+
+  @override
+  String get reminderNotificationTitle => 'Time to practice with Appy';
+
+  @override
+  String get reminderNotificationBody =>
+      'There are activities waiting for you.';
+
+  @override
+  String get reminderPermissionDenied =>
+      'Turn on Appy notifications in the phone settings to get reminders.';
 
   @override
   String get privacySection => 'Privacy & data';
@@ -248,10 +264,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cacheClearedSnackbar => 'Cache cleaned';
-
-  @override
-  String get reminderNotImplemented =>
-      'Reminder scheduling will be available soon';
 
   @override
   String get logoutSuccess => 'You signed out';

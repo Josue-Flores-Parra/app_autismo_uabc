@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/app_theme.dart';
 import '../../../l10n/gen/app_localizations.dart';
+import '../../../shared/services/reminder_service.dart';
 import '../model/learner_profile.dart';
 import '../viewmodel/profile_viewmodel.dart';
 import 'profile_screens.dart';
@@ -28,13 +29,15 @@ class ChildSettingsScreen extends StatelessWidget {
   Future<void> _save(
     BuildContext context,
     LearnerProfile learner,
-    LearnerSettings settings,
-  ) async {
+    LearnerSettings settings, {
+    ReminderMessage? reminderMessage,
+  }) async {
     final l10n = AppLocalizations.of(context);
     try {
       await context.read<ProfileViewModel>().updateLearnerSettings(
         learner,
         settings,
+        reminderMessage: reminderMessage,
       );
     } catch (_) {
       if (context.mounted) {
@@ -166,6 +169,43 @@ class ChildSettingsScreen extends StatelessWidget {
       context,
       learner,
       learner.settings.copyWith(reminderTime: formatted),
+      reminderMessage: _reminderMessage(context),
+    );
+  }
+
+  ReminderMessage _reminderMessage(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ReminderMessage(
+      title: l10n.reminderNotificationTitle,
+      body: l10n.reminderNotificationBody,
+    );
+  }
+
+  /// Activa o desactiva los recordatorios. Para activarlos primero se pide el
+  /// permiso de notificaciones; si no se concede, quedan apagados.
+  Future<void> _toggleReminders(
+    BuildContext context,
+    LearnerProfile learner,
+    bool enabled,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    if (enabled) {
+      final granted = await context
+          .read<ProfileViewModel>()
+          .requestReminderPermission();
+      if (!context.mounted) return;
+      if (!granted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.reminderPermissionDenied)));
+        return;
+      }
+    }
+    await _save(
+      context,
+      learner,
+      learner.settings.copyWith(remindersEnabled: enabled),
+      reminderMessage: enabled ? _reminderMessage(context) : null,
     );
   }
 
@@ -357,17 +397,14 @@ class ChildSettingsScreen extends StatelessWidget {
                       SwitchListTile(
                         title: Text(l10n.enableReminders),
                         value: settings.remindersEnabled,
-                        onChanged: (value) => _save(
-                          context,
-                          learner,
-                          settings.copyWith(remindersEnabled: value),
-                        ),
+                        onChanged: (value) =>
+                            _toggleReminders(context, learner, value),
                       ),
                       ListTile(
                         title: Text(l10n.scheduleReminder),
                         subtitle: Text(
                           settings.remindersEnabled
-                              ? '${settings.reminderTime} · ${l10n.reminderNotImplemented}'
+                              ? l10n.reminderDailyAt(settings.reminderTime)
                               : l10n.reminderPlaceholder,
                         ),
                         trailing: const Icon(Icons.schedule),

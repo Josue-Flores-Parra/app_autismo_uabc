@@ -1,17 +1,25 @@
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../shared/services/reminder_service.dart';
 import '../../../shared/services/settings_access_guard.dart';
 import '../data/profile_repository.dart';
 import '../model/learner_profile.dart';
 
 class ProfileViewModel extends ChangeNotifier {
-  ProfileViewModel({ProfileRepository? repository})
-    : _providedRepository = repository;
+  ProfileViewModel({
+    ProfileRepository? repository,
+    ReminderScheduler? reminders,
+  }) : _providedRepository = repository,
+       _providedReminders = reminders;
 
   final ProfileRepository? _providedRepository;
   late final ProfileRepository _repository =
       _providedRepository ?? ProfileRepository();
+
+  final ReminderScheduler? _providedReminders;
+  late final ReminderScheduler _reminders =
+      _providedReminders ?? ReminderService.instance;
 
   /// UID Auth de la cuenta adulta; los IDs infantiles nunca son usuarios Auth.
   String? _parentUid;
@@ -182,11 +190,39 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Guarda las preferencias de aprendizaje y accesibilidad por perfil.
+  /// Pide el permiso de notificaciones antes de activar los recordatorios.
+  Future<bool> requestReminderPermission() => _reminders.requestPermission();
+
+  /// Programa o quita el aviso diario del perfil según sus ajustes. Si
+  /// [message] es `null` y los recordatorios siguen activos, no cambia nada.
+  /// Un fallo del sistema de notificaciones nunca debe impedir guardar.
+  Future<void> _syncReminder(
+    String learnerId,
+    LearnerSettings settings,
+    ReminderMessage? message,
+  ) async {
+    try {
+      if (!settings.remindersEnabled) {
+        await _reminders.cancel(learnerId);
+      } else if (message != null) {
+        await _reminders.scheduleDaily(
+          learnerId: learnerId,
+          time: settings.reminderTime,
+          message: message,
+        );
+      }
+    } catch (e) {
+      debugPrint('ProfileViewModel: recordatorio no sincronizado: $e');
+    }
+  }
+
+  /// Guarda las preferencias de aprendizaje y accesibilidad por perfil. Con
+  /// [reminderMessage] también reprograma el recordatorio diario del perfil.
   Future<void> updateLearnerSettings(
     LearnerProfile learner,
-    LearnerSettings settings,
-  ) async {
+    LearnerSettings settings, {
+    ReminderMessage? reminderMessage,
+  }) async {
     await _repository.updateLearnerSettings(
       _requireParent(),
       learner.id,
@@ -211,6 +247,7 @@ class ProfileViewModel extends ChangeNotifier {
       _selectedLearner = _findLearner(learner.id);
     }
     notifyListeners();
+    await _syncReminder(learner.id, settings, reminderMessage);
   }
 
   Future<void> clearLearnerProgress(LearnerProfile learner) async {
@@ -224,6 +261,11 @@ class ProfileViewModel extends ChangeNotifier {
   Future<void> deleteLearner(LearnerProfile learner) async {
     final parentUid = _requireParent();
     await _repository.deleteLearner(parentUid, learner.id);
+    try {
+      await _reminders.cancel(learner.id);
+    } catch (e) {
+      debugPrint('ProfileViewModel: recordatorio no cancelado: $e');
+    }
     _learners = [
       for (final item in _learners)
         if (item.id != learner.id) item,

@@ -323,8 +323,32 @@ abstract class AppLocalizations {
   /// No description provided for @reminderPlaceholder.
   ///
   /// In es, this message translates to:
-  /// **'Programación disponible pronto'**
+  /// **'Activa los recordatorios para elegir la hora'**
   String get reminderPlaceholder;
+
+  /// No description provided for @reminderDailyAt.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos los días a las {time}'**
+  String reminderDailyAt(String time);
+
+  /// No description provided for @reminderNotificationTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Hora de practicar con Appy'**
+  String get reminderNotificationTitle;
+
+  /// No description provided for @reminderNotificationBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Hay actividades esperándote.'**
+  String get reminderNotificationBody;
+
+  /// No description provided for @reminderPermissionDenied.
+  ///
+  /// In es, this message translates to:
+  /// **'Activa las notificaciones de Appy en los ajustes del teléfono para recibir recordatorios.'**
+  String get reminderPermissionDenied;
 
   /// No description provided for @privacySection.
   ///
@@ -559,12 +583,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Caché limpiada'**
   String get cacheClearedSnackbar;
-
-  /// No description provided for @reminderNotImplemented.
-  ///
-  /// In es, this message translates to:
-  /// **'La programación llegará pronto'**
-  String get reminderNotImplemented;
 
   /// No description provided for @logoutSuccess.
   ///

@@ -56,6 +56,10 @@ Antes de publicar Android:
 - Confirmar `android/app/google-services.json`.
 - Incrementar `version` en `pubspec.yaml`.
 - Ejecutar pruebas manuales de login, modulos, minijuegos, avatar y settings.
+- Probar los recordatorios en Android 13 o superior (permiso de notificaciones)
+  y tras reiniciar el telefono. Ver `docs/features/settings.md`.
+- Probar la descarga de un modulo y su uso sin conexion. Ver
+  `docs/features/offline.md`.
 
 ## iOS
 
