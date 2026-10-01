@@ -16,6 +16,7 @@ class LearnerSettings {
     this.hapticFeedback = true,
     this.remindersEnabled = false,
     this.reminderTime = '18:00',
+    this.openAllLevels = false,
   });
 
   /// Defaults explícitos para perfiles recién creados.
@@ -30,6 +31,11 @@ class LearnerSettings {
 
   /// `HH:mm`, reloj de 24 horas. La programación real aún está pendiente.
   final String reminderTime;
+
+  /// Modo libre: muestra abiertos todos los niveles con contenido de los
+  /// módulos permitidos. Solo cambia lo que se ve; no escribe progreso ni
+  /// otorga recompensas.
+  final bool openAllLevels;
 
   static String _fontScaleFrom(dynamic value) {
     if (value == 'small' || value == 'medium' || value == 'large') {
@@ -64,6 +70,7 @@ class LearnerSettings {
       hapticFeedback: _boolFrom(data['hapticFeedback'], true),
       remindersEnabled: _boolFrom(data['remindersEnabled'], false),
       reminderTime: _timeFrom(data['reminderTime']),
+      openAllLevels: _boolFrom(data['openAllLevels'], false),
     );
   }
 
@@ -75,6 +82,7 @@ class LearnerSettings {
     'hapticFeedback': hapticFeedback,
     'remindersEnabled': remindersEnabled,
     'reminderTime': reminderTime,
+    'openAllLevels': openAllLevels,
   };
 
   LearnerSettings copyWith({
@@ -85,6 +93,7 @@ class LearnerSettings {
     bool? hapticFeedback,
     bool? remindersEnabled,
     String? reminderTime,
+    bool? openAllLevels,
   }) {
     return LearnerSettings(
       fontScale: fontScale ?? this.fontScale,
@@ -94,6 +103,7 @@ class LearnerSettings {
       hapticFeedback: hapticFeedback ?? this.hapticFeedback,
       remindersEnabled: remindersEnabled ?? this.remindersEnabled,
       reminderTime: reminderTime ?? this.reminderTime,
+      openAllLevels: openAllLevels ?? this.openAllLevels,
     );
   }
 
@@ -106,7 +116,8 @@ class LearnerSettings {
         other.audioFeedback == audioFeedback &&
         other.hapticFeedback == hapticFeedback &&
         other.remindersEnabled == remindersEnabled &&
-        other.reminderTime == reminderTime;
+        other.reminderTime == reminderTime &&
+        other.openAllLevels == openAllLevels;
   }
 
   @override
@@ -118,6 +129,7 @@ class LearnerSettings {
     hapticFeedback,
     remindersEnabled,
     reminderTime,
+    openAllLevels,
   );
 }
 

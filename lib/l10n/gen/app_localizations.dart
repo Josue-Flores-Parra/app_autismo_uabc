@@ -383,8 +383,26 @@ abstract class AppLocalizations {
   /// No description provided for @parentalNoLimit.
   ///
   /// In es, this message translates to:
-  /// **'Sin límite'**
+  /// **'Todos'**
   String get parentalNoLimit;
+
+  /// No description provided for @profileOpenAllLevels.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir todos los niveles'**
+  String get profileOpenAllLevels;
+
+  /// No description provided for @profileOpenAllLevelsHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Muestra abiertos todos los niveles de los módulos permitidos. Las monedas y estrellas solo se ganan al completar cada actividad.'**
+  String get profileOpenAllLevelsHint;
+
+  /// No description provided for @openLevelsActive.
+  ///
+  /// In es, this message translates to:
+  /// **'Modo libre'**
+  String get openLevelsActive;
 
   /// No description provided for @parentalModulesUnit.
   ///

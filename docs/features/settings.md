@@ -56,7 +56,8 @@ en `ChildSettingsScreen` (`lib/features/profiles/view/child_settings_screen.dart
 | Por perfil | `hapticFeedback` | `bool` | `...learners/{learnerUid}.settings.hapticFeedback` | `true` |
 | Por perfil | `remindersEnabled` | `bool` | `...learners/{learnerUid}.settings.remindersEnabled` | `false` |
 | Por perfil | `reminderTime` | `String HH:mm` | `...learners/{learnerUid}.settings.reminderTime` | `18:00` |
-| Por perfil | `allowedModules` | `int` | `...learners/{learnerUid}.allowedModules` | `0` (sin límite) |
+| Por perfil | `openAllLevels` | `bool` | `...learners/{learnerUid}.settings.openAllLevels` | `false` |
+| Por perfil | `allowedModules` | `int` | `...learners/{learnerUid}.allowedModules` | `0` (todos) |
 
 Los getters efectivos de `SettingsViewModel` (`fontScale`, `highContrast`,
 `reduceAnimations`, `audioFeedback`, `hapticFeedback`, `remindersEnabled`,
@@ -329,7 +330,27 @@ modulo.bloqueado || (allowedModules > 0 && indice >= allowedModules)
 ```
 
 El valor configurado es "cuantos modulos, en el orden en que se muestran, puede
-abrir el nino". `0` significa sin limite.
+abrir el nino". `0` significa todos (la opcion se muestra como "Todos"): quita el
+tope, pero no abre niveles.
+
+### Modo libre de niveles
+
+`LearnerSettings.openAllLevels` (interruptor "Abrir todos los niveles" en los
+ajustes del perfil infantil, seccion de aprendizaje) muestra abiertos todos los
+niveles con contenido de los modulos permitidos. Reglas:
+
+- El tope de modulos siempre gana: el modo libre solo actua dentro de los
+  modulos que `allowedModules` deja abrir.
+- Solo cambia lo que se muestra. `levelStateForDisplay`
+  (`lib/features/learning_module/model/levels_models.dart`) convierte un nivel
+  bloqueado con contenido en abierto al armar los nodos de
+  `LevelTimelineViewModel`; no escribe progreso, estrellas ni monedas, que solo
+  se ganan al completar cada actividad.
+- Un nivel sin contenido (`levelOffersContent` falso) sigue bloqueado.
+- Mientras esta activo, `OpenLevelsBadge` muestra "Modo libre" en el `AppBar`
+  de la lista de modulos y bajo el encabezado de la linea de tiempo.
+- El valor se lee al abrir la linea de tiempo de un modulo. Se cambia detras del
+  PIN, desde el hub de perfiles, por lo que se aplica al entrar de nuevo.
 
 La regla anterior comparaba `modulo.nivel` contra el slider. Como todos los
 modulos tienen `nivelMinimo = 1`, `0` y `1` daban el mismo resultado y cualquier

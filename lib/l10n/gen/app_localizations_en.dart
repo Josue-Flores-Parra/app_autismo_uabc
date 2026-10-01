@@ -152,7 +152,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get parentalAllowedModules => 'Allowed modules';
 
   @override
-  String get parentalNoLimit => 'No limit';
+  String get parentalNoLimit => 'All';
+
+  @override
+  String get profileOpenAllLevels => 'Open all levels';
+
+  @override
+  String get profileOpenAllLevelsHint =>
+      'Shows every level of the allowed modules as open. Coins and stars are only earned by completing each activity.';
+
+  @override
+  String get openLevelsActive => 'Free mode';
 
   @override
   String get parentalModulesUnit => 'modules';

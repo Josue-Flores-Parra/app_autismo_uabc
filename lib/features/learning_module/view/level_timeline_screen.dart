@@ -12,6 +12,8 @@ import 'package:appy/features/learning_module/model/content_card_model.dart';
 import 'package:appy/shared/services/haptics_service.dart';
 import 'package:appy/core/app_theme.dart';
 import 'package:appy/shared/widgets/glass_pill.dart';
+import 'package:appy/shared/widgets/open_levels_badge.dart';
+import 'package:appy/features/profiles/viewmodel/profile_viewmodel.dart';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -87,8 +89,19 @@ class LevelTimelineScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<LearningViewModel>(
       builder: (context, learningViewModel, child) {
+        final openAllLevels =
+            context
+                .read<ProfileViewModel>()
+                .selectedLearner
+                ?.settings
+                .openAllLevels ??
+            false;
         return ChangeNotifierProvider(
-          create: (_) => LevelTimelineViewModel(learningViewModel, moduleId),
+          create: (_) => LevelTimelineViewModel(
+            learningViewModel,
+            moduleId,
+            openAllLevels: openAllLevels,
+          ),
           child: LevelTimelineContent(
             moduleId: moduleId,
             backgroundImagePath: backgroundImagePath,
@@ -430,6 +443,14 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
                     ),
                   ),
                 ),
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + kToolbarHeight + 6,
+                left: 0,
+                right: 0,
+                child: const IgnorePointer(
+                  child: Center(child: OpenLevelsBadge()),
+                ),
+              ),
             ],
           ),
         );

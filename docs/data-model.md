@@ -61,8 +61,8 @@ users/{learnerUid}/progress/{moduleId}/levels/{levelId}
 
 El documento bajo `parentUid/learners` contiene `name`, `parentUid`,
 `allowedModules`, `settings` (`fontScale`, `highContrast`, `reduceAnimations`,
-`audioFeedback`, `hapticFeedback`, `remindersEnabled`, `reminderTime`),
-`migrationStatus`, `nameConfirmed`, `createdAt` y, para el perfil copiado,
+`audioFeedback`, `hapticFeedback`, `remindersEnabled`, `reminderTime`,
+`openAllLevels`), `migrationStatus`, `nameConfirmed`, `createdAt` y, para el perfil copiado,
 `legacySourceUid`. El documento `users/{learnerUid}` contiene `role: learner`,
 `parentUid`, `name` y `avatarConfig`. El límite `allowedModules` es por perfil; 0
 significa sin límite. Las preferencias parent-wide (tema, idioma) viven en
@@ -294,6 +294,7 @@ La escritura de telemetría la hace `ActivityTelemetryService` vía
 | `hapticFeedback` | `bool` | `true` |
 | `remindersEnabled` | `bool` | `false` |
 | `reminderTime` | `String` formato `HH:mm` | `18:00` |
+| `openAllLevels` | `bool` | `false` |
 | `sendMetrics` | `bool` | `false` |
 | `selectedLearner_{parentUid}` | `String` | Último learner elegido, para ofrecerlo en el selector tras el login. |
 | `sendMetrics_{parentUid}` | `bool` | Consentimiento de telemetría de la cuenta parent. |

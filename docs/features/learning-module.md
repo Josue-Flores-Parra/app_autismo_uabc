@@ -192,6 +192,10 @@ Mecanica:
 modulo.bloqueado || (allowedModules > 0 && indice >= allowedModules)
 ```
 
+Con el modo libre del perfil (`openAllLevels`) la linea de tiempo muestra
+abiertos los niveles bloqueados que tienen contenido
+(`levelStateForDisplay`); ver `docs/features/settings.md`.
+
 `ModuloPlantilla`:
 
 - En `onTapDown`, si no esta bloqueado, llama `prefetchModuleLevels(modulo.id)`.

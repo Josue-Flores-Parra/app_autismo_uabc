@@ -254,3 +254,49 @@ class ModuleLevelInfo {
     };
   }
 }
+
+/*
+Un nivel ofrece contenido si el timeline podría armar al menos una tarjeta
+para él (pictograma, video, selección simple, rompecabezas o audio). Replica
+las condiciones de `_buildContentFromLevel` en `level_timeline_screen.dart`.
+*/
+bool levelOffersContent(ModuleLevelInfo level) {
+  bool hasText(String? value) => value != null && value.isNotEmpty;
+  bool flag(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return false;
+  }
+
+  final data = level.actividadData;
+  final puzzleEnabled =
+      flag(data?['isPuzzleEnabled']) ||
+      level.actividadType?.toLowerCase() == 'puzzle';
+  final hasPuzzleImage =
+      hasText(level.puzzleImageUrl) || hasText(level.pictogramaUrl);
+
+  return hasText(level.pictogramaUrl) ||
+      hasText(level.videoUrl) ||
+      hasText(level.audioUrl) ||
+      flag(data?['isSimpleSelectionEnabled']) ||
+      (puzzleEnabled && hasPuzzleImage);
+}
+
+/*
+Estado con el que se muestra un nivel. En modo libre (`openAllLevels`) los
+niveles bloqueados que tienen contenido se muestran abiertos. Es solo de
+presentación: nunca se guarda y no toca el progreso, las estrellas ni las
+monedas.
+*/
+StateOfStep levelStateForDisplay(
+  ModuleLevelInfo level, {
+  required bool openAllLevels,
+}) {
+  if (openAllLevels &&
+      level.estado == StateOfStep.blocked &&
+      levelOffersContent(level)) {
+    return StateOfStep.inProgress;
+  }
+  return level.estado;
+}

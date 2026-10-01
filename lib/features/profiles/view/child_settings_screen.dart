@@ -255,6 +255,16 @@ class ChildSettingsScreen extends StatelessWidget {
                           },
                         ),
                       ),
+                      SwitchListTile(
+                        title: Text(l10n.profileOpenAllLevels),
+                        subtitle: Text(l10n.profileOpenAllLevelsHint),
+                        value: settings.openAllLevels,
+                        onChanged: (value) => _save(
+                          context,
+                          learner,
+                          settings.copyWith(openAllLevels: value),
+                        ),
+                      ),
                       ListTile(
                         leading: Icon(
                           Icons.refresh_rounded,
