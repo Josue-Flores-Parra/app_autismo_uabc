@@ -106,3 +106,10 @@ de avatar, monedas y progreso de niveles.
   Firestore. Un modulo nunca abierto con internet no tiene sus niveles en la
   cache de Firestore y no se puede descargar sin conexion.
 - No hay deteccion de conectividad ni descarga automatica al tener Wi-Fi.
+
+## Arranque sin conexion
+
+Los perfiles se leen con `get()`, que sale de la cache de Firestore. Una
+transaccion exige servidor, por eso `ProfileRepository.ensureParent` solo la
+corre si la cuenta aun necesita correccion. La cache se llena la primera vez que
+la cuenta inicia sesion con red: sin ese primer inicio no hay nada que leer.

@@ -91,6 +91,7 @@ class ProfileViewModel extends ChangeNotifier {
       final selectedId = prefs.getString('selectedLearner_$parentUid');
       _selectedLearner = _findLearner(selectedId);
     } catch (e) {
+      debugPrint('ProfileViewModel: perfiles no cargados: $e');
       _error = e.toString();
     } finally {
       _loading = false;
