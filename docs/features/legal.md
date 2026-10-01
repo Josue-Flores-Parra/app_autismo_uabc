@@ -16,6 +16,9 @@ menor de edad.
 
 ```text
 lib/features/legal/data/legal_documents.dart
+tool/legal_pages.dart
+tool/generate_legal_pages.dart
+docs/legal/
 lib/features/legal/viewmodel/legal_viewmodel.dart
 lib/features/legal/view/legal_consent_screen.dart
 lib/features/legal/view/legal_document_screen.dart
@@ -46,6 +49,7 @@ Constantes que el equipo debe revisar antes de cada publicacion:
 | `kLegalResponsable` | Nombre con el que el equipo se identifica como responsable de los datos. |
 | `kLegalContactEmail` | Correo unico para asuntos legales y derechos sobre datos personales. |
 | `kLegalJurisdiccion` | Entidad cuya legislacion rige el servicio. |
+| `kLegalPublicBaseUrl` | Direccion publica donde se publican las paginas de `docs/legal/`. Vacia hasta publicarlas. |
 
 Cada documento es una lista de `LegalBlock` con cuatro tipos: `heading`,
 `paragraph`, `bullet` y `note`. `LegalDocumentView` los pinta, de modo que los
@@ -55,6 +59,27 @@ consulta.
 Hay version en espanol y en ingles. Se elige con
 `SettingsViewModel.locale.languageCode`. El texto en ingles incluye una nota de
 que el espanol prevalece si hay discrepancia.
+
+## Paginas publicas
+
+Google Play pide una URL publica para los terminos y el aviso. `docs/legal/`
+contiene cuatro paginas estaticas (`terms-es.html`, `terms-en.html`,
+`privacy-es.html`, `privacy-en.html`) y un `index.html`. No se escriben a mano:
+salen de los mismos textos que la app con
+
+```bash
+dart run tool/generate_legal_pages.dart
+```
+
+(`tool/legal_pages.dart` arma el HTML). Hay que volver a generarlas cada vez que
+cambie `legal_documents.dart`; `test/legal_pages_test.dart` falla si quedaron
+viejas. Para publicarlas se sube la carpeta `docs/legal/` a un hosting estatico
+(por ejemplo GitHub Pages) y se anota la direccion `https` en
+`kLegalPublicBaseUrl`. Mientras no se publiquen, el repositorio no hace nada con
+ellas.
+
+Los textos no tienen revision juridica: Ricardo los lee completos antes de
+publicar.
 
 ## Registro de la aceptacion
 
