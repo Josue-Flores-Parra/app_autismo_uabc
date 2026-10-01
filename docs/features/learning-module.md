@@ -603,5 +603,7 @@ dialogo de `LevelPlayScreen` como `showVideoCompletionDialog`.
 
 Salir de `VideoPlayerScreen` sin completar devuelve un `VideoResume` (posicion y
 segundos vistos). `LevelContentScreen` reabre la vista previa y esta retoma el
-video en esa posicion; al volver a la pantalla completa se conservan los segundos
-vistos. Completar el video si regresa al menu de orbes.
+video en esa posicion y sigue reproduciendolo; al volver a la pantalla completa se
+conservan los segundos vistos. La sesion de telemetria sigue abierta mientras se alterna entre vista
+previa y pantalla completa: solo se abandona al cerrar la vista previa. Completar
+el video si regresa al menu de orbes.

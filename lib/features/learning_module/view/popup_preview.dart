@@ -14,9 +14,9 @@ class PopupPreview extends StatefulWidget {
   final String? previewImageUrl;
   final String? videoPreviewPath;
 
-  /// Posición del video al abrir la vista previa (al volver de pantalla
-  /// completa retoma donde se quedó).
-  final Duration videoStartAt;
+  /// Posición con la que se retoma el video al volver de la pantalla completa.
+  /// Sin valor, la vista previa abre como siempre.
+  final Duration? videoStartAt;
 
   const PopupPreview({
     super.key,
@@ -26,7 +26,7 @@ class PopupPreview extends StatefulWidget {
     required this.onLaunch,
     this.previewImageUrl,
     this.videoPreviewPath,
-    this.videoStartAt = Duration.zero,
+    this.videoStartAt,
   });
 
   @override

@@ -245,14 +245,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         await _viewModel.videoController.pause();
       }
     } catch (_) {}
-    // Abandona sólo si no se terminalizó ya (completar o error de carga).
-    if (!_hasAbandoned) {
+    final resume = _currentResume();
+    // Salir de pantalla completa equivale a reducir el video: la sesión sigue
+    // abierta y la cierra quien abandone la vista previa. Solo se abandona aquí
+    // cuando no hay nada que retomar y no se terminalizó ya.
+    if (resume == null && !_hasAbandoned) {
       _hasAbandoned = true;
       widget.telemetryHandle?.onAbandon(TerminalReason.userBack);
     }
     if (!mounted) return;
-    // Devuelve dónde se quedó el video para que la vista previa lo retome.
-    Navigator.of(context).pop(_currentResume());
+    Navigator.of(context).pop(resume);
   }
 
   VideoResume? _currentResume() {

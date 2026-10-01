@@ -268,7 +268,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     });
   }
 
-  Future<void> _openSelectedPreviewFlow({VideoResume? resume}) async {
+  Future<void> _openSelectedPreviewFlow({
+    VideoResume? resume,
+    ActivitySessionHandle? carriedHandle,
+  }) async {
     if (_isLaunchingActivity) return;
 
     final selected = _selectedContent;
@@ -293,7 +296,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           canLaunch: _canPlaySelectedContent,
           previewImageUrl: _selectedPreviewImageUrl,
           videoPreviewPath: selectedVideoPath,
-          videoStartAt: resume?.position ?? Duration.zero,
+          videoStartAt: resume?.position,
           onLaunch: () => Navigator.of(dialogContext).pop(true),
         ),
       );
@@ -304,10 +307,12 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
     if (shouldLaunch != true || !mounted) {
       _isLaunchingActivity = false;
+      // Cerrar la vista previa tras salir de pantalla completa sí abandona.
+      carriedHandle?.onAbandon(TerminalReason.userBack);
       return;
     }
 
-    ActivitySessionHandle? telemetryHandle;
+    ActivitySessionHandle? telemetryHandle = carriedHandle;
     VideoResume? videoResume;
     try {
       // Para el rompecabezas se pide elegir la dificultad antes de entrar.
@@ -325,7 +330,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
       // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
       // elegido dificultad. El consentimiento se captura en este instante.
-      telemetryHandle = await _requestTelemetryLaunch(
+      telemetryHandle ??= await _requestTelemetryLaunch(
         activityType: activityType,
         gridSize: puzzleGridSize,
       );
@@ -377,7 +382,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     // Salir de la pantalla completa sin terminar vuelve a la vista previa, que
     // retoma el video donde se quedó, en vez de sacar al menú de orbes.
     if (videoResume != null) {
-      await _openSelectedPreviewFlow(resume: videoResume);
+      await _openSelectedPreviewFlow(
+        resume: videoResume,
+        carriedHandle: telemetryHandle,
+      );
       return;
     }
 
