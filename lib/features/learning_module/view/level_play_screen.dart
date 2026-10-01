@@ -322,6 +322,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     final coins = result?.coins ?? 0;
     final felicidadDelta = result?.felicidadDelta ?? 0;
     final energiaDelta = result?.energiaDelta ?? 0;
+    final sinEnergia = result?.sinEnergia ?? false;
 
     // Filas del recuadro de resultado. Los intentos solo aplican a las
     // actividades interactivas.
@@ -359,6 +360,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           ],
         ),
       ...LevelCompletionService.buildStatRows(felicidadDelta, energiaDelta),
+      if (sinEnergia) LevelCompletionService.buildEnergyNotice(),
     ];
 
     // Mostrar resultado y navegar de regreso

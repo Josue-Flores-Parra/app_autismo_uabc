@@ -411,11 +411,14 @@ class AvatarViewModel extends ChangeNotifier {
 
     final felicidad =
         _felicidadConTiempo(_currentEstado.felicidad) + felicidadDelta;
-    final energia = _energiaConDescanso(_currentEstado.energia) + energiaDelta;
+    final energia = aplicarEnergia(
+      _energiaConDescanso(_currentEstado.energia),
+      energiaDelta,
+    );
 
     _currentEstado = _currentEstado.copyWith(
       felicidad: felicidad.clamp(0, 100),
-      energia: energia.clamp(0, 100),
+      energia: energia,
       monedas: _currentEstado.monedas + monedas,
     );
     _energiaActualizadaEn = DateTime.now();
@@ -424,6 +427,7 @@ class AvatarViewModel extends ChangeNotifier {
     return AvatarActivityDelta(
       felicidad: felicidadDelta,
       energia: energiaDelta,
+      energiaFinal: energia,
     );
   }
 
@@ -558,13 +562,33 @@ class AvatarViewModel extends ChangeNotifier {
   int _energiaConDescanso(int energiaGuardada) {
     final desde = _energiaActualizadaEn;
     if (desde == null) return energiaGuardada.clamp(0, 100);
+    return energiaConDescanso(
+      energiaGuardada,
+      DateTime.now().difference(desde),
+    );
+  }
 
-    final minutos = DateTime.now().difference(desde).inMinutes;
+  /// Energía tras [transcurrido] de descanso: un punto por cada
+  /// [minutosPorPuntoDeEnergia] minutos, siempre dentro de 0..100.
+  @visibleForTesting
+  static int energiaConDescanso(int energiaGuardada, Duration transcurrido) {
+    final minutos = transcurrido.inMinutes;
     if (minutos <= 0) return energiaGuardada.clamp(0, 100);
 
     final recuperada = minutos ~/ _minutosPorPuntoDeEnergia;
     return (energiaGuardada + recuperada).clamp(0, 100);
   }
+
+  /// Suma [delta] a [energiaActual] sin salirse de 0..100: sin energía, una
+  /// actividad nueva no la deja en negativo.
+  @visibleForTesting
+  static int aplicarEnergia(int energiaActual, int delta) {
+    return (energiaActual + delta).clamp(0, 100);
+  }
+
+  /// Minutos de descanso que devuelven un punto de energía, para los textos
+  /// que explican cómo recuperarla.
+  static int get minutosPorPuntoDeEnergia => _minutosPorPuntoDeEnergia;
 
   /*
   Baja la felicidad segun el tiempo sin actividad, con piso en
@@ -608,5 +632,12 @@ class AvatarActivityDelta {
   final int felicidad;
   final int energia;
 
-  const AvatarActivityDelta({required this.felicidad, required this.energia});
+  /// Energía que queda después de la actividad, para avisar si llegó a cero.
+  final int energiaFinal;
+
+  const AvatarActivityDelta({
+    required this.felicidad,
+    required this.energia,
+    required this.energiaFinal,
+  });
 }

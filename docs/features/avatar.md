@@ -334,7 +334,26 @@ hasta "triste".
 
 `AvatarActivityDelta` (mismo archivo) trae `felicidad` y `energia`: son los
 numeros nominales del evento (no el resultado final tras aplicar clamp), para
-mostrarlos en el dialogo de resultado con `LevelCompletionService.statsSummary`.
+mostrarlos en el dialogo de resultado con `LevelCompletionService.buildStatRows`.
+Tambien trae `energiaFinal`, la energia que queda despues de la actividad.
+
+### Energia en cero
+
+Comportamiento definido (issue #143). No bloquea nada, porque para un nino con
+TEA un bloqueo se siente como castigo:
+
+| Caso | Comportamiento |
+| --- | --- |
+| Energia completa o parcial | Cada actividad nueva resta 4; el valor nunca baja de 0. |
+| Energia en cero | El nino puede iniciar y completar actividades igual. |
+| Se llega a cero al terminar una actividad | El dialogo de resultado agrega un aviso con `LevelCompletionService.buildEnergyNotice`. |
+| Avatar con energia en cero | La tarjeta de energia muestra "Sin energia" con el color de advertencia. |
+| Tocar la tarjeta de energia | Abre un dialogo corto que explica que gasta y como se recarga. |
+
+Recuperacion: un punto cada `AvatarViewModel.minutosPorPuntoDeEnergia` minutos
+(6) o repasando una actividad ya completada (+3). Los calculos viven en
+`AvatarViewModel.energiaConDescanso` y `AvatarViewModel.aplicarEnergia`, que
+son funciones puras con pruebas en `test/avatar_energy_test.dart`.
 
 `isAccesorioDesbloqueado(nombreAccesorio)` / `isSkinDesbloqueada(nombreSkin)` /
 `isFondoDesbloqueado(path)` revisan los sets correspondientes de

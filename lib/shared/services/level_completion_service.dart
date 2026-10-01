@@ -19,6 +19,9 @@ class LevelCompletionResult {
   final int felicidadDelta;
   final int energiaDelta;
 
+  /// `true` si la energia del avatar quedo en cero tras esta actividad.
+  final bool sinEnergia;
+
   /// `true` si esta modalidad del nivel ya se habia completado antes (las
   /// monedas de un repaso son menores que la primera vez, no cero).
   final bool esRepaso;
@@ -30,6 +33,7 @@ class LevelCompletionResult {
     required this.coins,
     this.felicidadDelta = 0,
     this.energiaDelta = 0,
+    this.sinEnergia = false,
     this.esRepaso = false,
   });
 }
@@ -124,6 +128,31 @@ class LevelCompletionService {
     return rows;
   }
 
+  /// Aviso amable cuando el avatar se queda sin energia. No bloquea nada: dice
+  /// como recuperarla y cuanto tarda.
+  static Widget buildEnergyNotice({
+    TextAlign textAlign = TextAlign.start,
+    MainAxisAlignment alignment = MainAxisAlignment.start,
+  }) {
+    return Row(
+      mainAxisAlignment: alignment,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.bolt_rounded, color: energiaColor),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            'Appy se quedó sin energía. Repasa una actividad o espera: '
+            'se recarga 1 punto cada '
+            '${AvatarViewModel.minutosPorPuntoDeEnergia} minutos.',
+            textAlign: textAlign,
+            style: const TextStyle(fontSize: 14, color: Colors.white70),
+          ),
+        ),
+      ],
+    );
+  }
+
   static Future<LevelCompletionResult?> completeInteractiveLevel({
     required BuildContext context,
     required String? moduleId,
@@ -189,6 +218,7 @@ class LevelCompletionService {
     final coins = result?.coins ?? 0;
     final felicidadDelta = result?.felicidadDelta ?? 0;
     final energiaDelta = result?.energiaDelta ?? 0;
+    final sinEnergia = result?.sinEnergia ?? false;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -260,6 +290,13 @@ class LevelCompletionService {
                     energiaDelta,
                     alignment: MainAxisAlignment.center,
                   )) ...[const SizedBox(height: 8), row],
+                  if (sinEnergia) ...[
+                    const SizedBox(height: 8),
+                    buildEnergyNotice(
+                      textAlign: TextAlign.center,
+                      alignment: MainAxisAlignment.center,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -396,6 +433,7 @@ class LevelCompletionService {
 
       var felicidadDelta = 0;
       var energiaDelta = 0;
+      var sinEnergia = false;
       if (context.mounted) {
         try {
           final avatarViewModel = context.read<AvatarViewModel>();
@@ -406,6 +444,7 @@ class LevelCompletionService {
           );
           felicidadDelta = delta.felicidad;
           energiaDelta = delta.energia;
+          sinEnergia = delta.energiaFinal <= 0;
         } catch (_) {}
       }
 
@@ -428,6 +467,7 @@ class LevelCompletionService {
         coins: coins,
         felicidadDelta: felicidadDelta,
         energiaDelta: energiaDelta,
+        sinEnergia: sinEnergia,
         esRepaso: esRepaso,
       );
     } catch (_) {
