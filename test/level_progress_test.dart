@@ -86,7 +86,7 @@ void main() {
     // Dos pasos distintos que comparten imagen: no pueden convivir como
     // opciones porque el niño no podría distinguirlas.
     final data = {
-      'steps': [
+      'minigamePool': [
         {'url': 'a.png', 'caption': 'Abrir la llave'},
         {'url': 'a.png', 'caption': 'Cerrar la llave'},
         {'url': 'b.png', 'caption': 'Enjabonarse'},
