@@ -40,13 +40,20 @@ class LevelCompletionResult {
 /// separado en `activities`; las estrellas del nivel son cuantas modalidades
 /// distintas se completaron, con tope en [kLevelStarsToComplete].
 class LevelCompletionService {
-  /// Monedas de una actividad de observacion (pictograma o video).
+  /// Monedas de una actividad de observacion (pictograma, video o audio).
   static const int _observationCoins = 10;
 
   /// Monedas de repasar una modalidad ya completada antes. Menos que la
   /// primera vez, pero nunca cero: repasar tiene que valer la pena o nadie
   /// vuelve a ver un video o a practicar un minijuego ya superado.
   static const int _repasoCoins = 5;
+
+  /// Solo las actividades interactivas tienen intentos y pueden fallar. El
+  /// resto (pictograma, video y audio) es de observacion.
+  static bool isInteractiveType(String? actividadType) {
+    final tipo = actividadType?.toLowerCase().trim();
+    return tipo == 'simple_selection' || tipo == 'puzzle';
+  }
 
   /// Monedas de un minijuego segun los errores cometidos.
   ///

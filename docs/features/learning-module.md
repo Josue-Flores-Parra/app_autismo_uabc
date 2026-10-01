@@ -544,7 +544,10 @@ selecciones totales:
 | `1` o `2` | 20 |
 | `>= 3` | 10 |
 
-Una actividad de observacion (pictograma o video) paga 10 monedas fijas.
+Una actividad de observacion (pictograma, video o audio) paga 10 monedas fijas.
+Solo `simple_selection` y `puzzle` son interactivas
+(`LevelCompletionService.isInteractiveType`): solo ellas tienen intentos, y el
+resultado de las demas no muestra el recuadro de "Intentos usados".
 
 Repasar una modalidad que el nivel ya tenia completada (`alreadyRewarded`) o
 una actividad de un nivel que ya tenia 3 estrellas paga `_repasoCoins`

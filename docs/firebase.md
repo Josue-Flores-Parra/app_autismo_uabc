@@ -257,7 +257,7 @@ Campos escritos:
 | --- | --- |
 | `status` | `completed` al completar todas las modalidades del nivel; `in_progress` en otro caso. |
 | `estrellas` | Cantidad de modalidades completadas; 3 al terminar el nivel, incluso si ofrece menos de 3. |
-| `attempts` | Equivocaciones de la ultima actividad (0 en observacion). |
+| `attempts` | Equivocaciones de la ultima actividad (0 en observacion: pictograma, video y audio). |
 | `activities` | Mapa de modalidades completadas con su fecha, intentos y marca `rewarded`. |
 | `completedAt` | ISO 8601 al terminar el nivel. |
 | `updatedAt` | ISO 8601 en cada escritura. |
@@ -274,7 +274,7 @@ Recompensas:
 | Interactivo sin equivocaciones | 30 |
 | Interactivo con 1 o 2 equivocaciones | 20 |
 | Interactivo con 3 o mas equivocaciones | 10 |
-| Observacion (primera vez) | 10 |
+| Observacion: pictograma, video o audio (primera vez) | 10 |
 | Repaso exitoso | 5 |
 | Actividad fallida | 0 |
 

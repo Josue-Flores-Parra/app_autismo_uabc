@@ -273,8 +273,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   ) async {
     final handle = widget.telemetryHandle;
     if (handle != null) {
-      final tipo = widget.actividadType?.toLowerCase().trim();
-      if (tipo == 'simple_selection' || tipo == 'puzzle') {
+      if (LevelCompletionService.isInteractiveType(widget.actividadType)) {
         // El resultado del run registra intentos una sola vez; el servicio
         // decide si continúa o termina (el objetivo ya detuvo el reloj).
         handle.onRecordAttempts(attempts);
@@ -290,9 +289,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     }
 
     final tipo = widget.actividadType?.toLowerCase().trim();
-    final isObservation = tipo == 'pictogram' || tipo == 'video';
+    final isObservation = !LevelCompletionService.isInteractiveType(tipo);
 
-    // Guardar progreso: los niveles de observación (pictograma/video) no
+    // Guardar progreso: los niveles de observación (pictograma/video/audio) no
     // tienen intentos ni pueden fallar, así que se completan por la vía de
     // observación. Los niveles interactivos siempre escriben su documento de
     // progreso, incluso al fallar, para que el timeline lo registre.
@@ -323,6 +322,44 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     final coins = result?.coins ?? 0;
     final felicidadDelta = result?.felicidadDelta ?? 0;
     final energiaDelta = result?.energiaDelta ?? 0;
+
+    // Filas del recuadro de resultado. Los intentos solo aplican a las
+    // actividades interactivas.
+    final resultRows = <Widget>[
+      // El callback ya reporta equivocaciones (0 si se acierta a la primera);
+      // solo cambia el texto, no el dato persistido.
+      if (!isObservation)
+        Row(
+          children: [
+            const Icon(Icons.flag, color: Color(0xFFFFD700)),
+            const SizedBox(width: 8),
+            Text(
+              'Intentos usados: $attempts',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      if (success)
+        Row(
+          children: [
+            const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
+            const SizedBox(width: 8),
+            Text(
+              'Monedas: +$coins',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ...LevelCompletionService.buildStatRows(felicidadDelta, energiaDelta),
+    ];
 
     // Mostrar resultado y navegar de regreso
     showDialog(
@@ -375,68 +412,31 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16, color: Colors.white70),
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x33FFFFFF), width: 1),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // El callback ya reporta equivocaciones (0 si se acierta a
-                  // la primera); solo cambia el texto, no el dato persistido.
-                  Row(
-                    children: [
-                      const Icon(Icons.flag, color: Color(0xFFFFD700)),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Intentos usados: $attempts',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+            if (resultRows.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
                   ),
-                  if (success) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          color: Color(0xFFFFD700),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Monedas: +$coins',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x33FFFFFF), width: 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < resultRows.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 8),
+                      resultRows[i],
+                    ],
                   ],
-                  for (final row in LevelCompletionService.buildStatRows(
-                    felicidadDelta,
-                    energiaDelta,
-                  )) ...[
-                    const SizedBox(height: 8),
-                    row,
-                  ],
-                ],
+                ),
               ),
-            ),
+            ],
             if (!success && _retriesLeft > 0) ...[
               const SizedBox(height: 12),
               Container(
