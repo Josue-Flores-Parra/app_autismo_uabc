@@ -404,6 +404,96 @@ abstract class AppLocalizations {
   /// **'Modo libre'**
   String get openLevelsActive;
 
+  /// No description provided for @downloadsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Contenido sin conexión'**
+  String get downloadsTitle;
+
+  /// No description provided for @downloadsIntro.
+  ///
+  /// In es, this message translates to:
+  /// **'Descarga un módulo para usarlo sin internet. Para descargar necesitas conexión. El progreso se guarda y se envía cuando vuelve la red.'**
+  String get downloadsIntro;
+
+  /// No description provided for @downloadsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no hay módulos para descargar.'**
+  String get downloadsEmpty;
+
+  /// No description provided for @downloadsNotDownloaded.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin descargar'**
+  String get downloadsNotDownloaded;
+
+  /// No description provided for @downloadsPartial.
+  ///
+  /// In es, this message translates to:
+  /// **'Descarga incompleta'**
+  String get downloadsPartial;
+
+  /// No description provided for @downloadsDownloaded.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargado, {size}'**
+  String downloadsDownloaded(String size);
+
+  /// No description provided for @downloadsInProgress.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargando {done} de {total}'**
+  String downloadsInProgress(int done, int total);
+
+  /// No description provided for @downloadsAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargar'**
+  String get downloadsAction;
+
+  /// No description provided for @downloadsRetry.
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar'**
+  String get downloadsRetry;
+
+  /// No description provided for @downloadsDeleteTooltip.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrar descarga'**
+  String get downloadsDeleteTooltip;
+
+  /// No description provided for @downloadsDeleteTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Borrar la descarga?'**
+  String get downloadsDeleteTitle;
+
+  /// No description provided for @downloadsDeleteBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Se libera el espacio del teléfono. Puedes volver a descargarlo cuando quieras.'**
+  String get downloadsDeleteBody;
+
+  /// No description provided for @downloadsErrorNetwork.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo descargar. Revisa tu conexión e inténtalo de nuevo.'**
+  String get downloadsErrorNetwork;
+
+  /// No description provided for @downloadsErrorNoSpace.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay espacio suficiente en el teléfono.'**
+  String get downloadsErrorNoSpace;
+
+  /// No description provided for @downloadsErrorOther.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo completar la descarga.'**
+  String get downloadsErrorOther;
+
   /// No description provided for @parentalModulesUnit.
   ///
   /// In es, this message translates to:

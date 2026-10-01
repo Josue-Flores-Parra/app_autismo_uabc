@@ -165,6 +165,59 @@ class AppLocalizationsEs extends AppLocalizations {
   String get openLevelsActive => 'Modo libre';
 
   @override
+  String get downloadsTitle => 'Contenido sin conexión';
+
+  @override
+  String get downloadsIntro =>
+      'Descarga un módulo para usarlo sin internet. Para descargar necesitas conexión. El progreso se guarda y se envía cuando vuelve la red.';
+
+  @override
+  String get downloadsEmpty => 'Aún no hay módulos para descargar.';
+
+  @override
+  String get downloadsNotDownloaded => 'Sin descargar';
+
+  @override
+  String get downloadsPartial => 'Descarga incompleta';
+
+  @override
+  String downloadsDownloaded(String size) {
+    return 'Descargado, $size';
+  }
+
+  @override
+  String downloadsInProgress(int done, int total) {
+    return 'Descargando $done de $total';
+  }
+
+  @override
+  String get downloadsAction => 'Descargar';
+
+  @override
+  String get downloadsRetry => 'Reintentar';
+
+  @override
+  String get downloadsDeleteTooltip => 'Borrar descarga';
+
+  @override
+  String get downloadsDeleteTitle => '¿Borrar la descarga?';
+
+  @override
+  String get downloadsDeleteBody =>
+      'Se libera el espacio del teléfono. Puedes volver a descargarlo cuando quieras.';
+
+  @override
+  String get downloadsErrorNetwork =>
+      'No se pudo descargar. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get downloadsErrorNoSpace =>
+      'No hay espacio suficiente en el teléfono.';
+
+  @override
+  String get downloadsErrorOther => 'No se pudo completar la descarga.';
+
+  @override
   String get parentalModulesUnit => 'módulos';
 
   @override

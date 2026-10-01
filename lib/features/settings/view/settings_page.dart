@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_theme.dart';
 import '../../authentication/viewmodel/auth_viewmodel.dart';
+import '../../offline/view/downloads_screen.dart';
 import '../../legal/data/legal_documents.dart';
 import '../../legal/view/legal_document_screen.dart';
 import '../viewmodel/settings_viewmodel.dart';
@@ -191,6 +192,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   _Section(
                     title: l10n?.privacySection ?? 'Privacidad y datos',
                     children: [
+                      _SettingsRow(
+                        icon: Icons.cloud_download_outlined,
+                        title: l10n.downloadsTitle,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DownloadsScreen(),
+                          ),
+                        ),
+                      ),
                       _SettingsRow(
                         icon: Icons.cleaning_services_outlined,
                         title: l10n?.clearCache ?? 'Limpiar caché de recursos',

@@ -314,6 +314,12 @@ PIN. Esa pestana se elimino por redundante (ver `docs/architecture.md`); el
 gating se quedo en `SettingsAccessGuard` porque `ModuleListScreen` tambien lo
 necesita para su icono de engrane.
 
+## Contenido sin conexion
+
+En la seccion "Privacidad y datos" de la pantalla de Ajustes, la fila "Contenido
+sin conexion" abre `DownloadsScreen`, donde se descargan y borran modulos para
+usarlos sin internet. Detalle en `docs/features/offline.md`.
+
 ## Control parental
 
 El límite de módulos se almacena como `allowedModules` en el perfil infantil y

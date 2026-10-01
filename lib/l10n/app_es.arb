@@ -50,6 +50,32 @@
   "profileOpenAllLevels": "Abrir todos los niveles",
   "profileOpenAllLevelsHint": "Muestra abiertos todos los niveles de los módulos permitidos. Las monedas y estrellas solo se ganan al completar cada actividad.",
   "openLevelsActive": "Modo libre",
+  "downloadsTitle": "Contenido sin conexión",
+  "downloadsIntro": "Descarga un módulo para usarlo sin internet. Para descargar necesitas conexión. El progreso se guarda y se envía cuando vuelve la red.",
+  "downloadsEmpty": "Aún no hay módulos para descargar.",
+  "downloadsNotDownloaded": "Sin descargar",
+  "downloadsPartial": "Descarga incompleta",
+  "downloadsDownloaded": "Descargado, {size}",
+  "@downloadsDownloaded": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "downloadsInProgress": "Descargando {done} de {total}",
+  "@downloadsInProgress": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "downloadsAction": "Descargar",
+  "downloadsRetry": "Reintentar",
+  "downloadsDeleteTooltip": "Borrar descarga",
+  "downloadsDeleteTitle": "¿Borrar la descarga?",
+  "downloadsDeleteBody": "Se libera el espacio del teléfono. Puedes volver a descargarlo cuando quieras.",
+  "downloadsErrorNetwork": "No se pudo descargar. Revisa tu conexión e inténtalo de nuevo.",
+  "downloadsErrorNoSpace": "No hay espacio suficiente en el teléfono.",
+  "downloadsErrorOther": "No se pudo completar la descarga.",
   "parentalModulesUnit": "módulos",
   "currentPasswordLabel": "Contraseña de la cuenta",
   "newPasswordLabel": "Contraseña nueva",
