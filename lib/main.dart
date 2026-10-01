@@ -28,6 +28,7 @@ import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart'
 import 'package:appy/features/legal/viewmodel/legal_viewmodel.dart';
 
 // Shared Services
+import 'package:appy/data/services/offline_assets_service.dart';
 import 'package:appy/shared/services/loading_service.dart';
 import 'package:appy/shared/widgets/loading_wrapper.dart';
 
@@ -49,6 +50,13 @@ void main() async {
   // al entrar a pantalla completa y lo devuelve al salir.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Lee lo descargado para usarlo sin conexión. Si falla, la app sigue con red.
+  try {
+    await OfflineAssetsService.instance.init();
+  } catch (e) {
+    debugPrint('OfflineAssetsService no se pudo iniciar: $e');
+  }
 
   // Registrar minijuegos
   registerSimpleSelectionMinigame();

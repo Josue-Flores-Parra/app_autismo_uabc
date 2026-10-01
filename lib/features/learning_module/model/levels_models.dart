@@ -300,3 +300,35 @@ StateOfStep levelStateForDisplay(
   }
   return level.estado;
 }
+
+/*
+URLs remotas que usan los niveles: portada, video, imagen del rompecabezas,
+audio y cualquier URL dentro de `actividadData` (pools, pasos y preguntas de
+los minijuegos). Es lo que se baja al descargar un módulo para usarlo sin
+conexión.
+*/
+Set<String> collectLevelAssetUrls(Iterable<ModuleLevelInfo> levels) {
+  final urls = <String>{};
+
+  void collect(dynamic value) {
+    if (value is String) {
+      final url = value.trim();
+      if (url.startsWith('https://') || url.startsWith('http://')) {
+        urls.add(url);
+      }
+    } else if (value is Map) {
+      value.values.forEach(collect);
+    } else if (value is Iterable) {
+      value.forEach(collect);
+    }
+  }
+
+  for (final level in levels) {
+    collect(level.pictogramaUrl);
+    collect(level.videoUrl);
+    collect(level.puzzleImageUrl);
+    collect(level.audioUrl);
+    collect(level.actividadData);
+  }
+  return urls;
+}

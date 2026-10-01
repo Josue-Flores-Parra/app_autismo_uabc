@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../../../shared/services/tts_service.dart';
 import '../../../../shared/services/celebration_helper.dart';
+import '../../../../data/services/offline_assets_service.dart';
 import '../../minigame_core.dart';
 
 /// Minijuego de Pictograma
@@ -149,6 +150,12 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
   /// Descarga una imagen de red y la guarda en el caché local del dispositivo
   Future<void> _downloadAndCacheImage(String url) async {
+    // Si el módulo se descargó para usarlo sin conexión, se lee de ahí.
+    final offlinePath = OfflineAssetsService.instance.localPath(url);
+    if (offlinePath != null) {
+      await _precacheCachedFile(offlinePath);
+      return;
+    }
     try {
       // Obtener el directorio de caché
       final cacheDir = await getTemporaryDirectory();
@@ -625,6 +632,8 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
 
   /// Obtiene la ruta del archivo en caché para una URL de red
   Future<String?> _getCachedImagePath(String url) async {
+    final offlinePath = OfflineAssetsService.instance.localPath(url);
+    if (offlinePath != null) return offlinePath;
     try {
       final cacheDir = await getTemporaryDirectory();
       final imageCacheDir = Directory(

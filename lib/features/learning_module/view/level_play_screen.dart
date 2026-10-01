@@ -5,6 +5,7 @@ import '../../../shared/services/tts_service.dart';
 import '../../../shared/services/level_completion_service.dart';
 import '../../telemetry/model/telemetry_signals.dart';
 import '../../telemetry/model/telemetry_enums.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 /// Pantalla de juego de nivel
 /// Se muestra cuando el usuario presiona "JUGAR" en un nivel del timeline
@@ -216,8 +217,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.network(
-            imageUrl,
+          child: Image(
+            image: OfflineAssetsService.instance.imageProvider(imageUrl),
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
               return const Center(

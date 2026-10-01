@@ -3,6 +3,7 @@ import 'package:flutter/painting.dart';
 import '../../../data/services/firestore_services.dart';
 import '../model/modulo_info.dart';
 import '../model/levels_models.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 /*
 ViewModel unificado que maneja la lógica de negocio para módulos y niveles.
@@ -619,6 +620,8 @@ class LearningViewModel extends ChangeNotifier {
   void _tryPin(String? url, List<ImageStreamCompleterHandle> handles) {
     if (url == null || url.isEmpty) return;
     if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+    // Lo descargado se lee del disco: no hace falta fijarlo en memoria.
+    if (OfflineAssetsService.instance.localPath(url) != null) return;
 
     try {
       final provider = NetworkImage(url);

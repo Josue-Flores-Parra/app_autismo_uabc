@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:video_player/video_player.dart';
+
+import '../../../data/services/offline_assets_service.dart';
 
 /// Gestiona un único VideoPlayerController por URL mediante conteo de referencias.
 /// Esto evita que múltiples widgets creen instancias paralelas del decodificador
@@ -30,7 +34,12 @@ class VideoControllerManager {
 
     // Crear nuevo controlador sin inicializarlo ni configurarlo aquí
     VideoPlayerController controller;
-    if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) {
+    final offlinePath = OfflineAssetsService.instance.localPath(videoPath);
+    if (offlinePath != null) {
+      // Módulo descargado: se reproduce el archivo local, sin red.
+      controller = VideoPlayerController.file(File(offlinePath));
+    } else if (videoPath.startsWith('http://') ||
+        videoPath.startsWith('https://')) {
       controller = VideoPlayerController.networkUrl(Uri.parse(videoPath));
     } else {
       controller = VideoPlayerController.asset(videoPath);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../model/content_card_model.dart';
 import 'preview_cards.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 class PopupPreview extends StatefulWidget {
   final ContentCardData content;
@@ -357,8 +358,8 @@ class _PopupPreviewState extends State<PopupPreview> {
     }
 
     if (source.startsWith('http://') || source.startsWith('https://')) {
-      return Image.network(
-        source,
+      return Image(
+        image: OfflineAssetsService.instance.imageProvider(source),
         fit: BoxFit.contain,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;

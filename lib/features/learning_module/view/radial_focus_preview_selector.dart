@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/app_theme.dart';
 import '../model/content_card_model.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 class RadialFocusPreviewSelector extends StatefulWidget {
   final List<ContentCardData> contents;
@@ -748,8 +749,8 @@ Widget _buildNodeImage(
 }) {
   // Mismo criterio que preview_cards: http/https es red, el resto se interpreta como asset.
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    return Image.network(
-      url,
+    return Image(
+      image: OfflineAssetsService.instance.imageProvider(url),
       fit: fit,
       errorBuilder: (context, error, stackTrace) => Center(child: fallback),
       loadingBuilder: (context, child, loadingProgress) {

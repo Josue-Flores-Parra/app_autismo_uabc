@@ -6,6 +6,7 @@ import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
 import 'preview_card_colors.dart';
 import '../../../shared/widgets/video_control_rail.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -932,8 +933,8 @@ Widget _buildImageFromUrl(
 }) {
   // Si la URL es una URL externa (http/https), usar Image.network
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    return Image.network(
-      url,
+    return Image(
+      image: OfflineAssetsService.instance.imageProvider(url),
       height: height,
       width: width,
       fit: fit,

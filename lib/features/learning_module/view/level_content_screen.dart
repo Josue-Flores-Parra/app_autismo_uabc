@@ -15,6 +15,7 @@ import '../../telemetry/model/telemetry_enums.dart';
 import '../../telemetry/model/telemetry_signals.dart';
 import '../../telemetry/service/activity_telemetry_service.dart';
 import '../../profiles/viewmodel/profile_viewmodel.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -870,8 +871,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }) {
     // Si la URL es una URL externa (http/https), usar Image.network
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
+      return Image(
+        image: OfflineAssetsService.instance.imageProvider(url),
         height: height,
         width: width,
         fit: fit,

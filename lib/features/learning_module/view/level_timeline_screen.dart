@@ -14,6 +14,7 @@ import 'package:appy/core/app_theme.dart';
 import 'package:appy/shared/widgets/glass_pill.dart';
 import 'package:appy/shared/widgets/open_levels_badge.dart';
 import 'package:appy/features/profiles/viewmodel/profile_viewmodel.dart';
+import 'package:appy/data/services/offline_assets_service.dart';
 
 class PathPainter extends CustomPainter {
   final List<Offset> nodePositions;
@@ -980,8 +981,8 @@ class _LevelTimelineScreenState extends State<LevelTimelineContent>
   }) {
     // Si la URL es una URL externa (http/https), usar Image.network
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
+      return Image(
+        image: OfflineAssetsService.instance.imageProvider(url),
         height: height,
         width: width,
         fit: fit,

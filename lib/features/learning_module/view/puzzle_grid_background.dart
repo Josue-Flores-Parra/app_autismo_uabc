@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/app_theme.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 /// Fondo de rompecabezas para la vista de nivel.
 ///
@@ -159,8 +160,8 @@ class _PuzzleGridBackgroundState extends State<PuzzleGridBackground>
 
   Widget _buildImage(String url) {
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
+      return Image(
+        image: OfflineAssetsService.instance.imageProvider(url),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
       );
