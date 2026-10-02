@@ -7,10 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_theme.dart';
 import '../../authentication/viewmodel/auth_viewmodel.dart';
-import '../../avatar/viewmodel/avatar_viewmodel.dart';
 import '../../legal/data/legal_documents.dart';
 import '../../legal/view/legal_document_screen.dart';
-import '../../learning_module/viewmodel/learning_viewmodel.dart';
 import '../viewmodel/settings_viewmodel.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -131,12 +129,6 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _logout(context),
                       ),
                       _SettingsRow(
-                        icon: Icons.refresh_rounded,
-                        color: colors.warning,
-                        title: 'Reiniciar progreso',
-                        onTap: () => _confirmResetProgress(context),
-                      ),
-                      _SettingsRow(
                         icon: Icons.delete_outline_rounded,
                         color: errorColor,
                         title: l10n?.deleteAccount ?? 'Eliminar cuenta',
@@ -164,6 +156,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
+                  // Esta página es de la cuenta parent. Los valores de
+                  // apariencia/accesibilidad/feedback/recordatorios del
+                  // perfil se editan en ChildSettingsScreen.
                   _Section(
                     title: l10n?.appearanceSection ?? 'Apariencia',
                     children: [
@@ -188,89 +183,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ],
                       ),
-                      _ChoiceRow(
-                        icon: Icons.format_size,
-                        title: l10n?.fontSizeLabel ?? 'Tamaño de fuente',
-                        chips: FontScaleOption.values.map((option) {
-                          final label = switch (option) {
-                            FontScaleOption.small =>
-                              l10n?.fontSmall ?? 'Pequeño',
-                            FontScaleOption.medium =>
-                              l10n?.fontMedium ?? 'Medio',
-                            FontScaleOption.large =>
-                              l10n?.fontLarge ?? 'Grande',
-                          };
-                          return _Chip(
-                            label: label,
-                            selected: settings.fontScale == option,
-                            onTap: () => settings.setFontScale(option),
-                          );
-                        }).toList(),
-                      ),
                     ],
                   ),
-                  _Section(
-                    title: l10n?.accessibilitySection ?? 'Accesibilidad',
-                    children: [
-                      _SwitchRow(
-                        icon: Icons.contrast,
-                        title: l10n?.highContrast ?? 'Alto contraste',
-                        value: settings.highContrast,
-                        onChanged: settings.toggleHighContrast,
-                      ),
-                      _SwitchRow(
-                        icon: Icons.animation,
-                        title: l10n?.reduceAnimations ?? 'Reducir animaciones',
-                        value: settings.reduceAnimations,
-                        onChanged: settings.toggleReduceAnimations,
-                      ),
-                      _SwitchRow(
-                        icon: Icons.volume_up_outlined,
-                        title: l10n?.audioFeedback ?? 'Feedback auditivo',
-                        value: settings.audioFeedback,
-                        onChanged: settings.toggleAudioFeedback,
-                      ),
-                      _SwitchRow(
-                        icon: Icons.vibration,
-                        title: l10n?.hapticFeedback ?? 'Feedback háptico',
-                        value: settings.hapticFeedback,
-                        onChanged: settings.toggleHapticFeedback,
-                      ),
-                    ],
-                  ),
-                  _Section(
-                    title:
-                        l10n?.notificationsSection ??
-                        'Notificaciones y recordatorios',
-                    children: [
-                      _SwitchRow(
-                        icon: Icons.notifications_outlined,
-                        title:
-                            l10n?.enableReminders ??
-                            'Activar recordatorios de práctica',
-                        value: settings.remindersEnabled,
-                        onChanged: settings.toggleReminders,
-                      ),
-                      _SettingsRow(
-                        icon: Icons.schedule,
-                        title: l10n?.scheduleReminder ?? 'Horario sugerido',
-                        // El horario se guarda, pero todavía no se programa una
-                        // notificación real; el aviso evita que un padre confíe
-                        // en un recordatorio que no va a sonar.
-                        subtitle: settings.remindersEnabled
-                            ? '${settings.reminderTime.format(context)} · ${l10n?.reminderNotImplemented ?? 'La programación llegará pronto'}'
-                            : l10n?.reminderPlaceholder ??
-                                  'La programación llegará pronto',
-                        enabled: settings.remindersEnabled,
-                        onTap: settings.remindersEnabled
-                            ? () => _pickReminderTime(context)
-                            : () => _showSnack(
-                                l10n?.reminderNotImplemented ??
-                                    'La programación llegará pronto',
-                              ),
-                      ),
-                    ],
-                  ),
+                  // Las preferencias de aprendizaje y accesibilidad (tamaño de
+                  // texto, contraste, animaciones, feedback, recordatorios)
+                  // son por perfil y viven en ChildSettingsScreen, no aquí.
                   _Section(
                     title: l10n?.privacySection ?? 'Privacidad y datos',
                     children: [
@@ -289,27 +206,6 @@ class _SettingsPageState extends State<SettingsPage> {
                         title: l10n?.sendMetrics ?? 'Enviar métricas anónimas',
                         value: settings.sendMetrics,
                         onChanged: settings.toggleSendMetrics,
-                      ),
-                    ],
-                  ),
-                  _Section(
-                    title: l10n?.parentalSection ?? 'Control parental',
-                    children: [
-                      _SettingsRow(
-                        icon: Icons.family_restroom,
-                        title:
-                            l10n?.parentalAllowedModules ??
-                            'Módulos permitidos',
-                        subtitle: _parentalSummary(context, settings),
-                        below: Slider(
-                          value: settings.parentalAllowedModules.toDouble(),
-                          min: 0,
-                          max: 10,
-                          divisions: 10,
-                          label: _parentalSummary(context, settings),
-                          onChanged: (value) =>
-                              settings.setParentalAllowedModules(value.toInt()),
-                        ),
                       ),
                     ],
                   ),
@@ -398,11 +294,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (result != null && result.isNotEmpty && auth != null) {
       final success = await auth.updateDisplayName(result);
-      // Sincronizar el nombre del avatar para que refleje el displayName.
-      if (success) {
-        final avatar = context.read<AvatarViewModel?>();
-        await avatar?.updateNombreDesdeDisplayName(result);
-      }
       _showSnack(
         success
             ? l10n?.displayNameUpdated ?? 'Nombre actualizado'
@@ -490,52 +381,6 @@ class _SettingsPageState extends State<SettingsPage> {
     // El swap a LoginScreen lo maneja AuthGate via Consumer<AuthViewModel>.
   }
 
-  Future<void> _confirmResetProgress(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('¿Reiniciar progreso?'),
-          content: const Text(
-            'Esto borrará todas tus estrellas, monedas ganadas en los niveles y bloqueará los niveles nuevamente. ¿Estás seguro?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(
-                'Sí, reiniciar',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed == true && context.mounted) {
-      try {
-        await Provider.of<LearningViewModel>(
-          context,
-          listen: false,
-        ).clearAllProgress();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Progreso reiniciado correctamente.')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al reiniciar progreso: $e')),
-          );
-        }
-      }
-    }
-  }
-
   Future<void> _confirmDeleteAccount(BuildContext context) async {
     final auth = _getAuth(context);
     final l10n = AppLocalizations.of(context);
@@ -598,22 +443,20 @@ class _SettingsPageState extends State<SettingsPage> {
     if (confirmed == true) {
       final success = await auth.deleteAccount(passwordController.text);
       if (!mounted) return;
-      if (!success) {
+      if (success) {
+        // El gate de autenticación cambia esta pantalla por LoginScreen en el
+        // siguiente frame; el messenger a nivel de app sobrevive al cambio,
+        // así que el aviso llega ahí.
+        _showSnack(
+          l10n?.deleteAccountSuccess ?? 'Cuenta eliminada correctamente',
+          destructive: true,
+        );
+      } else {
         _showSnack(
           l10n?.deleteAccountFailed ?? 'No se pudo eliminar la cuenta',
         );
       }
     }
-  }
-
-  /// Resumen legible del control parental para el subtítulo y el slider.
-  String _parentalSummary(BuildContext context, SettingsViewModel settings) {
-    final l10n = AppLocalizations.of(context);
-    final permitidos = settings.parentalAllowedModules;
-    if (permitidos == 0) {
-      return l10n?.parentalNoLimit ?? 'Sin límite';
-    }
-    return '$permitidos ${l10n?.parentalModulesUnit ?? 'módulos'}';
   }
 
   /// Abre un documento legal propio de Appy.
@@ -628,18 +471,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _pickReminderTime(BuildContext context) async {
-    final settings = Provider.of<SettingsViewModel>(context, listen: false);
-    final current = settings.reminderTime;
-    final selected = await showTimePicker(
-      context: context,
-      initialTime: current,
-    );
-    if (selected != null) {
-      settings.setReminderTime(selected);
-    }
-  }
-
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -647,15 +478,18 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _showSnack(String message) {
+  void _showSnack(String message, {bool destructive = false}) {
     if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           message,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          style: TextStyle(
+            color: destructive ? scheme.onError : scheme.onSurface,
+          ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: destructive ? scheme.error : scheme.surface,
         behavior: SnackBarBehavior.floating,
       ),
     );

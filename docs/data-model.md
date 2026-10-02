@@ -40,11 +40,48 @@ Campos escritos o leidos por codigo actual:
 | --- | --- | --- | --- |
 | `name` | `String` | `AuthService.register`, `AuthService.updateDisplayName` | `AvatarViewModel` como fallback de nombre |
 | `email` | `String` | `AuthService.register` | No se lee desde Firestore en flujo principal |
-| `createdAt` | `String` ISO 8601 | `AuthService.register` | No se lee en flujo principal |
-| `deletedAt` | `String` ISO 8601 | `AuthService.deleteAccount` | No se lee en flujo principal |
+| `createdAt` | `String` ISO 8601 | `AuthService.register`, `ProfileRepository` (perfiles y learners nuevos) | No se lee en flujo principal; los Timestamps que creó la feature en pruebas se normalizan a ISO en la migración |
+| `deletedAt` | `String` ISO 8601 | Marcador transitorio durante `AuthService.deleteAccount` | Se elimina junto al documento parent tras limpiar sus learners |
 | `nivel` | `int` o `String` parseable | No se escribe en el codigo actual | `FirestoreService.getUserLevel` |
 | `avatarConfig` | `Map<String, dynamic>` | `AvatarViewModel.saveAvatarConfigToFirestore` | `AvatarViewModel.loadAvatarConfigFromFirestore` |
 | `legal` | `Map<String, dynamic>` | `FirestoreService.setAcceptedLegalVersion` | `FirestoreService.getAcceptedLegalVersion` |
+| `role` | `String` | Registro/inicializacion de perfiles | Auth/profile gate (`parent`) |
+| `profilesInitialized` | `bool` | Registro y migracion | `ProfileViewModel` evita repetir migracion |
+| `legacyMigrationLearnerId` | `String?` | Migracion de cuenta existente | Diagnostico de migracion |
+
+La cuenta de Firebase Auth es siempre el parent. Los perfiles infantiles usan
+IDs propios y sus documentos de datos conservan la misma ruta `users/{uid}`,
+donde `uid` es el ID del learner:
+
+```text
+users/{parentUid}/learners/{learnerUid}
+users/{learnerUid}
+users/{learnerUid}/progress/{moduleId}/levels/{levelId}
+```
+
+El documento bajo `parentUid/learners` contiene `name`, `parentUid`,
+`allowedModules`, `settings` (`fontScale`, `highContrast`, `reduceAnimations`,
+`audioFeedback`, `hapticFeedback`, `remindersEnabled`, `reminderTime`),
+`migrationStatus`, `nameConfirmed`, `createdAt` y, para el perfil copiado,
+`legacySourceUid`. El documento `users/{learnerUid}` contiene `role: learner`,
+`parentUid`, `name` y `avatarConfig`. El límite `allowedModules` es por perfil; 0
+significa sin límite. Las preferencias parent-wide (tema, idioma) viven en
+`users/{parentUid}.parentSettings` (`themeMode`, `locale`).
+
+Los registros nuevos marcan la cuenta con `role: parent` y
+`profilesInitialized: true`, y crean perfiles infantiles bajo demanda. En
+cuentas anteriores, la primera sesión reclama `role: parent` con merge (sin
+tocar el resto), crea el documento `users/{learnerId}` antes de leerlo (las
+lecturas se autorizan por su `parentUid` almacenado) y copia avatar y progreso
+a un ID nuevo y estable. El progreso se descubre por el catálogo `modules`
+más los padres `progress/{moduleId}` existentes, porque las escrituras de
+nivel no crean el documento intermedio. El original se conserva y el perfil no
+se ofrece hasta que la copia termina; si se interrumpe, el mismo ID puede
+completar la migración al reintentar.
+
+Los términos y la cuenta Auth pertenecen al parent; avatar, monedas y progreso
+pertenecen al learner seleccionado. La selección local nunca cambia la
+identidad Auth.
 
 ### users.legal
 
@@ -231,7 +268,7 @@ Campos destacados (esquema v1):
 
 | Campo | Tipo | Nota |
 | --- | --- | --- |
-| `subject.learnerId` / `subject.actorId` | `String` | Ambos = UID de Auth mientras rige `account_as_learner`. Sin PII. |
+| `subject.learnerId` / `subject.actorId` | `String` | `learnerId` es el perfil seleccionado y `actorId` el parent Auth para `parent_as_learner`; ambos iguales en documentos históricos `account_as_learner`. Sin PII. |
 | `activity.activityId` | `String` | `{moduleId}:{levelId}:{activityType}`. |
 | `outcome.hasStarted` | `bool` | Base de los denominadores KPI; `true` sólo tras `onReady`. |
 | `timing.activeDurationMs` | `int` | Tiempo activo monotónico (no resta de timestamps). |
@@ -258,7 +295,10 @@ La escritura de telemetría la hace `ActivityTelemetryService` vía
 | `remindersEnabled` | `bool` | `false` |
 | `reminderTime` | `String` formato `HH:mm` | `18:00` |
 | `sendMetrics` | `bool` | `false` |
-| `parentalAllowedModules` | `int` | `0` (sin limite), con clamp 0..10 al guardar |
+| `selectedLearner_{parentUid}` | `String` | Último learner elegido, para ofrecerlo en el selector tras el login. |
+| `sendMetrics_{parentUid}` | `bool` | Consentimiento de telemetría de la cuenta parent. |
+| `telemetryOnboardingShown_{parentUid}` | `bool` | Si ya se mostró la solicitud de consentimiento al parent. |
+| `parentalAllowedModules` | `int` | Clave heredada; solo se lee al migrar una cuenta existente y se mueve al primer perfil. API SettingsViewModel deprecada. |
 
 Escala real:
 
@@ -272,7 +312,7 @@ Escala real:
 
 | Clave | Tipo | Uso |
 | --- | --- | --- |
-| `settingsPin_<uid>` | `String` | PIN local de 4 digitos para abrir Ajustes, por cuenta. |
+| `settingsPin_<parentUid>` | `String` | PIN local para cambiar desde un perfil infantil a parent management/settings. |
 | `onboardingSeen` | `bool` | La bienvenida ya se mostro en este dispositivo. |
 
 El PIN se guarda en texto plano en `SharedPreferences`. La validacion de PIN

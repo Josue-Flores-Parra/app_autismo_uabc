@@ -6,6 +6,12 @@ La feature de autenticacion permite registrar usuarios, iniciar sesion, cerrar
 sesion y ejecutar operaciones basicas de cuenta con Firebase Auth. Tambien
 escribe datos basicos del usuario en Firestore mediante `FirestoreService`.
 
+Firebase Auth autentica únicamente al parent. Después del consentimiento legal,
+`AuthGate` carga los perfiles infantiles y muestra el selector/gestión. La app
+conserva el learner activo en estado local y usa su ID para avatar y progreso;
+no cambia la sesión Auth al elegir un perfil. Las cuentas antiguas copian su
+avatar y progreso a un learner con ID nuevo durante la primera sesión.
+
 ## Archivos principales
 
 ```text
@@ -77,7 +83,7 @@ Metodos publicos:
 | `clearRegistrationSuccess()` | `void` | Limpia la bandera `registrationSuccess` tras mostrar el cue. |
 | `updateDisplayName(name)` | `Future<bool>` | Actualiza display name y refresca usuario. |
 | `changePassword(newPassword)` | `Future<bool>` | Cambia password del usuario actual. |
-| `deleteAccount()` | `Future<bool>` | Marca `deletedAt`, elimina cuenta y limpia `_currentUser`. |
+| `deleteAccount()` | `Future<bool>` | Reautentica, elimina datos de learners y la cuenta parent, y limpia `_currentUser`. |
 
 Cada operacion cambia `isLoading`, limpia errores al inicio cuando aplica y usa
 `notifyListeners()` despues de cambios de estado.
@@ -173,11 +179,12 @@ Firebase puede exigir reautenticacion reciente; el codigo actual solo captura
 `deleteAccount()`:
 
 1. Retorna `false` si no hay usuario actual.
-2. Escribe `deletedAt` ISO 8601 en `users/{uid}` con merge.
-3. Llama `user.delete()`.
-4. Retorna `true`.
-
-No borra subcolecciones `progress`, ni limpia documentos de `modules`.
+2. Reautentica al parent con su contraseña y cierra la telemetría activa.
+3. Escribe el marcador transitorio `deletedAt`.
+4. Borra el progreso, documento de datos y referencia de cada learner vinculado,
+   y después el documento de la cuenta parent. No borra telemetría histórica.
+5. Limpia el PIN y preferencias locales de esa cuenta y llama `user.delete()`.
+6. Retorna `true`.
 
 ## AuthGate
 
@@ -196,7 +203,7 @@ lib/features/authentication/view/auth_gate.dart
 - Usa `Consumer<AuthViewModel>` para escuchar cambios de `currentUser`.
 - `currentUser == null` y bienvenida no vista → `OnboardingScreen` (ver `docs/features/onboarding.md`).
 - `currentUser == null` → `LoginScreen`.
-- `currentUser != null` → `_LegalGate`, que muestra `LegalConsentScreen` o `MainShell` (ver `docs/features/legal.md`).
+- `currentUser != null` → `_LegalGate`, que muestra `LegalConsentScreen` o `_ProfileGate`. El gate carga perfiles y siempre muestra el mismo hub (`ProfileSelectorScreen`); solo el modo learner entra a `MainShell`. El hub no tiene variantes: `parentUnlocked` solo decide si Editar/Agregar/Ajustes piden PIN antes de continuar.
 
 Como `AuthViewModel` notifica en cada mutacion de `_currentUser` (login, logout,
 deleteAccount, registro), el gate hace el swap automatico y **elimina la
@@ -359,9 +366,9 @@ Si el usuario toca "Olvide el PIN":
 ## Eliminar cuenta
 
 `AuthService.deleteAccount(password)` reautentica antes de borrar porque
-Firebase exige sesion reciente; sin ese paso la eliminacion fallaba aunque la
-palabra de confirmacion fuera correcta. Ademas marca `deletedAt` en
-`users/{uid}`, borra el PIN de esa cuenta y libera los controladores de video.
+Firebase exige sesión reciente. Después borra avatares, progreso y perfiles de
+los learners vinculados, limpia el PIN y preferencias locales parent, y elimina
+la cuenta Auth. Las sesiones de telemetría histórica no se borran.
 
 ## Reglas de mantenimiento
 

@@ -5,11 +5,9 @@ import 'package:provider/provider.dart';
 import '../model/modulo_info.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import 'level_timeline_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/app_theme.dart';
-import '../../settings/view/settings_page.dart';
-import '../../settings/viewmodel/settings_viewmodel.dart';
 import '../../../shared/services/settings_access_guard.dart';
+import '../../profiles/viewmodel/profile_viewmodel.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
 /// Esta es la VISTA en el patrón MVVM - solo se encarga de mostrar los datos.
@@ -31,9 +29,7 @@ class ModuleListScreen extends StatelessWidget {
             onPressed: () async {
               final unlocked = await SettingsAccessGuard.ensureAccess(context);
               if (!unlocked || !context.mounted) return;
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
+              context.read<ProfileViewModel>().unlockParent();
             },
           ),
         ],
@@ -70,19 +66,16 @@ class ModuleListScreen extends StatelessWidget {
             }
 
             // Obtener nombre de usuario desde Firebase Auth
-            final user = FirebaseAuth.instance.currentUser;
-            final nombreUsuario =
-                user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario';
+            final learner = context.watch<ProfileViewModel>().selectedLearner;
+            final nombreUsuario = learner?.name ?? 'Usuario';
             final nivelUsuario = viewModel.completedLevelsCount;
 
-            final parentalAllowedModules = context
-                .watch<SettingsViewModel>()
-                .parentalAllowedModules;
+            final allowedModules = learner?.allowedModules ?? 0;
             return ModulosGridView(
               modulos: viewModel.modulos,
               nombreUsuario: nombreUsuario,
               nivelUsuario: nivelUsuario,
-              parentalAllowedModules: parentalAllowedModules,
+              allowedModules: allowedModules,
             );
           },
         ),
@@ -99,14 +92,14 @@ class ModulosGridView extends StatelessWidget {
   final int nivelUsuario;
 
   /// Cuántos módulos deja abrir el control parental. `0` es sin límite.
-  final int parentalAllowedModules;
+  final int allowedModules;
 
   const ModulosGridView({
     super.key,
     required this.modulos,
     required this.nombreUsuario,
     required this.nivelUsuario,
-    required this.parentalAllowedModules,
+    required this.allowedModules,
   });
 
   @override
@@ -114,7 +107,7 @@ class ModulosGridView extends StatelessWidget {
     final filteredModules = modulos.asMap().entries.map((entry) {
       final modulo = entry.value;
       final fueraDelLimiteParental =
-          parentalAllowedModules > 0 && entry.key >= parentalAllowedModules;
+          allowedModules > 0 && entry.key >= allowedModules;
 
       return ModuloInfo(
         id: modulo.id,
