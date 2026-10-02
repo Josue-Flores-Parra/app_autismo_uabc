@@ -540,7 +540,9 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
     );
   }
 
-  /// Construye la información de intentos
+  /// Muestra los intentos disponibles en la pregunta actual; `_attempts`
+  /// cuenta selecciones hechas, no los errores acumulados que se reportan al
+  /// terminar el minijuego.
   Widget _buildAttemptsInfo() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -556,7 +558,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Intentos: $_attempts / $_maxAttempts',
+              'Intentos restantes: ${(_maxAttempts - _attempts).clamp(0, _maxAttempts)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,

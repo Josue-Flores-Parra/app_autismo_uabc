@@ -234,9 +234,8 @@ en timeline no depende solo de `estado` del documento; se recalcula con progreso
 
 ## Progreso por nivel
 
-La escritura principal se hace desde `LevelCompletionService`.
-
-Para niveles interactivos exitosos:
+La escritura principal se hace desde `LevelCompletionService`, tanto para
+actividades interactivas como de observacion:
 
 ```text
 users/{uid}/progress/{moduleId}/levels/{levelId}
@@ -246,31 +245,28 @@ Campos escritos:
 
 | Campo | Valor |
 | --- | --- |
-| `status` | `completed` si `success == true`; `in_progress` si no. |
-| `estrellas` | `3` si `attempts <= 1`, `2` si `attempts == 2`, `1` para mas intentos. |
-| `attempts` | Intentos reportados por el minijuego. |
-| `completedAt` | ISO 8601 si hubo exito; `null` si no. |
-| `updatedAt` | ISO 8601. |
+| `status` | `completed` al completar todas las modalidades del nivel; `in_progress` en otro caso. |
+| `estrellas` | Cantidad de modalidades completadas; 3 al terminar el nivel, incluso si ofrece menos de 3. |
+| `attempts` | Equivocaciones de la ultima actividad (0 en observacion). |
+| `activities` | Mapa de modalidades completadas con su fecha, intentos y marca `rewarded`. |
+| `completedAt` | ISO 8601 al terminar el nivel. |
+| `updatedAt` | ISO 8601 en cada escritura. |
+| `type` | `observation` en actividades de pictograma y video. |
 
-Para niveles de observacion:
-
-| Campo | Valor |
-| --- | --- |
-| `status` | `completed` |
-| `estrellas` | `2` |
-| `attempts` | `0` |
-| `completedAt` | ISO 8601 |
-| `updatedAt` | ISO 8601 |
-| `type` | `observation` |
+El servicio lee el documento antes de escribir. Si ya tiene 3 estrellas, ni
+un reintento exitoso ni uno fallido modifican sus campos (incluidas fechas e
+intentos); un exito aun puede dar recompensa de repaso al avatar.
 
 Recompensas:
 
-| Caso | Estrellas | Monedas |
-| --- | --- | --- |
-| Interactivo en 1 intento o menos | 3 | 30 |
-| Interactivo en 2 intentos | 2 | 20 |
-| Interactivo en 3+ intentos | 1 | 10 |
-| Observacion | 2 | 20 |
+| Caso | Monedas |
+| --- | --- |
+| Interactivo sin equivocaciones | 30 |
+| Interactivo con 1 o 2 equivocaciones | 20 |
+| Interactivo con 3 o mas equivocaciones | 10 |
+| Observacion (primera vez) | 10 |
+| Repaso exitoso | 5 |
+| Actividad fallida | 0 |
 
 Las monedas se suman en el `AvatarViewModel` actual y se guardan dentro de
 `avatarConfig.monedas`.

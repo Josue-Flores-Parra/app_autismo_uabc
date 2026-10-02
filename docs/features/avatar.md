@@ -314,8 +314,9 @@ No son valores fijos ni de una sola direccion:
 
 `esRepaso` lo decide `LevelCompletionService._persistActivity`: es `true`
 cuando la modalidad (video/pictograma/minijuego de ese nivel) ya estaba en
-`completedActivities` antes de este intento. Un repaso no cansa al personaje,
-lo ayuda a descansar, y sigue dando monedas (`_repasoCoins`, ver
+`completedActivities` antes de este intento o el documento del nivel ya tenia
+3 estrellas. Un repaso no cansa al personaje, lo ayuda a descansar y sigue
+dando monedas (`_repasoCoins`, ver
 `docs/features/learning-module.md`) aunque menos que la primera vez: repetir
 tiene que seguir valiendo la pena o nadie vuelve a ver un video ya visto.
 

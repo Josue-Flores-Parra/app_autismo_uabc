@@ -27,6 +27,7 @@ class VideoViewModel extends ChangeNotifier {
   // habilitar COMPLETAR al adelantar la barra de progreso.
   double _actualSecondsWatched = 0.0;
   DateTime? _lastTick;
+  Duration? _lastPosition;
 
   double get actualSecondsWatched => _actualSecondsWatched;
 
@@ -34,10 +35,11 @@ class VideoViewModel extends ChangeNotifier {
   /// native controller.
   void resetWatchedTime() {
     if (_isDisposed) return;
-    // También se limpia _lastTick para que el primer evento tras replay no
-    // acumule el intervalo de la reproducción anterior.
+    // Limpiar ambas referencias evita sumar tiempo del pase anterior al
+    // reanudar despues de un replay.
     _actualSecondsWatched = 0.0;
     _lastTick = null;
+    _lastPosition = null;
   }
 
   VideoPlayerController get videoController => _videoController;
@@ -92,16 +94,32 @@ class VideoViewModel extends ChangeNotifier {
   }
 
   void _updateWatchTime() {
-    if (_videoController.value.isPlaying) {
-      final now = _now();
-      if (_lastTick != null) {
-        _actualSecondsWatched +=
-            now.difference(_lastTick!).inMilliseconds / 1000.0;
-      }
-      _lastTick = now;
-    } else {
+    final value = _videoController.value;
+    // Solo cuenta reproducción real: pausado o en buffering (isPlaying en
+    // true mientras la red se pone al día) no suma tiempo, así el contador
+    // de completado no avanza si el video se queda cargando. Descartar el
+    // intervalo anterior impide sumarlo cuando la reproduccion se reanude.
+    if (!value.isPlaying || value.isBuffering) {
       _lastTick = null;
+      _lastPosition = null;
+      return;
     }
+    final now = _now();
+    final position = value.position;
+    if (_lastTick != null && _lastPosition != null) {
+      final wallDelta = now.difference(_lastTick!).inMilliseconds / 1000.0;
+      final positionDelta =
+          (position - _lastPosition!).inMilliseconds / 1000.0;
+      // Si la posición no avanzó (stall sin flag de buffering), no se suma.
+      // El menor delta evita que el salto de posicion se cuente completo.
+      if (positionDelta > 0 && wallDelta > 0) {
+        _actualSecondsWatched += wallDelta < positionDelta
+            ? wallDelta
+            : positionDelta;
+      }
+    }
+    _lastTick = now;
+    _lastPosition = position;
   }
 
   void togglePlayPause() {
