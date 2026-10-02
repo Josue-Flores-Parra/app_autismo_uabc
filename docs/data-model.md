@@ -347,8 +347,9 @@ Keys usadas por varios minijuegos:
 | `puzzleImageUrl` | `String` | Imagen principal de puzzle. |
 | `isSimpleSelectionEnabled` | `bool`, `num` o `String` | Habilita tarjeta de seleccion simple. |
 | `isPuzzleEnabled` | `bool`, `num` o `String` | Habilita tarjeta de puzzle. |
-| `steps` | `List` | Secuencia de pictogramas o fuente para generar preguntas de seleccion simple. |
+| `steps` | `List` | Secuencia de pictogramas. |
 | `pictogramSteps` | `List` | Alias de `steps`. |
+| `minigamePool` | `List` | Fuente curada de imagenes y captions para generar preguntas de seleccion simple. |
 | `questions` | `List` o `Map` | Preguntas explicitas de seleccion simple. |
 | `title` / `titulo` | `String` | Titulo en pictogram/audio. |
 | `description` / `descripcion` | `String` | Descripcion en pictogram/audio. |
@@ -356,7 +357,7 @@ Keys usadas por varios minijuegos:
 Aunque `audioUrl` esta documentado y el flujo de audio existe en la app, en el
 estado actual de Firestore no hay ningun nivel con ese recurso poblado.
 
-Shape para `steps`:
+Shape compartido por `steps` y `minigamePool`:
 
 ```json
 [
@@ -367,7 +368,7 @@ Shape para `steps`:
 ]
 ```
 
-Aliases aceptados dentro de cada step:
+Aliases aceptados dentro de cada elemento:
 
 | Concepto | Keys aceptadas |
 | --- | --- |

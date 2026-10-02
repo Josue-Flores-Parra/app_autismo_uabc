@@ -6,8 +6,8 @@ Lógica pura de generación de preguntas para SimpleSelectionMinigame.
 Se extrae del StatefulWidget para poder testearla de forma aislada (sin
 Flutter, sin TTS, sin contexto de build). Las tres entradas soportadas son:
 
-1. `steps` / `pictogramSteps`: genera dinámicamente 3 preguntas a partir de
-   los captions e imágenes de los pasos.
+1. `minigamePool`: genera dinámicamente 3 preguntas a partir de sus captions
+   e imágenes.
 2. `questions` (List o Map de Firestore): parsea preguntas explícitas.
 3. Ninguna de las anteriores: `buildQuestionsFromData` retorna una lista
    vacía y el minijuego provee una pregunta por defecto.
@@ -90,11 +90,11 @@ class QuestionData {
   }
 }
 
-class _SimpleSelectionStep {
+class _SimpleSelectionPoolItem {
   final String imagePath;
   final String caption;
 
-  _SimpleSelectionStep({required this.imagePath, required this.caption});
+  _SimpleSelectionPoolItem({required this.imagePath, required this.caption});
 }
 
 int parseIntValue(dynamic value, {required int fallback}) {
@@ -104,52 +104,56 @@ int parseIntValue(dynamic value, {required int fallback}) {
 }
 
 /*
-Extrae steps válidos desde actividadData (`steps` o `pictogramSteps`).
+Extrae elementos válidos desde `actividadData.minigamePool`.
 Descarta entradas sin imagePath o caption y deduplica por (imagePath, caption).
 */
-List<_SimpleSelectionStep> parseStepsForSimpleSelection(
+List<_SimpleSelectionPoolItem> _parseMinigamePoolForSimpleSelection(
   Map<String, dynamic> data,
 ) {
-  final rawSteps = data['steps'] ?? data['pictogramSteps'];
-  if (rawSteps is! List) return [];
+  final rawPool = data['minigamePool'];
+  if (rawPool is! List) return [];
 
-  final unique = <String, _SimpleSelectionStep>{};
-  for (final raw in rawSteps) {
+  final unique = <String, _SimpleSelectionPoolItem>{};
+  for (final raw in rawPool) {
     if (raw is! Map) continue;
-    final step = Map<String, dynamic>.from(raw);
+    final item = Map<String, dynamic>.from(raw);
     final imagePath =
-        (step['url'] ??
-                step['imagePath'] ??
-                step['src'] ??
-                step['pictogramaUrl'] ??
+        (item['url'] ??
+                item['imagePath'] ??
+                item['src'] ??
+                item['pictogramaUrl'] ??
                 '')
             .toString()
             .trim();
-    final caption = (step['caption'] ?? step['label'] ?? step['text'] ?? '')
+    final caption = (item['caption'] ?? item['label'] ?? item['text'] ?? '')
         .toString()
         .trim();
 
     if (imagePath.isEmpty || caption.isEmpty) continue;
     final key = '$imagePath|$caption';
-    unique[key] = _SimpleSelectionStep(imagePath: imagePath, caption: caption);
+    unique[key] = _SimpleSelectionPoolItem(
+      imagePath: imagePath,
+      caption: caption,
+    );
   }
 
   return unique.values.toList();
 }
 
 /*
-Genera exactamente 3 preguntas usando captions e imágenes de `steps`.
-Retorna una lista vacía si hay menos de 2 steps.
+Genera exactamente 3 preguntas usando captions e imágenes de `minigamePool`.
+Retorna una lista vacía si hay menos de 2 elementos válidos.
 */
-List<QuestionData> buildQuestionsFromSteps(
+List<QuestionData> buildQuestionsFromMinigamePool(
   Map<String, dynamic> data, {
   Random? random,
 }) {
-  final steps = parseStepsForSimpleSelection(data);
-  if (steps.length < 2) return [];
+  final pool = _parseMinigamePoolForSimpleSelection(data);
+  if (pool.length < 2) return [];
 
   final rnd = random ?? Random();
-  final shuffledTargets = List<_SimpleSelectionStep>.from(steps)..shuffle(rnd);
+  final shuffledTargets = List<_SimpleSelectionPoolItem>.from(pool)
+    ..shuffle(rnd);
   final maxAttempts = parseIntValue(
     data['maxAttempts'],
     fallback: 3,
@@ -159,13 +163,13 @@ List<QuestionData> buildQuestionsFromSteps(
   for (int i = 0; i < 3; i++) {
     final target = shuffledTargets[i % shuffledTargets.length];
 
-    // Dos pasos distintos pueden compartir la misma imagen; usarlos como
+    // Dos elementos distintos pueden compartir la misma imagen; usarlos como
     // distractores deja opciones imposibles de diferenciar a simple vista.
     // Por eso se descarta cualquier candidato que repita una imagen ya puesta.
     final imagenesUsadas = <String>{target.imagePath};
-    final distractors = <_SimpleSelectionStep>[];
-    for (final candidate in List<_SimpleSelectionStep>.from(
-      steps,
+    final distractors = <_SimpleSelectionPoolItem>[];
+    for (final candidate in List<_SimpleSelectionPoolItem>.from(
+      pool,
     )..shuffle(rnd)) {
       if (!imagenesUsadas.add(candidate.imagePath)) continue;
       distractors.add(candidate);
@@ -245,7 +249,7 @@ List<QuestionData> parseQuestionsField(Map<String, dynamic> data) {
 Construye la lista de preguntas para el minijuego a partir de actividadData.
 
 Prioridad:
-1. Generar preguntas dinámicamente desde `steps`/`pictogramSteps`.
+1. Generar preguntas dinámicamente desde `minigamePool`.
 2. Parsear el campo `questions` (List o Map).
 3. Retornar una lista vacía — el llamador provee una pregunta por defecto.
 */
@@ -253,8 +257,8 @@ List<QuestionData> buildQuestionsFromData(
   Map<String, dynamic> data, {
   Random? random,
 }) {
-  final fromSteps = buildQuestionsFromSteps(data, random: random);
-  if (fromSteps.isNotEmpty) return fromSteps;
+  final fromPool = buildQuestionsFromMinigamePool(data, random: random);
+  if (fromPool.isNotEmpty) return fromPool;
 
   if (data.containsKey('questions')) {
     return parseQuestionsField(data);

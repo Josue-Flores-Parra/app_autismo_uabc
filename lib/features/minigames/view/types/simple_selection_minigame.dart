@@ -140,7 +140,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       return;
     }
 
-    // Sin datos de preguntas (ni steps ni campo `questions`): proveer una
+    // Sin datos de preguntas (ni minigamePool ni campo `questions`): proveer una
     // pregunta por defecto para evitar un soft-lock. _loadCurrentQuestion()
     // sigue usando el fallback _getDefaultOptions() cuando options está vacío.
     _questions = [

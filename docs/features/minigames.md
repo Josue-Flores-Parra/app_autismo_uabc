@@ -160,22 +160,22 @@ Mecanica:
 
 Prioridad para construir preguntas:
 
-1. Si `steps` o `pictogramSteps` tiene al menos 2 pasos validos, genera exactamente 3 preguntas.
+1. Si `minigamePool` tiene al menos 2 elementos validos, genera exactamente 3 preguntas.
 2. Si existe `questions`, usa ese formato y limita a maximo 3 preguntas.
 3. Si no, el minijuego usa una pregunta por defecto (`¿Cuál es la imagen correcta?`) con opciones placeholder, evitando un soft-lock.
 
-Al generar desde `steps`, ninguna pregunta repite una imagen entre sus opciones.
-Dos pasos distintos pueden compartir la misma imagen con captions diferentes, y
+Al generar desde `minigamePool`, ninguna pregunta repite una imagen entre sus opciones.
+Dos elementos distintos pueden compartir la misma imagen con captions diferentes, y
 usarlos juntos dejaba opciones imposibles de distinguir a simple vista.
 
-### steps / pictogramSteps
+### minigamePool
 
 Acepta:
 
 ```json
 {
   "maxAttempts": 3,
-  "steps": [
+  "minigamePool": [
     {
       "url": "https://...",
       "caption": "Abrir la llave"
@@ -184,14 +184,14 @@ Acepta:
 }
 ```
 
-Aliases por step:
+Aliases por elemento:
 
 | Concepto | Keys |
 | --- | --- |
 | Imagen | `url`, `imagePath`, `src`, `pictogramaUrl` |
 | Caption | `caption`, `label`, `text` |
 
-Con `steps`, la pregunta generada usa el prefijo:
+Con `minigamePool`, la pregunta generada usa el prefijo:
 
 ```text
 Cual es la imagen correcta para el paso...
@@ -199,10 +199,10 @@ Cual es la imagen correcta para el paso...
 
 Opciones:
 
-- La opcion correcta es el step objetivo.
-- Los distractores salen de otros steps.
-- Si hay 4 o mas steps, usa 3 distractores.
-- Si hay menos, usa `steps.length - 1` distractores.
+- La opcion correcta es el elemento objetivo.
+- Los distractores salen de otros elementos del pool.
+- Si hay 4 o mas elementos, usa 3 distractores.
+- Si hay menos, usa `minigamePool.length - 1` distractores.
 
 ### questions
 

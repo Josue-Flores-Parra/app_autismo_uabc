@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filtro de Imágenes para Minijuego</title>
+  
+  <!-- Firebase SDK Compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 1.5rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    select, button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    select {
+      background-color: white;
+      min-width: 220px;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    button:disabled {
+      background-color: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    .summary-bar {
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #eff6ff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #bfdbfe;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: all 0.2s;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+      background-color: #f0fdf4;
+    }
+
+    .card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background-color: #f1f5f9;
+    }
+
+    .card-content {
+      padding: 12px 16px;
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: #64748b;
+    }
+
+    .card-caption {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .checkbox-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .checkbox-badge input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>🎯 Selector de Pool para Minijuego</h1>
+    <div class="controls">
+      <select id="moduleSelect">
+        <option value="">-- Selecciona un Módulo --</option>
+      </select>
+
+      <select id="levelSelect" disabled>
+        <option value="">-- Selecciona un Nivel --</option>
+      </select>
+
+      <button id="btnSave" disabled onclick="savePool()">💾 Guardar Pool en Firestore</button>
+    </div>
+
+    <div class="summary-bar" id="summaryBar" style="display: none;">
+      <span id="selectedCount">Seleccionados: 0 de 0 pasos</span>
+      <span id="poolStatus" style="font-size: 0.85rem; color: #475569;"></span>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid" id="stepsGrid">
+      <p style="grid-column: 1 / -1; color: #64748b;">Selecciona un módulo y nivel para cargar las imágenes.</p>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ==========================================
+  // 1. CONFIGURACIÓN DE FIREBASE
+  // ==========================================
+  const firebaseConfig = {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  // Estado global
+  let currentSteps = [];
+  let selectedIndices = new Set();
+  let currentModuleId = "";
+  let currentLevelId = "";
+
+  // Elements
+  const moduleSelect = document.getElementById('moduleSelect');
+  const levelSelect = document.getElementById('levelSelect');
+  const stepsGrid = document.getElementById('stepsGrid');
+  const btnSave = document.getElementById('btnSave');
+  const summaryBar = document.getElementById('summaryBar');
+  const selectedCountEl = document.getElementById('selectedCount');
+  const poolStatusEl = document.getElementById('poolStatus');
+
+  // ==========================================
+  // 2. CARGA INICIAL DE MÓDULOS
+  // ==========================================
+  async function loadModules() {
+    try {
+      const snapshot = await db.collection('modules').get();
+      moduleSelect.innerHTML = '<option value="">-- Selecciona un Módulo --</option>';
+      
+      snapshot.forEach(doc => {
+        const option = document.createElement('option');
+        option.value = doc.id;
+        option.textContent = doc.id;
+        moduleSelect.appendChild(option);
+      });
+    } catch (error) {
+      showToast("❌ Error al cargar módulos: " + error.message);
+    }
+  }
+
+  moduleSelect.addEventListener('change', async (e) => {
+    currentModuleId = e.target.value;
+    levelSelect.innerHTML = '<option value="">Cargando niveles...</option>';
+    levelSelect.disabled = true;
+    btnSave.disabled = true;
+    summaryBar.style.display = 'none';
+    stepsGrid.innerHTML = '';
+
+    if (!currentModuleId) return;
+
+    try {
+      const snapshot = await db.collection('modules').doc(currentModuleId).collection('levels').get();
+      levelSelect.innerHTML = '<option value="">-- Selecciona un Nivel --</option>';
+      
+      snapshot.forEach(doc => {
+        const option = document.createElement('option');
+        option.value = doc.id;
+        option.textContent = doc.id;
+        levelSelect.appendChild(option);
+      });
+      levelSelect.disabled = false;
+    } catch (error) {
+      showToast("❌ Error al cargar niveles: " + error.message);
+    }
+  });
+
+  levelSelect.addEventListener('change', async (e) => {
+    currentLevelId = e.target.value;
+    if (!currentLevelId) return;
+    loadLevelData();
+  });
+
+  // ==========================================
+  // 3. CARGAR PASOS Y POOL DEL NIVEL SELECCIONADO
+  // ==========================================
+  async function loadLevelData() {
+    stepsGrid.innerHTML = '<p style="grid-column: 1 / -1;">Cargando pasos...</p>';
+    selectedIndices.clear();
+
+    try {
+      const doc = await db.collection('modules').doc(currentModuleId).collection('levels').doc(currentLevelId).get();
+      
+      if (!doc.exists) {
+        showToast("⚠️ El documento del nivel no existe.");
+        return;
+      }
+
+      const data = doc.data();
+      const actividadData = data.actividadData || {};
+      currentSteps = actividadData.steps || [];
+      const existingPool = actividadData.minigamePool || [];
+
+      if (currentSteps.length === 0) {
+        stepsGrid.innerHTML = '<p style="grid-column: 1 / -1;">Este nivel no tiene pasos registrados.</p>';
+        return;
+      }
+
+      // Si ya hay un pool guardado, pre-seleccionamos los checkboxes correspondientes por URL
+      if (existingPool.length > 0) {
+        currentSteps.forEach((step, index) => {
+          if (existingPool.some(p => p.url === step.url)) {
+            selectedIndices.add(index);
+          }
+        });
+        poolStatusEl.textContent = "ℹ️ Mostrando pool guardado previamente.";
+      } else {
+        poolStatusEl.textContent = "ℹ️ Sin pool previo. Haz tu selección.";
+      }
+
+      renderSteps();
+      btnSave.disabled = false;
+      summaryBar.style.display = 'flex';
+    } catch (error) {
+      showToast("❌ Error al cargar datos del nivel: " + error.message);
+    }
+  }
+
+  // ==========================================
+  // 4. RENDERIZADO DE CARDS (PASOS)
+  // ==========================================
+  function renderSteps() {
+    stepsGrid.innerHTML = '';
+    
+    currentSteps.forEach((step, index) => {
+      const isSelected = selectedIndices.has(index);
+      
+      const card = document.createElement('div');
+      card.className = `card ${isSelected ? 'selected' : ''}`;
+      card.onclick = () => toggleSelect(index);
+
+      card.innerHTML = `
+        <div class="checkbox-badge">
+          <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSelect(${index})">
+        </div>
+        <img src="${step.url}" alt="Paso ${index + 1}" loading="lazy">
+        <div class="card-content">
+          <div class="card-title">Paso ${index + 1}</div>
+          <p class="card-caption">${step.caption || '<em>Sin descripción</em>'}</p>
+        </div>
+      `;
+
+      stepsGrid.appendChild(card);
+    });
+
+    updateSummary();
+  }
+
+  function toggleSelect(index) {
+    if (selectedIndices.has(index)) {
+      selectedIndices.delete(index);
+    } else {
+      selectedIndices.add(index);
+    }
+    renderSteps();
+  }
+
+  function updateSummary() {
+    selectedCountEl.textContent = `Seleccionados: ${selectedIndices.size} de ${currentSteps.length} pasos`;
+  }
+
+  // ==========================================
+  // 5. GUARDAR POOL EN FIRESTORE
+  // ==========================================
+  async function savePool() {
+    if (!currentModuleId || !currentLevelId) return;
+
+    btnSave.disabled = true;
+    btnSave.textContent = "Guardando...";
+
+    // Filtrar los pasos elegidos
+    const poolToSave = Array.from(selectedIndices).map(idx => ({
+      url: currentSteps[idx].url,
+      caption: currentSteps[idx].caption || ""
+    }));
+
+    try {
+      const docRef = db.collection('modules').doc(currentModuleId).collection('levels').doc(currentLevelId);
+      
+      // Guardar el mapa/arreglo directamente dentro de actividadData.minigamePool
+      await docRef.update({
+        "actividadData.minigamePool": poolToSave
+      });
+
+      showToast(`✅ Pool guardado con éxito (${poolToSave.length} imágenes).`);
+      poolStatusEl.textContent = "✅ Cambios guardados en Firestore.";
+    } catch (error) {
+      showToast("❌ Error al guardar en Firestore: " + error.message);
+    } finally {
+      btnSave.disabled = false;
+      btnSave.textContent = "💾 Guardar Pool en Firestore";
+    }
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 4000);
+  }
+
+  // Iniciar la app solo después de autenticar anónimamente
+  async function initApp() {
+    try {
+      await auth.signInAnonymously();
+      console.log('Autenticado anónimamente:', auth.currentUser.uid);
+      await loadModules();
+    } catch (error) {
+      console.error('Error de autenticación:', error);
+      showToast('❌ Error de autenticación: ' + error.message);
+    }
+  }
+
+  initApp();
+</script>
+
+</body>
+</html>
