@@ -8,6 +8,7 @@ import '../../../shared/services/level_completion_service.dart';
 import '../../../shared/widgets/video_control_rail.dart';
 import '../../telemetry/model/telemetry_enums.dart';
 import '../../telemetry/model/telemetry_signals.dart';
+import '../model/video_resume.dart';
 import '../viewmodel/video_viewmodel.dart';
 
 /// Pantalla horizontal de reproducción de video para niveles de tipo 'video'.
@@ -23,6 +24,10 @@ class VideoPlayerScreen extends StatefulWidget {
   /// Handle opaco de telemetría (null si no hay consentimiento activo).
   final ActivitySessionHandle? telemetryHandle;
 
+  /// Dónde se quedó la visualización anterior. Con valor, el video arranca ahí
+  /// y conserva el tiempo ya visto; sin valor, empieza desde cero.
+  final VideoResume? resume;
+
   const VideoPlayerScreen({
     super.key,
     required this.videoUrl,
@@ -30,6 +35,7 @@ class VideoPlayerScreen extends StatefulWidget {
     this.levelId,
     this.moduleId,
     this.telemetryHandle,
+    this.resume,
   });
 
   @override
@@ -94,8 +100,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       if (controller.value.isPlaying) {
         await controller.pause();
       }
-      await controller.seekTo(Duration.zero);
+      final resume = widget.resume;
+      await controller.seekTo(resume?.position ?? Duration.zero);
       _viewModel.resetWatchedTime();
+      if (resume != null) _viewModel.seedWatchedSeconds(resume.watchedSeconds);
     } catch (_) {
       _reportInitializationError();
       return;
@@ -210,8 +218,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     try {
       final controller = _viewModel.videoController;
-      if (controller.value.isPlaying) await controller.pause();
-      await controller.seekTo(Duration.zero);
+      if (controller.value.isPlaying) {
+        await controller.pause().timeout(const Duration(milliseconds: 500));
+      }
     } catch (_) {}
 
     _celebrationHelper.playCelebration();
@@ -229,7 +238,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _pauseAndPop() async {
-    if (_isReplaying || _isFinishing) return;
+    if (_isFinishing) {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (_isReplaying) return;
     try {
       if (widget.videoUrl.isNotEmpty &&
           _viewModel.videoController.value.isInitialized &&
@@ -237,13 +250,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         await _viewModel.videoController.pause();
       }
     } catch (_) {}
-    // Abandona sólo si no se terminalizó ya (completar o error de carga).
-    if (!_hasAbandoned) {
+    final resume = _currentResume();
+    // Salir de pantalla completa equivale a reducir el video: la sesión sigue
+    // abierta y la cierra quien abandone la vista previa. Solo se abandona aquí
+    // cuando no hay nada que retomar y no se terminalizó ya.
+    if (resume == null && !_hasAbandoned) {
       _hasAbandoned = true;
       widget.telemetryHandle?.onAbandon(TerminalReason.userBack);
     }
     if (!mounted) return;
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(resume);
+  }
+
+  VideoResume? _currentResume() {
+    if (widget.videoUrl.isEmpty || !_isActivityReady) return null;
+    try {
+      final value = _viewModel.videoController.value;
+      if (!value.isInitialized) return null;
+      return VideoResume(
+        position: value.position,
+        watchedSeconds: _viewModel.actualSecondsWatched,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

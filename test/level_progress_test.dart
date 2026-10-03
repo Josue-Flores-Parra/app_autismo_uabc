@@ -82,11 +82,23 @@ void main() {
     expect(LevelCompletionService.calculateCoins(9), 10);
   });
 
+  test('only simple selection and puzzle are interactive activities', () {
+    expect(
+      LevelCompletionService.isInteractiveType('simple_selection'),
+      isTrue,
+    );
+    expect(LevelCompletionService.isInteractiveType(' Puzzle '), isTrue);
+    expect(LevelCompletionService.isInteractiveType('pictogram'), isFalse);
+    expect(LevelCompletionService.isInteractiveType('video'), isFalse);
+    expect(LevelCompletionService.isInteractiveType('audio'), isFalse);
+    expect(LevelCompletionService.isInteractiveType(null), isFalse);
+  });
+
   test('simple selection never repeats an image between options', () {
     // Dos pasos distintos que comparten imagen: no pueden convivir como
     // opciones porque el niño no podría distinguirlas.
     final data = {
-      'steps': [
+      'minigamePool': [
         {'url': 'a.png', 'caption': 'Abrir la llave'},
         {'url': 'a.png', 'caption': 'Cerrar la llave'},
         {'url': 'b.png', 'caption': 'Enjabonarse'},

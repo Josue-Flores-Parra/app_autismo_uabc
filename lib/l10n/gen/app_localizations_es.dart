@@ -12,6 +12,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appTitle => 'Appy';
 
   @override
+  String get appTagline => 'TEApoya TEAcompaña';
+
+  @override
   String get navModules => 'Módulos';
 
   @override
@@ -118,7 +121,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scheduleReminder => 'Horario sugerido';
 
   @override
-  String get reminderPlaceholder => 'Programación disponible pronto';
+  String get reminderPlaceholder =>
+      'Activa los recordatorios para elegir la hora';
+
+  @override
+  String reminderDailyAt(String time) {
+    return 'Todos los días a las $time';
+  }
+
+  @override
+  String get reminderNotificationTitle => 'Hora de practicar con Appy';
+
+  @override
+  String get reminderNotificationBody => 'Hay actividades esperándote.';
+
+  @override
+  String get reminderPermissionDenied =>
+      'Activa las notificaciones de Appy en los ajustes del teléfono para recibir recordatorios.';
 
   @override
   String get privacySection => 'Privacidad y datos';
@@ -149,7 +168,70 @@ class AppLocalizationsEs extends AppLocalizations {
   String get parentalAllowedModules => 'Módulos permitidos';
 
   @override
-  String get parentalNoLimit => 'Sin límite';
+  String get parentalNoLimit => 'Todos';
+
+  @override
+  String get profileOpenAllLevels => 'Abrir todos los niveles';
+
+  @override
+  String get profileOpenAllLevelsHint =>
+      'Muestra abiertos todos los niveles de los módulos permitidos. Las monedas y estrellas solo se ganan al completar cada actividad.';
+
+  @override
+  String get openLevelsActive => 'Modo libre';
+
+  @override
+  String get downloadsTitle => 'Contenido sin conexión';
+
+  @override
+  String get downloadsIntro =>
+      'Descarga un módulo para usarlo sin internet. Para descargar necesitas conexión. El progreso se guarda y se envía cuando vuelve la red.';
+
+  @override
+  String get downloadsEmpty => 'Aún no hay módulos para descargar.';
+
+  @override
+  String get downloadsNotDownloaded => 'Sin descargar';
+
+  @override
+  String get downloadsPartial => 'Descarga incompleta';
+
+  @override
+  String downloadsDownloaded(String size) {
+    return 'Descargado, $size';
+  }
+
+  @override
+  String downloadsInProgress(int done, int total) {
+    return 'Descargando $done de $total';
+  }
+
+  @override
+  String get downloadsAction => 'Descargar';
+
+  @override
+  String get downloadsRetry => 'Reintentar';
+
+  @override
+  String get downloadsDeleteTooltip => 'Borrar descarga';
+
+  @override
+  String get downloadsDeleteTitle => '¿Borrar la descarga?';
+
+  @override
+  String get downloadsDeleteBody =>
+      'Se libera el espacio del teléfono. Puedes volver a descargarlo cuando quieras.';
+
+  @override
+  String get downloadsErrorNetwork =>
+      'No se pudo descargar. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get downloadsErrorNoSpace =>
+      'No hay espacio suficiente en el teléfono.';
+
+  @override
+  String get downloadsErrorOther => 'No se pudo completar la descarga.';
 
   @override
   String get parentalModulesUnit => 'módulos';
@@ -183,9 +265,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cacheClearedSnackbar => 'Caché limpiada';
-
-  @override
-  String get reminderNotImplemented => 'La programación llegará pronto';
 
   @override
   String get logoutSuccess => 'Sesión cerrada';
@@ -348,4 +427,21 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteAccountSuccess => 'Cuenta eliminada correctamente.';
+
+  @override
+  String get completionRewardsPending =>
+      'Recompensas pendientes de sincronización.';
+
+  @override
+  String get completionSaveFailed =>
+      'No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.';
+
+  @override
+  String get downloadsCancelling => 'Cancelando…';
+
+  @override
+  String get completionRewardsConfirmed => 'Recompensas sincronizadas.';
+
+  @override
+  String get completionRewardsLoading => 'Cargando recompensas';
 }

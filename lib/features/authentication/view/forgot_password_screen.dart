@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:appy/l10n/gen/app_localizations.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../../../core/app_theme.dart';
 
@@ -80,6 +81,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               style: TextStyle(
                                 fontFamily: AppFonts.display,
                                 fontSize: 40,
+                                color: colors.ink,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              AppLocalizations.of(context).appTagline,
+                              style: TextStyle(
+                                fontFamily: AppFonts.display,
+                                fontSize: 18,
                                 color: colors.ink,
                               ),
                               textAlign: TextAlign.center,

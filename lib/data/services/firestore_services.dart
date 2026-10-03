@@ -1,16 +1,72 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Tiempo que se espera la confirmación del servidor antes de seguir.
+  static const Duration _offlineWriteGrace = Duration(seconds: 3);
+
+  /*
+  Sin conexión, el Future de una escritura de Firestore no termina hasta que
+  el servidor confirma, aunque el dato ya esté en la cola local. Esperarlo sin
+  límite dejaría la pantalla colgada (por ejemplo, el resultado de una
+  actividad). Aquí se espera un plazo corto: si el servidor responde, los
+  errores se propagan como antes; si no, la escritura sigue en cola y se envía
+  sola al volver la red.
+  */
+  Future<void> _queuedWrite(Future<void> write) {
+    final completer = Completer<void>();
+    write.then(
+      (_) {
+        if (!completer.isCompleted) completer.complete();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        } else {
+          debugPrint('FirestoreService: escritura en cola falló: $error');
+        }
+      },
+    );
+    Timer(_offlineWriteGrace, () {
+      if (!completer.isCompleted) completer.complete();
+    });
+    return completer.future;
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _readDocument(
+    DocumentReference<Map<String, dynamic>> reference,
+  ) async {
+    try {
+      return await reference.get().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      return reference.get(const GetOptions(source: Source.cache));
+    }
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> _readQuery(
+    Query<Map<String, dynamic>> query,
+  ) async {
+    try {
+      return await query.get().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      return query.get(const GetOptions(source: Source.cache));
+    }
+  }
+
   // Escribir datos de usuario
   Future<void> setUserData(String uid, Map<String, dynamic> data) async {
-    await _db.collection('users').doc(uid).set(data, SetOptions(merge: true));
+    await _queuedWrite(
+      _db.collection('users').doc(uid).set(data, SetOptions(merge: true)),
+    );
   }
 
   // Leer datos de usuario
   Future<Map<String, dynamic>?> getUserData(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
+    final doc = await _readDocument(_db.collection('users').doc(uid));
     return doc.exists ? doc.data() : null;
   }
 
@@ -51,7 +107,7 @@ class FirestoreService {
   */
   Future<Map<String, dynamic>?> getModuleData(String moduleId) async {
     try {
-      final doc = await _db.collection('modules').doc(moduleId).get();
+      final doc = await _readDocument(_db.collection('modules').doc(moduleId));
 
       if (doc.exists) {
         final data = doc.data()!;
@@ -71,7 +127,7 @@ class FirestoreService {
   */
   Future<List<Map<String, dynamic>>> getAllModules() async {
     try {
-      final snapshot = await _db.collection('modules').get();
+      final snapshot = await _readQuery(_db.collection('modules'));
       return snapshot.docs.map((doc) {
         final data = doc.data();
         // Add the document ID to the data map
@@ -93,12 +149,13 @@ class FirestoreService {
     }
 
     try {
-      final snapshot = await _db
-          .collection('modules')
-          .doc(moduleId)
-          .collection('levels')
-          .orderBy('orden')
-          .get();
+      final snapshot = await _readQuery(
+        _db
+            .collection('modules')
+            .doc(moduleId)
+            .collection('levels')
+            .orderBy('orden'),
+      );
 
       final levels = snapshot.docs.map((doc) {
         final data = doc.data();
@@ -108,7 +165,7 @@ class FirestoreService {
       }).toList();
 
       return levels;
-    } catch (e, stackTrace) {
+    } catch (e) {
       return [];
     }
   }
@@ -123,14 +180,16 @@ class FirestoreService {
     Map<String, dynamic> progressData,
   ) async {
     try {
-      await _db
-          .collection('users')
-          .doc(uid)
-          .collection('progress')
-          .doc(moduleId)
-          .collection('levels')
-          .doc(levelId)
-          .set(progressData, SetOptions(merge: true));
+      await _queuedWrite(
+        _db
+            .collection('users')
+            .doc(uid)
+            .collection('progress')
+            .doc(moduleId)
+            .collection('levels')
+            .doc(levelId)
+            .set(progressData, SetOptions(merge: true)),
+      );
     } catch (e) {
       // Silent fail - error handling can be added at higher level if needed
     }
@@ -141,10 +200,18 @@ class FirestoreService {
   */
   Future<void> clearUserProgress(String uid) async {
     try {
-      final progressRef = _db.collection('users').doc(uid).collection('progress');
-      final modulesSnapshot = await progressRef.get();
+      final progressRef = _db
+          .collection('users')
+          .doc(uid)
+          .collection('progress');
+      final modulesSnapshot = await progressRef.get().timeout(
+        const Duration(seconds: 2),
+      );
       for (final moduleDoc in modulesSnapshot.docs) {
-        final levelsSnapshot = await moduleDoc.reference.collection('levels').get();
+        final levelsSnapshot = await moduleDoc.reference
+            .collection('levels')
+            .get()
+            .timeout(const Duration(seconds: 2));
         for (final levelDoc in levelsSnapshot.docs) {
           await levelDoc.reference.delete();
         }
@@ -165,6 +232,28 @@ class FirestoreService {
     String levelId,
   ) async {
     try {
+      final doc = await _readDocument(
+        _db
+            .collection('users')
+            .doc(uid)
+            .collection('progress')
+            .doc(moduleId)
+            .collection('levels')
+            .doc(levelId),
+      );
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Lee únicamente el progreso disponible en disco, incluso al arrancar sin red.
+  Future<Map<String, dynamic>?> getCachedUserLevelProgress(
+    String uid,
+    String moduleId,
+    String levelId,
+  ) async {
+    try {
       final doc = await _db
           .collection('users')
           .doc(uid)
@@ -172,9 +261,10 @@ class FirestoreService {
           .doc(moduleId)
           .collection('levels')
           .doc(levelId)
-          .get();
-      return doc.exists ? doc.data() : null;
-    } catch (e) {
+          .get(const GetOptions(source: Source.cache))
+          .timeout(const Duration(milliseconds: 500));
+      return doc.data();
+    } catch (_) {
       return null;
     }
   }
@@ -188,13 +278,14 @@ class FirestoreService {
     String moduleId,
   ) async {
     try {
-      final snapshot = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('progress')
-          .doc(moduleId)
-          .collection('levels')
-          .get();
+      final snapshot = await _readQuery(
+        _db
+            .collection('users')
+            .doc(uid)
+            .collection('progress')
+            .doc(moduleId)
+            .collection('levels'),
+      );
 
       final progressMap = <String, Map<String, dynamic>>{};
       for (var doc in snapshot.docs) {
@@ -202,7 +293,18 @@ class FirestoreService {
       }
       return progressMap;
     } catch (e) {
-      return {};
+      try {
+        final cached = await _db
+            .collection('users')
+            .doc(uid)
+            .collection('progress')
+            .doc(moduleId)
+            .collection('levels')
+            .get(const GetOptions(source: Source.cache));
+        return {for (final doc in cached.docs) doc.id: doc.data()};
+      } catch (_) {
+        return {};
+      }
     }
   }
 

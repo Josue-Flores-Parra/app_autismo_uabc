@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:appy/l10n/gen/app_localizations.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
@@ -223,6 +224,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
+                              AppLocalizations.of(context).appTagline,
+                              style: TextStyle(
+                                fontFamily: AppFonts.display,
+                                fontSize: 18,
+                                color: colors.ink,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
                               '¡Bienvenido! Por favor inicia sesión',
                               style: TextStyle(
                                 fontSize: 16,
@@ -236,8 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               builder: (context, authViewModel, _) {
                                 final imagePath =
                                     authViewModel.errorMessage != null
-                                        ? 'assets/images/icon-questionmark2x.png'
-                                        : 'assets/images/salute.png';
+                                    ? 'assets/images/icon-questionmark2x.png'
+                                    : 'assets/images/salute.png';
 
                                 return Center(
                                   child: AnimatedSwitcher(
@@ -381,11 +392,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text('¿Olvidaste tu contraseña?'),
                             ),
                             // Seccion para "¿No tienes una cuenta? Regístrate"
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
                                   '¿No tienes una cuenta?',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(color: colors.inkSoft),
                                 ),
                                 TextButton(

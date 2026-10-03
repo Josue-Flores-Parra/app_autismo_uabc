@@ -6,6 +6,7 @@ import '../viewmodel/video_viewmodel.dart';
 import '../viewmodel/audio_viewmodel.dart';
 import 'preview_card_colors.dart';
 import '../../../shared/widgets/video_control_rail.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 class BasePreviewCard extends StatefulWidget {
   final Widget typeOfPreviewCard;
@@ -248,6 +249,10 @@ class VideoPreviewCard extends StatefulWidget {
   final VideoPlayerController? externalController;
   final VoidCallback? onLaunch;
 
+  /// Posición desde donde se retoma el video al volver de la pantalla completa.
+  /// Con valor, el video sigue reproduciéndose desde ahí.
+  final Duration? startAt;
+
   const VideoPreviewCard({
     super.key,
     required this.videoPath,
@@ -257,6 +262,7 @@ class VideoPreviewCard extends StatefulWidget {
     this.isActive = true,
     this.externalController,
     this.onLaunch,
+    this.startAt,
   });
 
   @override
@@ -292,6 +298,17 @@ class VideoPreviewCardState extends State<VideoPreviewCard>
     _viewModel.addListener(() {
       if (mounted) setState(() {});
     });
+    final startAt = widget.startAt;
+    if (startAt != null) {
+      _viewModel.initializeVideoFuture
+          .then((_) async {
+            if (!mounted) return;
+            await _viewModel.videoController.seekTo(startAt);
+            if (!mounted) return;
+            await _viewModel.videoController.play();
+          })
+          .catchError((_) {});
+    }
   }
 
   @override
@@ -932,8 +949,8 @@ Widget _buildImageFromUrl(
 }) {
   // Si la URL es una URL externa (http/https), usar Image.network
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    return Image.network(
-      url,
+    return Image(
+      image: OfflineAssetsService.instance.imageProvider(url),
       height: height,
       width: width,
       fit: fit,

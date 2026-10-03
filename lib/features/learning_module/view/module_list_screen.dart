@@ -7,6 +7,7 @@ import '../viewmodel/learning_viewmodel.dart';
 import 'level_timeline_screen.dart';
 import '../../../core/app_theme.dart';
 import '../../../shared/services/settings_access_guard.dart';
+import '../../../shared/widgets/open_levels_badge.dart';
 import '../../profiles/viewmodel/profile_viewmodel.dart';
 
 /// Pantalla principal que muestra la lista de módulos de aprendizaje.
@@ -21,6 +22,7 @@ class ModuleListScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n?.navModules ?? 'Mis Módulos'),
         actions: [
+          const OpenLevelsBadge(),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: l10n?.settingsTitle ?? 'Ajustes',

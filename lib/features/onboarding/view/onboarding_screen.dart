@@ -91,20 +91,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Row(
-              children: List.generate(_pageCount, (i) {
-                final active = i == _page;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 240),
-                  margin: const EdgeInsets.only(right: 6),
-                  width: active ? 28 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: active ? colors.accent : colors.surfaceBorder,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                  ),
-                );
-              }),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(_pageCount, (i) {
+                  final active = i == _page;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 240),
+                    margin: const EdgeInsets.only(right: 6),
+                    width: active ? 28 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: active ? colors.accent : colors.surfaceBorder,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                  );
+                }),
+              ),
             ),
           ),
           TextButton(
@@ -258,12 +263,14 @@ class _Tag extends StatelessWidget {
         children: [
           Icon(icon, color: tint, size: 16),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: tint,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: tint,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -377,6 +384,7 @@ class _Copy extends StatelessWidget {
           AnimatedEntrance(
             delay: const Duration(milliseconds: 300),
             child: RichText(
+              textScaler: MediaQuery.textScalerOf(context),
               text: TextSpan(
                 style: TextStyle(
                   fontSize: 16,
@@ -408,36 +416,37 @@ class _Scene extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Column(
-        children: [
-          Expanded(
-            flex: 5,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: AspectRatio(
-                aspectRatio: 1.0,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 20, bottom: 20),
-                  child: FloatingAnimation(
-                    magnitude: 12.0,
-                    duration: const Duration(seconds: 4),
-                    child: art,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final artHeight = (constraints.maxHeight * 0.4).clamp(100.0, 280.0);
+        // El texto crece libremente; solo la ilustración tiene altura limitada.
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: artHeight,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: FloatingAnimation(
+                        magnitude: 12,
+                        duration: const Duration(seconds: 4),
+                        child: art,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                copy,
+              ],
             ),
           ),
-          Expanded(
-            flex: 6,
-            child: Transform.translate(
-              offset: const Offset(0, -40), // Overlaps the image
-              child: Align(alignment: Alignment.topLeft, child: copy),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

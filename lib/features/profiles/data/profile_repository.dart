@@ -24,6 +24,13 @@ class ProfileRepository {
 
   Future<void> ensureParent(String parentUid) async {
     final ref = _user(parentUid);
+    // Una lectura simple sale de la caché sin conexión; la transacción exige
+    // servidor. Solo se corre cuando hay algo que corregir.
+    final current = (await ref.get()).data();
+    if (current?['role'] == 'parent' &&
+        current?['profilesInitialized'] == true) {
+      return;
+    }
     await _db.runTransaction((transaction) async {
       final snapshot = await transaction.get(ref);
       final data = snapshot.data() ?? <String, dynamic>{};

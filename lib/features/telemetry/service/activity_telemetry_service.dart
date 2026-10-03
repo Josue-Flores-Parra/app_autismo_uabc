@@ -43,6 +43,10 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
        _now = now ?? DateTime.now {
     WidgetsBinding.instance.addObserver(this);
     instance = this;
+    _retryTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => retryPendingTerminals(),
+    );
   }
 
   final TelemetryRepository _repository;
@@ -52,6 +56,9 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
   final Uuid _uuid;
   final DateTime Function() _now;
   final Duration inactivityWindow;
+  Timer? _retryTimer;
+  Future<void>? _retryTask;
+  String? _activeSessionId;
 
   bool _consentReady = false;
   bool _consentEnabled = false;
@@ -62,7 +69,8 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
   // Última operación fallida sin PII (para diagnóstico/soporte).
   String? _lastError;
   String? get lastError => _lastError;
-  int get activeSessionCount => _sessions.length;
+  int get activeSessionCount =>
+      _sessions.values.where((runtime) => !runtime.terminal).length;
 
   /// Coordina el consentimiento desde SettingsViewModel.
   ///
@@ -77,7 +85,10 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     _consentEnabled = enabled;
     final nowEnabled = enabled && ready;
 
+    if (nowEnabled) unawaited(retryPendingTerminals());
     if (wasEnabled && !nowEnabled) {
+      final actor = _uidProvider();
+      if (actor != null) await _pendingStore.discardTerminals(actor);
       await _optOutActiveSessions();
     }
   }
@@ -108,6 +119,23 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
         : actorId;
     if (moduleId.trim().isEmpty || levelId.trim().isEmpty) return null;
 
+    // Una ruta nueva sustituye sesiones obsoletas del mismo learner.
+    for (final old in _sessions.values.toList()) {
+      if (old.terminal ||
+          old.session.subject.actorId != actorId ||
+          old.session.subject.learnerId != subjectLearnerId) {
+        continue;
+      }
+      if (old.started) {
+        abandon(old.session.sessionId, TerminalReason.routeRemoved);
+      } else {
+        launchError(
+          old.session.sessionId,
+          TerminalReason.launchCancelledBeforeNavigation,
+        );
+      }
+    }
+
     final sessionId = _uuid.v4();
     final session = ActivityTelemetrySession.launchRequested(
       sessionId: sessionId,
@@ -126,11 +154,13 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
 
     final runtime = _SessionRuntime(session: session, clock: _clockFactory());
     _sessions[sessionId] = runtime;
+    _activeSessionId = sessionId;
     runtime.chain = runtime.chain.then((_) async {
       try {
         await _repository.create(session);
         await _saveMarker(runtime);
       } on TelemetryRepositoryException catch (e) {
+        runtime.remoteIncomplete = true;
         _recordError(e);
       }
     });
@@ -298,8 +328,9 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
   void abandon(String sessionId, TerminalReason reason) {
     final runtime = _runtime(sessionId);
     if (runtime == null || runtime.terminal) return;
-    if (!runtime.started)
+    if (!runtime.started) {
       return; // Salir antes de started es launch_error, no abandono.
+    }
     if (!TerminalReason.abandonedReasons.contains(reason)) return;
     runtime.clock.stopSegment();
     _terminalize(runtime, status: SessionState.abandoned, reason: reason);
@@ -363,7 +394,7 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
       'outcome.terminalReason': reason.value,
       'timing.terminalAt': ServerTimestamp.instance,
       'timing.activeDurationMs': runtime.clock.activeMs,
-      if (patch != null) ...patch,
+      ...?patch,
     };
 
     _enqueue(runtime, base, terminal: true);
@@ -374,34 +405,77 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     Map<String, dynamic> patch, {
     bool terminal = false,
   }) {
+    runtime.pendingPatch.addAll(patch);
+    final delivery = Map<String, dynamic>.of(runtime.pendingPatch);
+    // El guardado local empieza ahora, independientemente de escrituras remotas pendientes.
+    final saved = terminal
+        ? _pendingStore.saveTerminal(runtime.launch, delivery)
+        : Future<void>.value();
+    // Evita errores sin receptor mientras se espera la cadena remota anterior.
+    unawaited(
+      saved.catchError((Object e) {
+        _lastError = 'saveTerminal:recoverable';
+      }),
+    );
     runtime.chain = runtime.chain.then((_) async {
       try {
+        await saved;
         if (terminal) {
-          await _repository.updateIfNotTerminal(
+          if (!_consentActive) return;
+          if (runtime.remoteIncomplete) {
+            await _repository.confirmTerminal(runtime.launch, delivery);
+          } else {
+            await _repository.updateIfNotTerminal(
+              runtime.session.sessionId,
+              patch,
+            );
+          }
+          await _pendingStore.clearTerminal(
+            runtime.session.subject.actorId,
             runtime.session.sessionId,
-            patch,
           );
+          await _pendingStore.clearIfMatches(
+            runtime.session.subject.actorId,
+            runtime.session.sessionId,
+          );
+          _sessions.remove(runtime.session.sessionId);
         } else {
           await _repository.update(runtime.session.sessionId, patch);
-        }
-        await _saveMarker(runtime);
-        if (terminal) {
-          await _pendingStore.clear(runtime.session.subject.actorId);
-          _sessions.remove(runtime.session.sessionId);
+          await _saveMarker(runtime);
         }
       } on TelemetryRepositoryException catch (e) {
+        runtime.remoteIncomplete = true;
         _recordError(e);
-        if (terminal) {
-          // Terminal best-effort: no reintentar; limpiar marcador.
-          await _pendingStore.clear(runtime.session.subject.actorId);
-          _sessions.remove(runtime.session.sessionId);
-        }
+        if (terminal) _sessions.remove(runtime.session.sessionId);
+      } catch (_) {
+        _lastError = 'saveTerminal:recoverable';
       }
     });
   }
 
+  /// Reenvía cierres durables únicamente con la cuenta y consentimiento originales.
+  Future<void> retryPendingTerminals() =>
+      _retryTask ??= _retryTerminals().whenComplete(() => _retryTask = null);
+
+  Future<void> _retryTerminals() async {
+    final actor = _uidProvider();
+    if (actor == null || !_consentActive) return;
+    for (final entry in _pendingStore.terminals(actor)) {
+      if (!_consentActive || _uidProvider() != actor) return;
+      if (_sessions.containsKey(entry.launch.sessionId)) continue;
+      try {
+        await _repository.confirmTerminal(entry.launch, entry.patch);
+        await _pendingStore.clearTerminal(actor, entry.launch.sessionId);
+        await _pendingStore.clearIfMatches(actor, entry.launch.sessionId);
+      } on TelemetryRepositoryException catch (e) {
+        _recordError(e);
+      }
+    }
+  }
+
   Future<void> _saveMarker(_SessionRuntime runtime) async {
     final session = runtime.session;
+    if (session.sessionId != _activeSessionId || runtime.terminal) return;
     await _pendingStore.write(
       PendingSessionMarker(
         sessionId: runtime.session.sessionId,
@@ -432,6 +506,7 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached;
 
+    if (state == AppLifecycleState.resumed) unawaited(retryPendingTerminals());
     for (final runtime in _sessions.values.toList()) {
       if (!runtime.started || runtime.terminal) continue;
       if (background && !runtime.inBackground) {
@@ -499,7 +574,10 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     TelemetryRepositoryException? error;
     for (final runtime in _sessions.values.toList()) {
       if (runtime.terminal) {
-        await _pendingStore.clear(runtime.session.subject.actorId);
+        await _pendingStore.clearIfMatches(
+          runtime.session.subject.actorId,
+          runtime.session.sessionId,
+        );
         _sessions.remove(runtime.session.sessionId);
         continue;
       }
@@ -520,7 +598,10 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
           error = e;
         }
         // Independientemente del resultado, descartar payload/marcador.
-        await _pendingStore.clear(runtime.session.subject.actorId);
+        await _pendingStore.clearIfMatches(
+          runtime.session.subject.actorId,
+          runtime.session.sessionId,
+        );
       });
       runtime.chain = task;
       await task;
@@ -533,86 +614,69 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
   Future<void> closeActiveSessionForLogout() async {
     for (final runtime in _sessions.values.toList()) {
       if (runtime.terminal) continue;
-      if (!runtime.started) continue;
-      runtime.clock.stopSegment();
-      final task = runtime.chain.then((_) async {
-        try {
-          await _repository.updateIfNotTerminal(runtime.session.sessionId, {
-            'lifecycle.status': SessionState.abandoned.value,
-            'outcome.terminalReason': TerminalReason.userExit.value,
-            'timing.terminalAt': ServerTimestamp.instance,
-            'timing.activeDurationMs': runtime.clock.activeMs,
-          });
-        } catch (_) {}
-        await _pendingStore.clear(runtime.session.subject.actorId);
-      });
-      runtime.chain = task;
-      await task;
-      _sessions.remove(runtime.session.sessionId);
+      if (runtime.started) {
+        abandon(runtime.session.sessionId, TerminalReason.userExit);
+      } else {
+        launchError(
+          runtime.session.sessionId,
+          TerminalReason.launchCancelledBeforeNavigation,
+        );
+      }
+      try {
+        await runtime.chain.timeout(const Duration(seconds: 3));
+      } catch (_) {}
     }
   }
 
   /// Reconciliación de arranque de marcador pendiente (proceso muerto).
   Future<void> reconcilePending({required bool consentEnabled}) async {
-    final actorId = _uidProvider();
-    if (actorId == null) return;
-    final marker = _pendingStore.read(actorId);
-    if (marker == null) return;
-
-    // Sin opt-in: borrar marcador sin escribir remoto.
+    final actor = _uidProvider();
+    if (actor == null) return;
     if (!consentEnabled) {
-      await _pendingStore.clear(actorId);
+      await _pendingStore.discardTerminals(actor);
+      await _pendingStore.clear(actor);
       return;
     }
-
-    // UID distinto al actor del marcador: no escribir con otra identidad.
-    if (marker.actorId != actorId) {
-      await _pendingStore.clear(actorId);
+    await retryPendingTerminals();
+    final marker = _pendingStore.read(actor);
+    if (marker == null ||
+        _sessions.containsKey(marker.sessionId) ||
+        _pendingStore
+            .terminals(actor)
+            .any((entry) => entry.launch.sessionId == marker.sessionId)) {
       return;
     }
-
-    // Sesión ya terminal en Firestore: limpiar marcador.
     try {
       final remote = await _repository.read(marker.sessionId);
       if (remote == null || remote.lifecycle.status.isTerminal) {
-        await _pendingStore.clear(actorId);
+        await _pendingStore.clearIfMatches(actor, marker.sessionId);
         return;
       }
-    } on TelemetryRepositoryException {
-      // No reescribir ni decidir sobre error aquí; conservar marcador.
-      return;
-    }
-
-    // Ausencia >= 15 min: terminalizar `stale_session` con duración acumulada.
-    final elapsed = _now().difference(marker.lastLocalBackgroundAt);
-    if (elapsed >= inactivityWindow) {
-      try {
-        await _repository.updateIfNotTerminal(marker.sessionId, {
-          'lifecycle.status': SessionState.abandoned.value,
-          'outcome.terminalReason': TerminalReason.staleSession.value,
-          'timing.terminalAt': ServerTimestamp.instance,
-          'timing.activeDurationMs': marker.activeDurationMs,
-        });
-      } catch (_) {}
-      await _pendingStore.clear(actorId);
-      return;
-    }
-
-    // Ausencia < 15 min: no podemos garantizar el mismo contexto de ruta;
-    // abandonar como stale_session para no dejar un documento abierto.
-    try {
-      await _repository.updateIfNotTerminal(marker.sessionId, {
-        'lifecycle.status': SessionState.abandoned.value,
-        'outcome.terminalReason': TerminalReason.staleSession.value,
+      final started = remote.outcome.hasStarted;
+      final patch = <String, dynamic>{
+        'lifecycle.status': started
+            ? SessionState.abandoned.value
+            : SessionState.launchError.value,
+        'outcome.isCompleted': false,
+        'outcome.navigationSuccessful': false,
+        'outcome.terminalReason': started
+            ? TerminalReason.staleSession.value
+            : TerminalReason.launchCancelledBeforeNavigation.value,
         'timing.terminalAt': ServerTimestamp.instance,
         'timing.activeDurationMs': marker.activeDurationMs,
-      });
-    } catch (_) {}
-    await _pendingStore.clear(actorId);
+      };
+      await _pendingStore.saveTerminal(remote, patch);
+      await _repository.confirmTerminal(remote, patch);
+      await _pendingStore.clearTerminal(actor, marker.sessionId);
+      await _pendingStore.clearIfMatches(actor, marker.sessionId);
+    } on TelemetryRepositoryException catch (e) {
+      _recordError(e);
+    }
   }
 
   /// Limpieza al desregistrar el observer (final de la app).
   void dispose() {
+    _retryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     if (instance == this) {
       instance = null;
@@ -626,11 +690,16 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
 
 /// Estado interno mutable de una sesión activa.
 class _SessionRuntime {
-  _SessionRuntime({required this.session, required this.clock});
+  _SessionRuntime({required this.session, required this.clock})
+    : launch = session;
+
+  final ActivityTelemetrySession launch;
+  final Map<String, dynamic> pendingPatch = {};
 
   ActivityTelemetrySession session;
   final ActiveSessionClock clock;
   Future<void> chain = Future.value();
+  bool remoteIncomplete = false;
   bool started = false;
   bool terminal = false;
   bool objectiveEmitted = false;

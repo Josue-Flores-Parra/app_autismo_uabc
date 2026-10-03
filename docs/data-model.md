@@ -61,8 +61,8 @@ users/{learnerUid}/progress/{moduleId}/levels/{levelId}
 
 El documento bajo `parentUid/learners` contiene `name`, `parentUid`,
 `allowedModules`, `settings` (`fontScale`, `highContrast`, `reduceAnimations`,
-`audioFeedback`, `hapticFeedback`, `remindersEnabled`, `reminderTime`),
-`migrationStatus`, `nameConfirmed`, `createdAt` y, para el perfil copiado,
+`audioFeedback`, `hapticFeedback`, `remindersEnabled`, `reminderTime`,
+`openAllLevels`), `migrationStatus`, `nameConfirmed`, `createdAt` y, para el perfil copiado,
 `legacySourceUid`. El documento `users/{learnerUid}` contiene `role: learner`,
 `parentUid`, `name` y `avatarConfig`. El límite `allowedModules` es por perfil; 0
 significa sin límite. Las preferencias parent-wide (tema, idioma) viven en
@@ -294,6 +294,7 @@ La escritura de telemetría la hace `ActivityTelemetryService` vía
 | `hapticFeedback` | `bool` | `true` |
 | `remindersEnabled` | `bool` | `false` |
 | `reminderTime` | `String` formato `HH:mm` | `18:00` |
+| `openAllLevels` | `bool` | `false` |
 | `sendMetrics` | `bool` | `false` |
 | `selectedLearner_{parentUid}` | `String` | Último learner elegido, para ofrecerlo en el selector tras el login. |
 | `sendMetrics_{parentUid}` | `bool` | Consentimiento de telemetría de la cuenta parent. |
@@ -402,3 +403,16 @@ Shape con preguntas explicitas:
 - Si cambias progreso, actualiza `FirestoreService`, `LearningViewModel`, `LevelCompletionService` y esta pagina.
 - Si agregas un `actividadType`, actualiza `MinigameType`, registro en `main.dart`, factory, docs de minigames y tests.
 - Si cambias assets remotos/locales, documenta si la UI espera `Image.asset` o acepta `Image.network`.
+
+## Recibos de finalización
+
+`users/{learnerUid}/progress/_completion_receipts/levels/{completionId}` contiene
+`completionId`, `actorId`, `moduleId`, `levelId`, `confirmedAt` y `reward`. Este
+último guarda `stars`, `coins`, `happiness`, `energy`, `noEnergy` y `replay` con
+los valores aplicados por la transacción; los reintentos devuelven el mismo
+detalle sin volver a pagar. Los recibos anteriores sin `reward` siguen siendo
+confirmaciones válidas, pero no permiten mostrar importes exactos. Es un módulo
+reservado fuera del catálogo. Comparte las reglas de propiedad del progreso:
+solo el dueño legacy o el padre del learner puede acceder. La transacción lee
+el recibo antes de actualizar progreso y `avatarConfig`; si ya existe, termina
+sin repetir la recompensa. Los documentos antiguos no requieren migración.

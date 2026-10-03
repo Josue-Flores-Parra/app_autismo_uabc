@@ -17,6 +17,7 @@ dependencies:
   firebase_core: ^4.1.1
   firebase_auth: ^6.1.0
   cloud_firestore: ^6.0.2
+  connectivity_plus: ^6.1.5
   video_player: ^2.8.1
   flutter_svg: ^2.2.1
   just_audio: ^0.9.40
@@ -27,10 +28,13 @@ dependencies:
   shared_preferences: ^2.3.1
   url_launcher: ^6.3.0
   confetti: ^0.8.0
-  http: ^1.2.2
+  http: ^1.5.0
   path_provider: ^2.1.4
   path: ^1.9.0
   uuid: ^4.6.0
+  flutter_local_notifications: ^20.1.0
+  timezone: ^0.10.1
+  flutter_timezone: ^5.1.0
 
 dev_dependencies:
   flutter_test:

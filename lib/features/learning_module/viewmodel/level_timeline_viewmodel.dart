@@ -6,6 +6,10 @@ class LevelTimelineViewModel extends ChangeNotifier {
   final LearningViewModel _learningViewModel;
   final String _moduleId;
 
+  /// Modo libre del perfil: muestra abiertos los niveles bloqueados con
+  /// contenido. Solo afecta lo que se ve; el progreso guardado no cambia.
+  final bool _openAllLevels;
+
   List<LevelStepInfo> _steps = [];
   List<ModuleLevelInfo> _moduleLevels = [];
   String _moduleTitle = '';
@@ -30,7 +34,11 @@ class LevelTimelineViewModel extends ChangeNotifier {
   int? _selectedIndex;
   int? get selectedIndex => _selectedIndex;
 
-  LevelTimelineViewModel(this._learningViewModel, this._moduleId) {
+  LevelTimelineViewModel(
+    this._learningViewModel,
+    this._moduleId, {
+    bool openAllLevels = false,
+  }) : _openAllLevels = openAllLevels {
     _loadModuleData(_moduleId);
   }
 
@@ -74,7 +82,10 @@ class LevelTimelineViewModel extends ChangeNotifier {
 
           return LevelStepInfo(
             previewTitle: titleWithPrefix,
-            whatState: level.estado,
+            whatState: levelStateForDisplay(
+              level,
+              openAllLevels: _openAllLevels,
+            ),
             stars: level.estrellas,
             posibleImagePreview:
                 (level.actividadData?['pictogramaUrl'] as String?)

@@ -575,12 +575,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: _buildStatButton(
-                context,
-                label: 'Energía',
-                value: loaded ? estado.energia : null,
-                accent: context.appColors.accent,
-                icon: Icons.bolt_rounded,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _mostrarInfoEnergia(context),
+                child: _buildStatButton(
+                  context,
+                  label: 'Energía',
+                  value: loaded ? estado.energia : null,
+                  accent: loaded && estado.energia <= 0
+                      ? context.appColors.warning
+                      : context.appColors.accent,
+                  icon: Icons.bolt_rounded,
+                  textoEnCero: 'Sin energía',
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -740,9 +747,14 @@ class _AvatarScreenState extends State<AvatarScreen> {
     required Color accent,
     required IconData icon,
     bool isPercent = true,
+    String? textoEnCero,
   }) {
     final colors = context.appColors;
-    final texto = value == null ? '—' : (isPercent ? '$value%' : '$value');
+    final texto = value == null
+        ? '—'
+        : (value == 0 && textoEnCero != null
+              ? textoEnCero
+              : (isPercent ? '$value%' : '$value'));
     return Container(
       decoration: BoxDecoration(
         // Fondo solido (no glassFill translucido): esta tarjeta va encima del
@@ -811,6 +823,33 @@ class _AvatarScreenState extends State<AvatarScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  /// Explica en pocas palabras que gasta y como se recupera la energia.
+  void _mostrarInfoEnergia(BuildContext context) {
+    final colors = context.appColors;
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Energía de Appy'),
+          content: Text(
+            'Cada actividad nueva gasta energía.\n'
+            'Con la energía en cero puedes seguir jugando.\n'
+            'Para recargarla, repasa una actividad que ya hiciste o espera: '
+            'se recarga 1 punto cada '
+            '${AvatarViewModel.minutosPorPuntoDeEnergia} minutos.',
+            style: TextStyle(fontSize: 15, color: colors.inkSoft),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Entendido'),
+            ),
+          ],
+        );
+      },
     );
   }
 

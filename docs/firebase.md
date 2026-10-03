@@ -119,14 +119,21 @@ Metodos reales:
 
 | Metodo | Ruta Firestore | Comportamiento |
 | --- | --- | --- |
-| `setUserData(uid, data)` | `users/{uid}` | `set(data, SetOptions(merge: true))`. |
+| `setUserData(uid, data)` | `users/{uid}` | `set(data, SetOptions(merge: true))`. No espera la confirmacion del servidor mas de 3 s (ver abajo). |
 | `getUserData(uid)` | `users/{uid}` | Retorna `Map<String, dynamic>?`. |
 | `getModuleData(moduleId)` | `modules/{moduleId}` | Lee un modulo y agrega `id` desde doc id. |
 | `getAllModules()` | `modules` | Lee todos los modulos y agrega `id`. Si falla retorna `[]`. |
 | `getModuleLevels(moduleId)` | `modules/{moduleId}/levels` | Ordena por `orden`; si `moduleId` vacio retorna `[]`. |
-| `updateUserLevelProgress(learnerUid, moduleId, levelId, data)` | `users/{learnerUid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; si falla lo silencia. |
+| `updateUserLevelProgress(learnerUid, moduleId, levelId, data)` | `users/{learnerUid}/progress/{moduleId}/levels/{levelId}` | Escribe con merge; no espera la confirmacion del servidor mas de 3 s; si falla lo silencia. |
 | `getUserLevelsProgress(learnerUid, moduleId)` | `users/{learnerUid}/progress/{moduleId}/levels` | Retorna map por `levelId`; si falla retorna `{}`. |
 | `getUserLevel(learnerUid)` | `users/{learnerUid}.nivel` | Lee `nivel` como `int` o `String`; default `1`. |
+
+Las dos escrituras (`setUserData` y `updateUserLevelProgress`) pasan por
+`_queuedWrite`. Sin conexion, el `Future` de una escritura de Firestore no termina
+hasta que el servidor confirma, aunque el dato ya este en la cola local. Se espera
+la confirmacion 3 s: si llega, los errores se propagan; si no, la escritura sigue
+en cola y se envia al volver la red. Asi el resultado de una actividad aparece
+aunque no haya internet. Ver `docs/features/offline.md`.
 
 ## Rutas Firestore usadas
 
@@ -257,7 +264,7 @@ Campos escritos:
 | --- | --- |
 | `status` | `completed` al completar todas las modalidades del nivel; `in_progress` en otro caso. |
 | `estrellas` | Cantidad de modalidades completadas; 3 al terminar el nivel, incluso si ofrece menos de 3. |
-| `attempts` | Equivocaciones de la ultima actividad (0 en observacion). |
+| `attempts` | Equivocaciones de la ultima actividad (0 en observacion: pictograma, video y audio). |
 | `activities` | Mapa de modalidades completadas con su fecha, intentos y marca `rewarded`. |
 | `completedAt` | ISO 8601 al terminar el nivel. |
 | `updatedAt` | ISO 8601 en cada escritura. |
@@ -274,7 +281,7 @@ Recompensas:
 | Interactivo sin equivocaciones | 30 |
 | Interactivo con 1 o 2 equivocaciones | 20 |
 | Interactivo con 3 o mas equivocaciones | 10 |
-| Observacion (primera vez) | 10 |
+| Observacion: pictograma, video o audio (primera vez) | 10 |
 | Repaso exitoso | 5 |
 | Actividad fallida | 0 |
 
@@ -287,10 +294,14 @@ No hay uso directo del SDK de Firebase Storage en el codigo actual. Las imagenes
 videos y audios remotos se tratan como URLs `http://` o `https://` y se cargan
 con widgets/plugins como:
 
-- `Image.network`.
+- `Image` con `OfflineAssetsService.imageProvider` (`NetworkImage` si no se
+  descargo el modulo).
 - `VideoPlayerController.networkUrl`.
 - `AudioPlayer.setUrl`.
 - `http.get` dentro de `PictogramMinigame` para cachear imagenes.
+
+Si el modulo se descargo para usarlo sin conexion (`docs/features/offline.md`),
+imagenes, video y audio se leen del archivo local con la misma URL como clave.
 
 El `storageBucket` existe en `firebase_options.dart`, pero no hay servicio de
 Storage ni Cloud Function proxy en el repo.

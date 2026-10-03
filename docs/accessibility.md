@@ -19,7 +19,7 @@ resuelve las efectivas por perfil seleccionado:
 | `reduceAnimations` | Por perfil | Conectado a transiciones de pagina en `AppTheme` y a `AnimatedSwitcher` de `MainShell`. |
 | `audioFeedback` | Por perfil | Conectado via `FeedbackPreferences` a `TtsService`, `CelebrationHelper` y `NegativeFeedbackHelper`. Apagarlo silencia el dictado de pictogramas y los sonidos de acierto y fallo. |
 | `hapticFeedback` | Por perfil | Conectado via `FeedbackPreferences` a `HapticsService`, que vibra al abrir y cerrar elementos y al resolver una actividad. |
-| `remindersEnabled` | Por perfil | Persistido; permite elegir hora, pero no programa notificaciones reales. La pantalla lo advierte junto al horario. |
+| `remindersEnabled` | Por perfil | Persistido. Al activarlo se pide el permiso de notificaciones y se programa un aviso local diario a la hora elegida (`ReminderService`). Si el permiso se niega, queda apagado. |
 | Límite de módulos | Por perfil | Se guarda por perfil infantil en Firestore y se aplica en `ModuleListScreen`. |
 
 ## Escala de texto
@@ -142,3 +142,23 @@ Firestore.
 - Tiene boton para repetir audio/TTS si la actividad depende de audio.
 - Maneja assets faltantes con fallback visible.
 - Si usa PIN/control parental, no deja rutas alternativas sin documentar.
+
+## Escala del sistema y pantallas pequeñas
+
+`PreferenceTextScaler` conserva el escalado (incluido el no lineal) del sistema
+y multiplica el resultado por la preferencia de la app. El onboarding permite
+desplazar cada página verticalmente, limita la ilustración y mantiene visibles
+los controles de navegación. Los párrafos RichText usan el mismo escalador.
+
+Los diálogos de PIN adaptan casillas y teclado al ancho disponible, permiten
+leer errores completos y desplazan contenido sin reducir la fuente. El diálogo
+de contraseña también se desplaza cuando está abierto el teclado del sistema.
+`test/accessibility_layout_test.dart` verifica todas las páginas y flujos en
+320×568 con escalas de 1.0 a 2.3, incluyendo creación y confirmación del PIN,
+entrada inválida y recuperación con teclado visible.
+
+La invitación a registrarse en el login usa `Wrap`: el botón puede pasar a otra
+línea. Los textos junto a iconos en los resultados (intentos, monedas, felicidad,
+energía y reintentos) tienen ancho limitado para envolver sin reducir la fuente.
+`test/followup_large_text_test.dart` verifica login y diálogos de minijuegos/video
+en 320×568 con escalas de 1.0 a 3.0 y comprueba que se pueden cerrar.

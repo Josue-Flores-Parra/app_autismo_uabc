@@ -229,6 +229,8 @@ Mecanica real:
   - email contiene `@`.
   - password no vacio.
   - password con minimo 6 caracteres.
+- Muestra bajo el titulo "Appy" el nombre completo del proyecto (`appTagline`,
+  "TEApoya TEAcompaña") y despues el mensaje de bienvenida.
 - Muestra avatar `assets/images/salute.png` cuando no hay error.
 - Cambia a `assets/images/icon-questionmark2x.png` si hay error de Auth o validacion.
 - Al hacer login:
@@ -283,6 +285,7 @@ Mecanica real:
 
 - Es `StatefulWidget` con `_emailController`, `_formKey` y `_showSuccess`.
 - Paleta identica a `RegisterScreen` y `AppBar` "Recuperar contraseña".
+- Repite bajo el titulo "Appy" el nombre completo (`appTagline`).
 - Muestra la imagen `assets/images/forgot-password.png`.
 - Valida email no vacio y que contenga `@`.
 - Llama `AuthViewModel.resetPassword` con indicador de carga.

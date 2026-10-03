@@ -1,10 +1,14 @@
+import '../../../shared/widgets/completion_rewards_section.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../data/completion_sync_service.dart';
 import '../../minigames/minigame_core.dart';
 import '../../minigames/view/minigames_widget.dart';
 import '../../../shared/services/tts_service.dart';
 import '../../../shared/services/level_completion_service.dart';
 import '../../telemetry/model/telemetry_signals.dart';
 import '../../telemetry/model/telemetry_enums.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 /// Pantalla de juego de nivel
 /// Se muestra cuando el usuario presiona "JUGAR" en un nivel del timeline
@@ -23,6 +27,10 @@ class LevelPlayScreen extends StatefulWidget {
   /// Handle opaco de telemetría (null si no hay consentimiento activo).
   final ActivitySessionHandle? telemetryHandle;
 
+  /// Permite inyectar el registro de resultados sin depender de Firebase en UI.
+  final Future<LevelCompletionResult?> Function(bool success, int attempts)?
+  completionRecorder;
+
   const LevelPlayScreen({
     super.key,
     required this.levelTitle,
@@ -33,6 +41,7 @@ class LevelPlayScreen extends StatefulWidget {
     this.videoUrl,
     this.launchSimpleSelectionFromCard = false,
     this.telemetryHandle,
+    this.completionRecorder,
   });
 
   @override
@@ -44,6 +53,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   Key _minigameKey = UniqueKey();
   final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
+  bool _handlingCompletion = false;
 
   @override
   void initState() {
@@ -74,6 +84,10 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
   @override
   void dispose() {
+    widget.telemetryHandle?.onAbandon(TerminalReason.routeRemoved);
+    widget.telemetryHandle?.onLaunchError(
+      TerminalReason.launchCancelledBeforeNavigation,
+    );
     _ttsService.dispose();
     super.dispose();
   }
@@ -148,21 +162,35 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          handle?.onAbandon(TerminalReason.userBack);
+          handle?.onLaunchError(TerminalReason.launchCancelledBeforeNavigation);
+          return;
+        }
         // Salir explícito de una actividad ya iniciada sin completar.
         handle?.onAbandon(TerminalReason.userBack);
+        handle?.onLaunchError(TerminalReason.launchCancelledBeforeNavigation);
         Navigator.of(context).pop();
       },
       child: Scaffold(
-        body: MinigamesWidget(
-          key: _minigameKey,
-          minigameType: minigameType,
-          minigameData: widget.minigameData ?? _getDefaultMinigameData(),
-          onReady: () => handle?.onActivityReady(),
-          onObjectiveMet: () => handle?.onObjectiveMet(),
-          onComplete: (success, attempts) {
-            _handleMinigameComplete(context, success, attempts);
+        body: MinigameExitScope(
+          onExit: () {
+            handle?.onAbandon(TerminalReason.userExit);
+            handle?.onLaunchError(
+              TerminalReason.launchCancelledBeforeNavigation,
+            );
+            Navigator.of(context).pop();
           },
+          child: MinigamesWidget(
+            key: _minigameKey,
+            minigameType: minigameType,
+            minigameData: widget.minigameData ?? _getDefaultMinigameData(),
+            onReady: () => handle?.onActivityReady(),
+            onObjectiveMet: () => handle?.onObjectiveMet(),
+            onComplete: (success, attempts) {
+              _handleMinigameComplete(context, success, attempts);
+            },
+          ),
         ),
       ),
     );
@@ -216,8 +244,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.network(
-            imageUrl,
+          child: Image(
+            image: OfflineAssetsService.instance.imageProvider(imageUrl),
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
               return const Center(
@@ -266,15 +294,16 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   }
 
   /// Maneja la finalización del minijuego
-  void _handleMinigameComplete(
+  Future<void> _handleMinigameComplete(
     BuildContext context,
     bool success,
     int attempts,
   ) async {
+    if (_handlingCompletion || !mounted) return;
+    _handlingCompletion = true;
     final handle = widget.telemetryHandle;
     if (handle != null) {
-      final tipo = widget.actividadType?.toLowerCase().trim();
-      if (tipo == 'simple_selection' || tipo == 'puzzle') {
+      if (LevelCompletionService.isInteractiveType(widget.actividadType)) {
         // El resultado del run registra intentos una sola vez; el servicio
         // decide si continúa o termina (el objetivo ya detuvo el reloj).
         handle.onRecordAttempts(attempts);
@@ -290,232 +319,289 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     }
 
     final tipo = widget.actividadType?.toLowerCase().trim();
-    final isObservation = tipo == 'pictogram' || tipo == 'video';
+    final isObservation = !LevelCompletionService.isInteractiveType(tipo);
 
-    // Guardar progreso: los niveles de observación (pictograma/video) no
+    // Guardar progreso: los niveles de observación (pictograma/video/audio) no
     // tienen intentos ni pueden fallar, así que se completan por la vía de
     // observación. Los niveles interactivos siempre escriben su documento de
     // progreso, incluso al fallar, para que el timeline lo registre.
     LevelCompletionResult? result;
-    if (isObservation) {
-      if (success) {
-        result = await LevelCompletionService.completeObservationLevel(
+    try {
+      if (widget.completionRecorder != null) {
+        result = await widget.completionRecorder!(success, attempts);
+      } else if (isObservation) {
+        if (success) {
+          result = await LevelCompletionService.completeObservationLevel(
+            context: context,
+            moduleId: widget.moduleId,
+            levelId: widget.levelId,
+            actividadType: tipo,
+          );
+        }
+      } else {
+        result = await LevelCompletionService.completeInteractiveLevel(
           context: context,
           moduleId: widget.moduleId,
           levelId: widget.levelId,
           actividadType: tipo,
+          success: success,
+          attempts: attempts,
         );
       }
-    } else {
-      result = await LevelCompletionService.completeInteractiveLevel(
-        context: context,
-        moduleId: widget.moduleId,
-        levelId: widget.levelId,
-        actividadType: tipo,
-        success: success,
-        attempts: attempts,
-      );
+    } catch (_) {
+      result = null;
     }
-
-    await _speakCompletionFeedback(success);
+    // La voz es feedback opcional, nunca un requisito para volver al carrusel.
+    unawaited(_speakCompletionFeedback(success));
     if (!mounted) return;
 
-    final coins = result?.coins ?? 0;
-    final felicidadDelta = result?.felicidadDelta ?? 0;
-    final energiaDelta = result?.energiaDelta ?? 0;
-
     // Mostrar resultado y navegar de regreso
-    showDialog(
+    await showDialog(
       context: this.context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A3D52),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              success ? Icons.celebration : Icons.emoji_events_outlined,
-              color: success
-                  ? const Color(0xFF05E995)
-                  : const Color(0xFFFF9800),
-              size: 32,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                success ? '¡Nivel Completado!' : '¡Buen Intento!',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      builder: (dialogContext) => LevelCompletionService.watchResult(result, (
+        result,
+      ) {
+        final coins = result?.coins ?? 0;
+        final felicidadDelta = result?.felicidadDelta ?? 0;
+        final energiaDelta = result?.energiaDelta ?? 0;
+        final sinEnergia = result?.sinEnergia ?? false;
+
+        // Filas del recuadro de resultado. Los intentos solo aplican a las
+        // actividades interactivas.
+        final resultRows = <Widget>[
+          // El callback ya reporta equivocaciones (0 si se acierta a la primera);
+          // solo cambia el texto, no el dato persistido.
+          if (!isObservation)
+            Row(
+              children: [
+                const Icon(Icons.flag, color: Color(0xFFFFD700)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Intentos usados: $attempts',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Mostrar imagen del pictograma si es un minigame de tipo pictogram
-            if (widget.actividadType?.toLowerCase().trim() == 'pictogram' &&
-                widget.minigameData != null) ...[
-              _buildPictogramImage(widget.minigameData!),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              success
-                  ? '¡Excelente trabajo! Has completado el nivel con éxito.'
-                  : _retriesLeft > 0
-                  ? 'No te preocupes, puedes intentarlo de nuevo.'
-                  : 'Has agotado todos tus reintentos.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Colors.white70),
+          CompletionRewardsSection(
+            loading:
+                result?.syncState == CompletionSyncState.pending &&
+                result?.showsSyncNotice != true,
+            loadingLabel: LevelCompletionService.rewardsLoadingLabel(
+              this.context,
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x33FFFFFF), width: 1),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // El callback ya reporta equivocaciones (0 si se acierta a
-                  // la primera); solo cambia el texto, no el dato persistido.
-                  Row(
-                    children: [
-                      const Icon(Icons.flag, color: Color(0xFFFFD700)),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Intentos usados: $attempts',
+            rowCount: success ? 3 : 2,
+            children: [
+              if (result?.showsSyncNotice ?? true)
+                LevelCompletionService.buildSyncNotice(this.context, result),
+              if (success &&
+                  result?.syncState == CompletionSyncState.confirmed &&
+                  result?.rewardsKnown == true)
+                Row(
+                  children: [
+                    const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Monedas: +$coins',
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
+                    ),
+                  ],
+                ),
+              if (result?.syncState == CompletionSyncState.confirmed &&
+                  result?.rewardsKnown == true)
+                ...LevelCompletionService.buildStatRows(
+                  felicidadDelta,
+                  energiaDelta,
+                  includeUnchanged: true,
+                ),
+              if (sinEnergia) LevelCompletionService.buildEnergyNotice(),
+            ],
+          ),
+        ];
+
+        return AlertDialog(
+          constraints: const BoxConstraints(maxWidth: 560),
+          scrollable: true,
+          backgroundColor: const Color(0xFF1A3D52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                success ? Icons.celebration : Icons.emoji_events_outlined,
+                color: success
+                    ? const Color(0xFF05E995)
+                    : const Color(0xFFFF9800),
+                size: 32,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  success ? '¡Nivel Completado!' : '¡Buen Intento!',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Mostrar imagen del pictograma si es un minigame de tipo pictogram
+              if (widget.actividadType?.toLowerCase().trim() == 'pictogram' &&
+                  widget.minigameData != null) ...[
+                _buildPictogramImage(widget.minigameData!),
+                const SizedBox(height: 16),
+              ],
+              Text(
+                success
+                    ? '¡Excelente trabajo! Has completado el nivel con éxito.'
+                    : _retriesLeft > 0
+                    ? 'No te preocupes, puedes intentarlo de nuevo.'
+                    : 'Has agotado todos tus reintentos.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
+              ),
+              if (resultRows.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0x33FFFFFF),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < resultRows.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 8),
+                        resultRows[i],
+                      ],
                     ],
                   ),
-                  if (success) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          color: Color(0xFFFFD700),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Monedas: +$coins',
+                ),
+              ],
+              if (!success && _retriesLeft > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(100, 255, 152, 0),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFFF9800),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Reintentos disponibles: $_retriesLeft',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                  for (final row in LevelCompletionService.buildStatRows(
-                    felicidadDelta,
-                    energiaDelta,
-                  )) ...[
-                    const SizedBox(height: 8),
-                    row,
-                  ],
-                ],
-              ),
-            ),
-            if (!success && _retriesLeft > 0) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(100, 255, 152, 0),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFF9800), width: 1),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.refresh, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Reintentos disponibles: $_retriesLeft',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            if (!success)
+              TextButton(
+                onPressed: () {
+                  _ttsService.stop();
+                  // Hay reintentos disponibles pero el usuario elige Volver → abandon.
+                  widget.telemetryHandle?.onAbandon(TerminalReason.userExit);
+                  Navigator.of(context).pop(); // Cerrar diálogo
+                  Navigator.of(context).pop(); // Volver al timeline
+                },
+                child: const Text(
+                  'Volver',
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
               ),
-            ],
-          ],
-        ),
-        actions: [
-          if (!success)
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 _ttsService.stop();
-                // Hay reintentos disponibles pero el usuario elige Volver → abandon.
-                widget.telemetryHandle?.onAbandon(TerminalReason.userExit);
                 Navigator.of(context).pop(); // Cerrar diálogo
-                Navigator.of(context).pop(); // Volver al timeline
-              },
-              child: const Text(
-                'Volver',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ),
-          ElevatedButton(
-            onPressed: () {
-              _ttsService.stop();
-              Navigator.of(context).pop(); // Cerrar diálogo
-              if (success) {
-                Navigator.of(context).pop(); // Volver al timeline
-                // El progreso ya se guardó en _handleMinigameComplete
-              } else {
-                // Reintentar: reiniciar el minigame con opciones mezcladas
-                if (_retriesLeft > 0) {
-                  _restartMinigame();
+                if (success) {
+                  Navigator.of(context).pop(); // Volver al timeline
+                  // El progreso ya se guardó en _handleMinigameComplete
                 } else {
-                  // Si no quedan reintentos, volver al timeline
-                  Navigator.of(context).pop();
+                  // Reintentar: reiniciar el minigame con opciones mezcladas
+                  if (_retriesLeft > 0) {
+                    _restartMinigame();
+                  } else {
+                    // Si no quedan reintentos, volver al timeline
+                    Navigator.of(context).pop();
+                  }
                 }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: success
-                  ? const Color(0xFF05E995)
-                  : (_retriesLeft > 0 ? const Color(0xFFFF9800) : Colors.grey),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: success
+                    ? const Color(0xFF05E995)
+                    : (_retriesLeft > 0
+                          ? const Color(0xFFFF9800)
+                          : Colors.grey),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: Text(
+                success
+                    ? 'Continuar'
+                    : (_retriesLeft > 0 ? 'Reintentar' : 'Salir'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            child: Text(
-              success
-                  ? 'Continuar'
-                  : (_retriesLeft > 0 ? 'Reintentar' : 'Salir'),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+          ],
+        );
+      }),
     );
+    _handlingCompletion = false;
   }
 
   /// Datos por defecto del minijuego para testing

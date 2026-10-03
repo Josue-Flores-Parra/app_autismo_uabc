@@ -42,6 +42,15 @@ class VideoViewModel extends ChangeNotifier {
     _lastPosition = null;
   }
 
+  /// Retoma una visualización a medias: conserva los segundos ya vistos de
+  /// verdad para que salir y volver no obligue a ver el video otra vez.
+  void seedWatchedSeconds(double seconds) {
+    if (_isDisposed) return;
+    _actualSecondsWatched = seconds < 0 ? 0.0 : seconds;
+    _lastTick = null;
+    _lastPosition = null;
+  }
+
   VideoPlayerController get videoController => _videoController;
   Future<void> get initializeVideoFuture => _initializeVideoFuture;
   bool get showGiantIcon => _showGiantIcon;

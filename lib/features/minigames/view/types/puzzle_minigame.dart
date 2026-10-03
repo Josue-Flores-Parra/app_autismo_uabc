@@ -7,6 +7,7 @@ import '../../minigame_core.dart';
 import '../../../../shared/services/celebration_helper.dart';
 import '../../../../shared/services/negative_feedback_helper.dart';
 import '../../../../shared/widgets/loading_screen.dart';
+import '../../../../data/services/offline_assets_service.dart';
 
 class PuzzleMinigame extends MinigameBase {
   const PuzzleMinigame({
@@ -221,7 +222,7 @@ class _PuzzleMinigameState extends State<PuzzleMinigame> {
   // Obtiene el ImageProvider según sea asset o URL remota.
   ImageProvider _imageProvider() {
     if (_imagePath.startsWith('http://') || _imagePath.startsWith('https://')) {
-      return NetworkImage(_imagePath);
+      return OfflineAssetsService.instance.imageProvider(_imagePath);
     }
     return AssetImage(_imagePath);
   }

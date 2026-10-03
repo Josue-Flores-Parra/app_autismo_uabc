@@ -7,6 +7,7 @@ import 'level_play_screen.dart';
 import 'popup_preview.dart';
 import 'puzzle_grid_background.dart';
 import 'video_player_screen.dart';
+import '../model/video_resume.dart';
 import '../model/content_card_model.dart';
 import '../viewmodel/learning_viewmodel.dart';
 import '../data/video_controller_manager.dart';
@@ -15,6 +16,7 @@ import '../../telemetry/model/telemetry_enums.dart';
 import '../../telemetry/model/telemetry_signals.dart';
 import '../../telemetry/service/activity_telemetry_service.dart';
 import '../../profiles/viewmodel/profile_viewmodel.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 class LevelContentPreviewScreen extends StatefulWidget {
   final String levelName;
@@ -266,7 +268,10 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
     });
   }
 
-  Future<void> _openSelectedPreviewFlow() async {
+  Future<void> _openSelectedPreviewFlow({
+    VideoResume? resume,
+    ActivitySessionHandle? carriedHandle,
+  }) async {
     if (_isLaunchingActivity) return;
 
     final selected = _selectedContent;
@@ -291,6 +296,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
           canLaunch: _canPlaySelectedContent,
           previewImageUrl: _selectedPreviewImageUrl,
           videoPreviewPath: selectedVideoPath,
+          videoStartAt: resume?.position,
           onLaunch: () => Navigator.of(dialogContext).pop(true),
         ),
       );
@@ -301,10 +307,13 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
     if (shouldLaunch != true || !mounted) {
       _isLaunchingActivity = false;
+      // Cerrar la vista previa tras salir de pantalla completa sí abandona.
+      carriedHandle?.onAbandon(TerminalReason.userBack);
       return;
     }
 
-    ActivitySessionHandle? telemetryHandle;
+    ActivitySessionHandle? telemetryHandle = carriedHandle;
+    VideoResume? videoResume;
     try {
       // Para el rompecabezas se pide elegir la dificultad antes de entrar.
       int? puzzleGridSize;
@@ -321,7 +330,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
 
       // Solicitar contexto de telemetría sólo tras confirmar el launch y haber
       // elegido dificultad. El consentimiento se captura en este instante.
-      telemetryHandle = await _requestTelemetryLaunch(
+      telemetryHandle ??= await _requestTelemetryLaunch(
         activityType: activityType,
         gridSize: puzzleGridSize,
       );
@@ -332,7 +341,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       // preview, y siempre entra por esta ruta instrumentada.
       if (activityType == 'video') {
         final videoUrl = selectedVideoPath ?? '';
-        await Navigator.push(
+        videoResume = await Navigator.push<VideoResume?>(
           context,
           MaterialPageRoute(
             builder: (context) => VideoPlayerScreen(
@@ -341,6 +350,7 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
               levelId: widget.levelId,
               moduleId: widget.moduleId,
               telemetryHandle: telemetryHandle,
+              resume: resume,
             ),
           ),
         );
@@ -368,6 +378,16 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
       _isLaunchingActivity = false;
     }
     if (!mounted) return;
+
+    // Salir de la pantalla completa sin terminar vuelve a la vista previa, que
+    // retoma el video donde se quedó, en vez de sacar al menú de orbes.
+    if (videoResume != null) {
+      await _openSelectedPreviewFlow(
+        resume: videoResume,
+        carriedHandle: telemetryHandle,
+      );
+      return;
+    }
 
     // Recargar datos después de regresar
     if (widget.moduleId != null) {
@@ -870,8 +890,8 @@ class _LevelContentPreviewScreenState extends State<LevelContentPreviewScreen>
   }) {
     // Si la URL es una URL externa (http/https), usar Image.network
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
+      return Image(
+        image: OfflineAssetsService.instance.imageProvider(url),
         height: height,
         width: width,
         fit: fit,

@@ -26,6 +26,12 @@ const String kLegalContactEmail = 'rosalesq.software@gmail.com';
 /// Entidad federativa cuya legislacion rige el servicio.
 const String kLegalJurisdiccion = 'Baja California, México';
 
+/// Direccion publica donde se publican los documentos: la carpeta con las
+/// paginas de `docs/legal/` (se generan con `tool/generate_legal_pages.dart`).
+/// Google Play pide esta URL para la ficha de la app. Se deja vacia hasta que
+/// el equipo publique las paginas; al publicarlas, se escribe aqui con `https`.
+const String kLegalPublicBaseUrl = '';
+
 enum LegalBlockType { heading, paragraph, bullet, note }
 
 class LegalBlock {

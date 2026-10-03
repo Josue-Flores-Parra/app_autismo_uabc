@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'data/services/network_connection_service.dart';
 import 'package:flutter/material.dart';
+import 'features/learning_module/data/completion_sync_service.dart';
+import 'core/preference_text_scaler.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +32,7 @@ import 'package:appy/features/learning_module/viewmodel/learning_viewmodel.dart'
 import 'package:appy/features/legal/viewmodel/legal_viewmodel.dart';
 
 // Shared Services
+import 'package:appy/data/services/offline_assets_service.dart';
 import 'package:appy/shared/services/loading_service.dart';
 import 'package:appy/shared/widgets/loading_wrapper.dart';
 
@@ -50,6 +55,13 @@ void main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Lee lo descargado para usarlo sin conexión. Si falla, la app sigue con red.
+  try {
+    await OfflineAssetsService.instance.init();
+  } catch (e) {
+    debugPrint('OfflineAssetsService no se pudo iniciar: $e');
+  }
+
   // Registrar minijuegos
   registerSimpleSelectionMinigame();
   registerPictogramMinigame();
@@ -57,6 +69,16 @@ void main() async {
   registerPuzzleMinigame();
 
   final prefs = await SharedPreferences.getInstance();
+  final network = NetworkConnectionService();
+  unawaited(network.start());
+  final completions = CompletionSyncService(
+    prefs: prefs,
+    confirm: CompletionRepository(FirebaseFirestore.instance).confirm,
+    actorProvider: () => FirebaseAuth.instance.currentUser?.uid,
+    network: network,
+  );
+  CompletionSyncService.instance = completions;
+  completions.start();
   final telemetryService = ActivityTelemetryService(
     repository: TelemetryRepository(FirebaseFirestore.instance),
     pendingStore: PendingSessionStore(prefs),
@@ -137,6 +159,15 @@ class MyApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => LoadingService()),
+        Provider<_CompletionRefresh>(
+          create: (context) => _CompletionRefresh(
+            context.read<ProfileViewModel>(),
+            context.read<AvatarViewModel>(),
+            context.read<LearningViewModel>(),
+          ),
+          lazy: false,
+          dispose: (_, refresh) => refresh.dispose(),
+        ),
         ProxyProvider2<
           SettingsViewModel,
           AuthViewModel,
@@ -160,7 +191,6 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<SettingsViewModel>(
         builder: (context, settings, _) {
-          final textScaler = TextScaler.linear(settings.textScaleFactor);
           return LoadingWrapper(
             child: MaterialApp(
               title: 'Appy',
@@ -182,7 +212,15 @@ class MyApp extends StatelessWidget {
               builder: (context, child) {
                 final mediaQuery = MediaQuery.of(context);
                 return MediaQuery(
-                  data: mediaQuery.copyWith(textScaler: textScaler),
+                  data: mediaQuery.copyWith(
+                    disableAnimations:
+                        mediaQuery.disableAnimations ||
+                        settings.reduceAnimations,
+                    textScaler: PreferenceTextScaler(
+                      mediaQuery.textScaler,
+                      settings.textScaleFactor,
+                    ),
+                  ),
                   child: child ?? const SizedBox.shrink(),
                 );
               },
@@ -194,4 +232,26 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Refresca solo el perfil activo tras confirmar una recompensa pendiente.
+class _CompletionRefresh {
+  _CompletionRefresh(this.profiles, this.avatar, this.learning) {
+    CompletionSyncService.instance?.addListener(refresh);
+  }
+  final ProfileViewModel profiles;
+  final AvatarViewModel avatar;
+  final LearningViewModel learning;
+  void refresh() {
+    final queue = CompletionSyncService.instance;
+    if (queue?.lastConfirmedLearner != profiles.learnerUid) return;
+    unawaited(
+      avatar.loadAvatarConfigFromFirestore().catchError((Object e) {
+        debugPrint('No se pudo refrescar recompensa: $e');
+      }),
+    );
+    unawaited(learning.refreshModulesProgress());
+  }
+
+  void dispose() => CompletionSyncService.instance?.removeListener(refresh);
 }

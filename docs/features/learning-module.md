@@ -192,6 +192,10 @@ Mecanica:
 modulo.bloqueado || (allowedModules > 0 && indice >= allowedModules)
 ```
 
+Con el modo libre del perfil (`openAllLevels`) la linea de tiempo muestra
+abiertos los niveles bloqueados que tienen contenido
+(`levelStateForDisplay`); ver `docs/features/settings.md`.
+
 `ModuloPlantilla`:
 
 - En `onTapDown`, si no esta bloqueado, llama `prefetchModuleLevels(modulo.id)`.
@@ -315,6 +319,12 @@ Mecanica:
 - Notifica `onIndexChanged` solo cuando cambia el item logico.
 - Tocar el nodo enfocado llama `onFocusedNodePressed`; tocar un satelite lo trae al frente (`_bringToFront`).
 - Muestra labels `PICTOGRAMA`, `VIDEO`, `AUDIO`, `MINIJUEGO`.
+- El enfocado muestra su label grande al pie del selector. Cada orbe satelite
+  muestra una pill compacta con su tipo bajo el orbe, centrada en su columna y
+  limitada al ancho del orbe. La pill se desvanece a medida que el orbe se
+  acerca al foco. El orbe superior del arco (cuando hay cuatro tarjetas) lleva
+  la pill encima para no quedar tapado por el enfocado. Tocar la pill equivale
+  a tocar el orbe.
 - Usa iconos PNG locales para pictograma, video y simple selection.
 
 Disposicion en cruz: todos los nodos son visibles a la vez. El enfocado va al
@@ -538,7 +548,10 @@ selecciones totales:
 | `1` o `2` | 20 |
 | `>= 3` | 10 |
 
-Una actividad de observacion (pictograma o video) paga 10 monedas fijas.
+Una actividad de observacion (pictograma, video o audio) paga 10 monedas fijas.
+Solo `simple_selection` y `puzzle` son interactivas
+(`LevelCompletionService.isInteractiveType`): solo ellas tienen intentos, y el
+resultado de las demas no muestra el recuadro de "Intentos usados".
 
 Repasar una modalidad que el nivel ya tenia completada (`alreadyRewarded`) o
 una actividad de un nivel que ya tenia 3 estrellas paga `_repasoCoins`
@@ -585,3 +598,40 @@ dialogo de `LevelPlayScreen` como `showVideoCompletionDialog`.
 - Si agregas minijuego, actualiza `LevelPlayScreen`, `MinigameType`, registros en `main.dart` y docs de minigames.
 - Si cambias progreso, actualiza `LevelCompletionService`, `LearningViewModel` y `docs/data-model.md`.
 - Si agregas imagen remota masiva, revisar cache/pinning para no saturar conexiones.
+
+## Salir del video en pantalla completa
+
+Salir de `VideoPlayerScreen` sin completar devuelve un `VideoResume` (posicion y
+segundos vistos). `LevelContentScreen` reabre la vista previa y esta retoma el
+video en esa posicion y sigue reproduciendolo; al volver a la pantalla completa se
+conservan los segundos vistos. La sesion de telemetria sigue abierta mientras se alterna entre vista
+previa y pantalla completa: solo se abandona al cerrar la vista previa. Completar
+el video si regresa al menu de orbes.
+
+## Salida tras finalizar
+
+Los resultados pendientes muestran un aviso de sincronización, sin anunciar
+monedas pagadas. Una falla de guardado también permite salir. La voz y los
+refrescos no bloquean el diálogo; callbacks duplicados no abren dos resultados.
+El video conserva su último frame durante la celebración y permite volver con
+el botón del sistema incluso mientras se prepara el resultado.
+
+El diálogo escucha la confirmación de su evento: reemplaza el aviso pendiente
+por las monedas y cambios reales del avatar en cuanto la transacción termina.
+También resuelve confirmaciones recibidas antes de abrirse. Un recibo antiguo
+sin detalle muestra «Recompensas sincronizadas», sin inventar importes.
+
+El aviso pendiente solo aparece cuando `connectivity_plus` informa que no hay
+ninguna interfaz de red activa. Wi-Fi, datos móviles y Ethernet mantienen el
+aviso oculto mientras se espera a Firestore; desconocer el estado tampoco lo
+muestra. Una reconexión oculta el aviso y reintenta la cola de inmediato.
+
+Los diálogos de minijuegos y video reservan el área de recompensas con
+`CompletionRewardsSection`. Mientras se confirma un resultado online muestran
+un esqueleto con shimmer; sin red muestran el aviso pendiente en el mismo espacio.
+Al confirmar se reemplaza el esqueleto por monedas, felicidad y energía,
+incluidas las variaciones en cero. El aviso de energía puede desplazarse dentro
+del área sin mover el diálogo ni sus botones. La altura respeta la escala de texto.
+El ajuste de reducir animaciones de la app o del sistema mantiene el esqueleto
+estático. `test/completion_skeleton_layout_test.dart` compara las medidas del
+diálogo y la posición de Continuar antes y después de la confirmación.

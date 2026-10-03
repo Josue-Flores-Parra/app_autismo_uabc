@@ -1,5 +1,6 @@
 {
   "appTitle": "Appy",
+  "appTagline": "TEApoya TEAcompaña",
   "navModules": "Modules",
   "navAvatar": "Avatar",
   "navSettings": "PIN",
@@ -35,7 +36,16 @@
   "notificationsSection": "Notifications & reminders",
   "enableReminders": "Enable practice reminders",
   "scheduleReminder": "Suggested schedule",
-  "reminderPlaceholder": "Scheduling coming soon",
+  "reminderPlaceholder": "Turn on reminders to choose the time",
+  "reminderDailyAt": "Every day at {time}",
+  "@reminderDailyAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "reminderNotificationTitle": "Time to practice with Appy",
+  "reminderNotificationBody": "There are activities waiting for you.",
+  "reminderPermissionDenied": "Turn on Appy notifications in the phone settings to get reminders.",
   "privacySection": "Privacy & data",
   "clearCache": "Clear cached resources",
   "sendMetrics": "Send anonymous metrics",
@@ -45,7 +55,36 @@
   "telemetryConsentDecline": "No, thanks",
   "parentalSection": "Parental control",
   "parentalAllowedModules": "Allowed modules",
-  "parentalNoLimit": "No limit",
+  "parentalNoLimit": "All",
+  "profileOpenAllLevels": "Open all levels",
+  "profileOpenAllLevelsHint": "Shows every level of the allowed modules as open. Coins and stars are only earned by completing each activity.",
+  "openLevelsActive": "Free mode",
+  "downloadsTitle": "Offline content",
+  "downloadsIntro": "Download a module to use it without internet. You need a connection to download. Progress is saved and sent when the network returns.",
+  "downloadsEmpty": "There are no modules to download yet.",
+  "downloadsNotDownloaded": "Not downloaded",
+  "downloadsPartial": "Incomplete download",
+  "downloadsDownloaded": "Downloaded, {size}",
+  "@downloadsDownloaded": {
+    "placeholders": {
+      "size": { "type": "String" }
+    }
+  },
+  "downloadsInProgress": "Downloading {done} of {total}",
+  "@downloadsInProgress": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "downloadsAction": "Download",
+  "downloadsRetry": "Retry",
+  "downloadsDeleteTooltip": "Delete download",
+  "downloadsDeleteTitle": "Delete the download?",
+  "downloadsDeleteBody": "This frees the space on the phone. You can download it again whenever you want.",
+  "downloadsErrorNetwork": "The download failed. Check your connection and try again.",
+  "downloadsErrorNoSpace": "There is not enough space on the phone.",
+  "downloadsErrorOther": "The download could not be completed.",
   "parentalModulesUnit": "modules",
   "currentPasswordLabel": "Account password",
   "newPasswordLabel": "New password",
@@ -57,7 +96,6 @@
   "savedSnackbar": "Settings updated",
   "errorSnackbar": "Something went wrong",
   "cacheClearedSnackbar": "Cache cleaned",
-  "reminderNotImplemented": "Reminder scheduling will be available soon",
   "logoutSuccess": "You signed out",
   "passwordUpdated": "Password updated",
   "displayNameUpdated": "Name updated",
@@ -134,5 +172,10 @@
       "name": { "type": "String" }
     }
   },
-  "deleteAccountSuccess": "Account deleted successfully."
+  "deleteAccountSuccess": "Account deleted successfully.",
+  "completionRewardsPending": "Rewards pending synchronization.",
+  "completionSaveFailed": "The result could not be saved. You can return and try again.",
+  "downloadsCancelling": "Cancelling…",
+  "completionRewardsConfirmed": "Rewards synchronized.",
+  "completionRewardsLoading": "Loading rewards"
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../minigame_core.dart';
 import '../../../learning_module/viewmodel/audio_viewmodel.dart';
 import '../../../../shared/services/celebration_helper.dart';
+import '../../../../data/services/offline_assets_service.dart';
 
 /// Minijuego de Audio
 /// Reproduce un audio/música completo como actividad del nivel
@@ -490,8 +491,8 @@ class _AudioMinigameState extends State<AudioMinigame> {
   /// Detecta automáticamente si es un asset local o URL externa
   Widget _buildImageFromPath(String path) {
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(
-        path,
+      return Image(
+        image: OfflineAssetsService.instance.imageProvider(path),
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return const Icon(

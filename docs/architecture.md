@@ -16,11 +16,13 @@ lib/
 |   |-- models/
 |   |   |-- level_model.dart
 |   |   |-- module_model.dart
+|   |   |-- offline_manifest.dart
 |   |   |-- progress_log_model.dart
 |   |   `-- user_model.dart
 |   `-- services/
 |       |-- auth_services.dart
-|       `-- firestore_services.dart
+|       |-- firestore_services.dart
+|       `-- offline_assets_service.dart
 |-- features/
 |   |-- authentication/
 |   |   |-- view/
@@ -47,6 +49,9 @@ lib/
 |   |-- minigames/
 |   |   |-- minigame_core.dart
 |   |   `-- view/
+|   |-- offline/
+|   |   |-- view/
+|   |   `-- viewmodel/
 |   |-- settings/
 |   |   |-- view/
 |   |   `-- viewmodel/

@@ -7,6 +7,7 @@ import '../../../../shared/services/celebration_helper.dart';
 import '../../../../shared/services/negative_feedback_helper.dart';
 import '../../minigame_core.dart';
 import '../../simple_selection_questions.dart';
+import '../../../../data/services/offline_assets_service.dart';
 
 /// Minijuego de Selección Simple
 /// Presenta al usuario varias imágenes y debe seleccionar la correcta
@@ -112,7 +113,7 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
       try {
         final provider =
             (path.startsWith('http://') || path.startsWith('https://'))
-            ? NetworkImage(path)
+            ? OfflineAssetsService.instance.imageProvider(path)
             : AssetImage(path) as ImageProvider;
         await precacheImage(provider, context);
       } catch (_) {
@@ -827,8 +828,8 @@ class _SimpleSelectionMinigameState extends State<SimpleSelectionMinigame> {
 Widget _buildImageFromPath(String path) {
   // Si la URL es una URL externa (http/https), usar Image.network
   if (path.startsWith('http://') || path.startsWith('https://')) {
-    return Image.network(
-      path,
+    return Image(
+      image: OfflineAssetsService.instance.imageProvider(path),
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
         return const Icon(

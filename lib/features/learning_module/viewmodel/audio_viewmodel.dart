@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 
+import '../../../data/services/offline_assets_service.dart';
+
 class AudioViewModel extends ChangeNotifier {
   late AudioPlayer _audioPlayer;
   late Future<void> _initializeAudioFuture;
@@ -50,7 +52,13 @@ class AudioViewModel extends ChangeNotifier {
   Future<void> initialize(String audioPath) async {
     try {
       // Cargar el audio desde la URL o path
-      if (audioPath.startsWith('http://') || audioPath.startsWith('https://')) {
+      final offlinePath = OfflineAssetsService.instance.localPath(audioPath);
+      if (offlinePath != null) {
+        // Módulo descargado: se lee el archivo local, sin red.
+        await _audioPlayer.setFilePath(offlinePath);
+        await _audioPlayer.setVolume(1.0);
+      } else if (audioPath.startsWith('http://') ||
+          audioPath.startsWith('https://')) {
         await _audioPlayer.setUrl(audioPath);
         await _audioPlayer.setVolume(1.0);
       } else {

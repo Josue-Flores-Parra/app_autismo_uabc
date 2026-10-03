@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import '../../../data/services/firestore_services.dart';
 import '../model/modulo_info.dart';
+import '../data/completion_sync_service.dart';
 import '../model/levels_models.dart';
+import '../../../data/services/offline_assets_service.dart';
 
 /*
 ViewModel unificado que maneja la lógica de negocio para módulos y niveles.
@@ -19,8 +20,8 @@ class LearningViewModel extends ChangeNotifier {
   String? _errorMessageModules;
 
   // Estado de niveles
-  Map<String, List<ModuleLevelInfo>> _moduleLevels = {};
-  Map<String, Map<String, Map<String, dynamic>>> _userProgress = {};
+  final Map<String, List<ModuleLevelInfo>> _moduleLevels = {};
+  final Map<String, Map<String, Map<String, dynamic>>> _userProgress = {};
   bool _isLoadingLevels = false;
   String? _errorMessageLevels;
 
@@ -206,7 +207,8 @@ class LearningViewModel extends ChangeNotifier {
     // Aplicar resultados a cada módulo
     for (int i = 0; i < _modulos.length; i++) {
       final modulo = _modulos[i];
-      final progress = progressResults[i];
+      final progress = _overlay(modulo.id, progressResults[i]);
+      _userProgress[modulo.id] = progress;
 
       // Contar niveles completados con la misma regla que _determineLevelStates
       final completedInModule = countCompletedLevels(progress);
@@ -242,6 +244,40 @@ class LearningViewModel extends ChangeNotifier {
   */
   Future<void> refreshModulesProgress() async {
     await _loadModulesProgress();
+  }
+
+  Map<String, Map<String, dynamic>> _overlay(
+    String moduleId,
+    Map<String, Map<String, dynamic>> saved,
+  ) => _learnerUid == null
+      ? saved
+      : CompletionSyncService.instance?.overlay(
+              _learnerUid!,
+              moduleId,
+              saved,
+            ) ??
+            saved;
+
+  /// Actualiza el timeline desde la cola durable sin esperar una relectura remota.
+  void applyPendingProgress(String moduleId) {
+    final progress = _overlay(moduleId, _userProgress[moduleId] ?? {});
+    _userProgress[moduleId] = progress;
+    final levels = _moduleLevels[moduleId];
+    if (levels != null) {
+      _moduleLevels[moduleId] = _determineLevelStates([
+        for (final level in levels)
+          _createModuleLevelInfoWithProgress(
+            level.toMap(),
+            progress[level.id],
+            moduleId,
+          ),
+      ], progress);
+    }
+    _completedLevelsCount = _userProgress.values.fold(
+      0,
+      (sum, module) => sum + countCompletedLevels(module),
+    );
+    notifyListeners();
   }
 
   /*
@@ -298,7 +334,10 @@ class LearningViewModel extends ChangeNotifier {
       ]);
 
       final levelsData = results[0] as List<Map<String, dynamic>>;
-      final userProgress = results[1] as Map<String, Map<String, dynamic>>;
+      final userProgress = _overlay(
+        moduleId,
+        results[1] as Map<String, Map<String, dynamic>>,
+      );
       if (generation != _learnerGeneration || learnerUid != _learnerUid) {
         return [];
       }
@@ -619,6 +658,8 @@ class LearningViewModel extends ChangeNotifier {
   void _tryPin(String? url, List<ImageStreamCompleterHandle> handles) {
     if (url == null || url.isEmpty) return;
     if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+    // Lo descargado se lee del disco: no hace falta fijarlo en memoria.
+    if (OfflineAssetsService.instance.localPath(url) != null) return;
 
     try {
       final provider = NetworkImage(url);
