@@ -30,6 +30,9 @@ class _DownloadsView extends StatelessWidget {
   }
 
   String _statusLabel(AppLocalizations l10n, ModuleDownloadInfo info) {
+    if (info.phase == ModuleDownloadPhase.cancelling) {
+      return l10n.downloadsCancelling;
+    }
     if (info.isDownloading) {
       return l10n.downloadsInProgress(info.done, info.total);
     }
@@ -91,13 +94,18 @@ class _DownloadsView extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final colors = context.appColors;
     if (info.isDownloading) {
-      return SizedBox(
-        width: 28,
-        height: 28,
-        child: CircularProgressIndicator(
-          strokeWidth: 3,
-          value: info.total == 0 ? null : info.done / info.total,
+      final cancelling = info.phase == ModuleDownloadPhase.cancelling;
+      return TextButton.icon(
+        onPressed: cancelling ? null : () => viewModel.cancel(info.moduleId),
+        icon: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            value: info.total == 0 ? null : info.done / info.total,
+          ),
         ),
+        label: Text(cancelling ? l10n.downloadsCancelling : l10n.cancel),
       );
     }
     if (info.status == OfflineModuleStatus.downloaded) {

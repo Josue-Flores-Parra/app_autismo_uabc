@@ -434,4 +434,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get completionSaveFailed =>
       'The result could not be saved. You can return and try again.';
+
+  @override
+  String get downloadsCancelling => 'Cancelling…';
 }

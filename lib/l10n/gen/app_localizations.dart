@@ -877,6 +877,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.'**
   String get completionSaveFailed;
+
+  /// No description provided for @downloadsCancelling.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelando…'**
+  String get downloadsCancelling;
 }
 
 class _AppLocalizationsDelegate

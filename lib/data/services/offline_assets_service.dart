@@ -39,6 +39,40 @@ class OfflineDownloadException implements Exception {
   String toString() => 'OfflineDownloadException($error, $url, $detail)';
 }
 
+/// Cancelación voluntaria; no representa un fallo de red.
+class OfflineDownloadCancelled implements Exception {}
+
+class _DownloadCancellation {
+  final signal = Completer<void>();
+  final finished = Completer<void>();
+  bool get cancelled => signal.isCompleted;
+  void cancel() {
+    if (!cancelled) signal.complete();
+  }
+
+  void check() {
+    if (cancelled) throw OfflineDownloadCancelled();
+  }
+
+  Future<void> delay(Duration duration) async {
+    final done = Completer<void>();
+    final timer = Timer(duration, done.complete);
+    try {
+      await wait(done.future);
+    } finally {
+      timer.cancel();
+    }
+  }
+
+  Future<T> wait<T>(Future<T> work) {
+    check();
+    return Future.any([
+      work,
+      signal.future.then<T>((_) => throw OfflineDownloadCancelled()),
+    ]);
+  }
+}
+
 /// Descarga el contenido de los módulos al almacenamiento de la app y lo
 /// sirve desde ahí cuando existe.
 ///
@@ -72,6 +106,7 @@ class OfflineAssetsService {
 
   Directory? _root;
   final Map<String, OfflineManifest> _manifests = {};
+  final Map<String, _DownloadCancellation> _activeDownloads = {};
   final Map<String, String> _index = {};
 
   static const String _manifestName = 'manifest.json';
@@ -138,40 +173,88 @@ class OfflineAssetsService {
     Iterable<String> urls, {
     void Function(int done, int total)? onProgress,
   }) async {
-    final root = _root;
-    if (root == null) {
+    if (_root == null) {
       throw StateError('OfflineAssetsService.init() no se ha llamado.');
     }
+    if (_activeDownloads.containsKey(moduleId)) {
+      throw StateError('Descarga ya activa.');
+    }
+    final cancellation = _DownloadCancellation();
+    _activeDownloads[moduleId] = cancellation;
     final dir = _moduleDir(moduleId);
-    await dir.create(recursive: true);
-
+    final original =
+        _manifests[moduleId] ?? OfflineManifest(moduleId: moduleId);
+    var manifest = original;
+    final addedFiles = <String>{};
     final pending = urls.toSet().toList();
-    var manifest = _manifests[moduleId] ?? OfflineManifest(moduleId: moduleId);
     var done = 0;
-    onProgress?.call(done, pending.length);
+    var rolledBack = false;
+    Future<void> rollback() async {
+      for (final name in addedFiles) {
+        final added = File(p.join(dir.path, name));
+        if (await added.exists()) await added.delete();
+      }
+      manifest = original;
+      _manifests[moduleId] = original;
+      _rebuildIndex();
+      rolledBack = true;
+    }
 
     try {
+      await dir.create(recursive: true);
+      cancellation.check();
+      onProgress?.call(done, pending.length);
       for (final url in pending) {
-        final known = manifest.files[url];
+        cancellation.check();
+        final known = original.files[url];
         if (known != null && await _isComplete(dir, known)) {
           done++;
           onProgress?.call(done, pending.length);
           continue;
         }
-        final entry = await _downloadWithRetries(dir, url);
+        final entry = await _downloadWithRetries(dir, url, cancellation);
+        addedFiles.add(entry.file);
         manifest = manifest.copyWith(files: {...manifest.files, url: entry});
         _manifests[moduleId] = manifest;
         _rebuildIndex();
+        cancellation.check();
         done++;
         onProgress?.call(done, pending.length);
       }
+      cancellation.check();
     } finally {
-      await _writeManifest(dir, manifest);
+      try {
+        if (cancellation.cancelled) {
+          // Solo revierte archivos obtenidos por este intento; conserva los anteriores.
+          await rollback();
+        }
+        if (await dir.exists()) await _writeManifest(dir, manifest);
+        if (cancellation.cancelled && !rolledBack) {
+          await rollback();
+          if (await dir.exists()) await _writeManifest(dir, manifest);
+        }
+      } finally {
+        _activeDownloads.remove(moduleId);
+        cancellation.finished.complete();
+      }
     }
+    // También cubre cancelación durante la escritura final del manifiesto.
+    cancellation.check();
+  }
+
+  /// Detiene un módulo y espera hasta terminar la limpieza de sus archivos.
+  Future<void> cancelDownload(String moduleId) async {
+    final active = _activeDownloads[moduleId];
+    if (active == null) return;
+    active.cancel();
+    await active.finished.future;
   }
 
   /// Borra el módulo del disco.
   Future<void> deleteModule(String moduleId) async {
+    if (_activeDownloads.containsKey(moduleId)) {
+      throw StateError('Espera a que termine la descarga o su cancelación.');
+    }
     _manifests.remove(moduleId);
     _rebuildIndex();
     final dir = _moduleDir(moduleId);
@@ -216,27 +299,41 @@ class OfflineAssetsService {
   Future<OfflineFileEntry> _downloadWithRetries(
     Directory dir,
     String url,
+    _DownloadCancellation cancellation,
   ) async {
     var attempt = 0;
     while (true) {
       try {
-        return await _downloadFile(dir, url);
+        cancellation.check();
+        return await _downloadFile(dir, url, cancellation);
       } on OfflineDownloadException catch (e) {
         if (!e.isRetryable || attempt >= retryDelays.length) rethrow;
-        await Future<void>.delayed(retryDelays[attempt]);
+        await cancellation.delay(retryDelays[attempt]);
         attempt++;
       }
     }
   }
 
-  Future<OfflineFileEntry> _downloadFile(Directory dir, String url) async {
+  Future<OfflineFileEntry> _downloadFile(
+    Directory dir,
+    String url,
+    _DownloadCancellation cancellation,
+  ) async {
     final name = fileNameFor(url);
     final target = File(p.join(dir.path, name));
     final part = File('${target.path}.part');
     try {
-      final response = await _client
-          .send(http.Request('GET', Uri.parse(url)))
-          .timeout(timeout);
+      final response = await cancellation.wait(
+        _client
+            .send(
+              http.AbortableRequest(
+                'GET',
+                Uri.parse(url),
+                abortTrigger: cancellation.signal.future,
+              ),
+            )
+            .timeout(timeout),
+      );
       if (response.statusCode != 200) {
         throw OfflineDownloadException(
           OfflineDownloadError.server,
@@ -247,13 +344,16 @@ class OfflineAssetsService {
 
       var bytes = 0;
       final sink = part.openWrite();
+      final iterator = StreamIterator(response.stream.timeout(timeout));
       try {
-        await for (final chunk in response.stream.timeout(timeout)) {
+        while (await cancellation.wait(iterator.moveNext())) {
+          final chunk = iterator.current;
           sink.add(chunk);
           bytes += chunk.length;
         }
         await sink.flush();
       } finally {
+        await iterator.cancel();
         await sink.close();
       }
 
@@ -265,8 +365,15 @@ class OfflineAssetsService {
           '$bytes de ${expected ?? '?'}',
         );
       }
+      cancellation.check();
       await part.rename(target.path);
       return OfflineFileEntry(file: name, bytes: bytes);
+    } on OfflineDownloadCancelled {
+      await _discard(part);
+      rethrow;
+    } on http.RequestAbortedException {
+      await _discard(part);
+      throw OfflineDownloadCancelled();
     } on OfflineDownloadException {
       await _discard(part);
       rethrow;

@@ -6,7 +6,7 @@ import '../../learning_module/model/levels_models.dart';
 import '../../learning_module/model/modulo_info.dart';
 
 /// Qué hace ahora mismo la descarga de un módulo.
-enum ModuleDownloadPhase { idle, downloading, failed }
+enum ModuleDownloadPhase { idle, downloading, cancelling, failed }
 
 /// Estado de un módulo en la pantalla de descargas.
 class ModuleDownloadInfo {
@@ -30,7 +30,9 @@ class ModuleDownloadInfo {
   final int bytes;
   final OfflineDownloadError? error;
 
-  bool get isDownloading => phase == ModuleDownloadPhase.downloading;
+  bool get isDownloading =>
+      phase == ModuleDownloadPhase.downloading ||
+      phase == ModuleDownloadPhase.cancelling;
 
   ModuleDownloadInfo copyWith({
     OfflineModuleStatus? status,
@@ -166,6 +168,15 @@ class DownloadsViewModel extends ChangeNotifier {
         moduleId,
         (info) => info.copyWith(phase: ModuleDownloadPhase.idle),
       );
+    } on OfflineDownloadCancelled {
+      _update(
+        moduleId,
+        (info) => info.copyWith(
+          phase: ModuleDownloadPhase.idle,
+          done: 0,
+          clearError: true,
+        ),
+      );
     } on OfflineDownloadException catch (e) {
       _update(
         moduleId,
@@ -183,6 +194,19 @@ class DownloadsViewModel extends ChangeNotifier {
       );
     }
     _refreshStatus(moduleId);
+  }
+
+  /// Pide cancelar y mantiene el módulo bloqueado mientras se revierte el intento.
+  Future<void> cancel(String moduleId) async {
+    final current = _infoOf(moduleId);
+    if (current == null || current.phase != ModuleDownloadPhase.downloading) {
+      return;
+    }
+    _update(
+      moduleId,
+      (info) => info.copyWith(phase: ModuleDownloadPhase.cancelling),
+    );
+    await _service.cancelDownload(moduleId);
   }
 
   /// Borra la descarga del módulo.

@@ -124,3 +124,12 @@ cada 30 segundos y al volver al foreground; nunca procesa otra cuenta.
 
 La confirmación actualiza progreso y avatar junto con un recibo idempotente.
 Los timeouts conservan el evento: una confirmación tardía no vuelve a pagar.
+
+## Cancelar descargas
+
+Cancelar interrumpe la petición/stream actual y los tiempos de reintento. La
+pantalla muestra «Cancelando…» hasta restaurar el manifiesto anterior y borrar
+los archivos nuevos del intento, incluido cualquier `.part`. No elimina
+recursos previamente completos ni cancela otros módulos. Una falla ordinaria
+conserva los archivos completos para reintentar; una cancelación voluntaria
+revierte el intento. No se permite borrar o reiniciar el módulo durante limpieza.
