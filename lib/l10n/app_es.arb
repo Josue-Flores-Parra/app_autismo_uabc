@@ -175,5 +175,6 @@
   "deleteAccountSuccess": "Cuenta eliminada correctamente.",
   "completionRewardsPending": "Recompensas pendientes de sincronización.",
   "completionSaveFailed": "No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.",
-  "downloadsCancelling": "Cancelando…"
+  "downloadsCancelling": "Cancelando…",
+  "completionRewardsConfirmed": "Recompensas sincronizadas."
 }

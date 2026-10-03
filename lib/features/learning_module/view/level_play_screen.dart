@@ -354,213 +354,234 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     unawaited(_speakCompletionFeedback(success));
     if (!mounted) return;
 
-    final coins = result?.coins ?? 0;
-    final felicidadDelta = result?.felicidadDelta ?? 0;
-    final energiaDelta = result?.energiaDelta ?? 0;
-    final sinEnergia = result?.sinEnergia ?? false;
-
-    // Filas del recuadro de resultado. Los intentos solo aplican a las
-    // actividades interactivas.
-    final resultRows = <Widget>[
-      // El callback ya reporta equivocaciones (0 si se acierta a la primera);
-      // solo cambia el texto, no el dato persistido.
-      if (!isObservation)
-        Row(
-          children: [
-            const Icon(Icons.flag, color: Color(0xFFFFD700)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Intentos usados: $attempts',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-      if (result?.syncState != CompletionSyncState.confirmed)
-        LevelCompletionService.buildSyncNotice(this.context, result),
-      if (success && result?.syncState == CompletionSyncState.confirmed)
-        Row(
-          children: [
-            const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Monedas: +$coins',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ...LevelCompletionService.buildStatRows(felicidadDelta, energiaDelta),
-      if (sinEnergia) LevelCompletionService.buildEnergyNotice(),
-    ];
-
     // Mostrar resultado y navegar de regreso
     await showDialog(
       context: this.context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        backgroundColor: const Color(0xFF1A3D52),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              success ? Icons.celebration : Icons.emoji_events_outlined,
-              color: success
-                  ? const Color(0xFF05E995)
-                  : const Color(0xFFFF9800),
-              size: 32,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                success ? '¡Nivel Completado!' : '¡Buen Intento!',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Mostrar imagen del pictograma si es un minigame de tipo pictogram
-            if (widget.actividadType?.toLowerCase().trim() == 'pictogram' &&
-                widget.minigameData != null) ...[
-              _buildPictogramImage(widget.minigameData!),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              success
-                  ? '¡Excelente trabajo! Has completado el nivel con éxito.'
-                  : _retriesLeft > 0
-                  ? 'No te preocupes, puedes intentarlo de nuevo.'
-                  : 'Has agotado todos tus reintentos.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Colors.white70),
-            ),
-            if (resultRows.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+      builder: (dialogContext) => LevelCompletionService.watchResult(result, (
+        result,
+      ) {
+        final coins = result?.coins ?? 0;
+        final felicidadDelta = result?.felicidadDelta ?? 0;
+        final energiaDelta = result?.energiaDelta ?? 0;
+        final sinEnergia = result?.sinEnergia ?? false;
+
+        // Filas del recuadro de resultado. Los intentos solo aplican a las
+        // actividades interactivas.
+        final resultRows = <Widget>[
+          // El callback ya reporta equivocaciones (0 si se acierta a la primera);
+          // solo cambia el texto, no el dato persistido.
+          if (!isObservation)
+            Row(
+              children: [
+                const Icon(Icons.flag, color: Color(0xFFFFD700)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Intentos usados: $attempts',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x33FFFFFF), width: 1),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var i = 0; i < resultRows.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 8),
-                      resultRows[i],
-                    ],
-                  ],
+              ],
+            ),
+          if (result?.syncState != CompletionSyncState.confirmed ||
+              result?.rewardsKnown == false)
+            LevelCompletionService.buildSyncNotice(this.context, result),
+          if (success &&
+              result?.syncState == CompletionSyncState.confirmed &&
+              result?.rewardsKnown == true)
+            Row(
+              children: [
+                const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Monedas: +$coins',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ...LevelCompletionService.buildStatRows(felicidadDelta, energiaDelta),
+          if (sinEnergia) LevelCompletionService.buildEnergyNotice(),
+        ];
+
+        return AlertDialog(
+          scrollable: true,
+          backgroundColor: const Color(0xFF1A3D52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                success ? Icons.celebration : Icons.emoji_events_outlined,
+                color: success
+                    ? const Color(0xFF05E995)
+                    : const Color(0xFFFF9800),
+                size: 32,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  success ? '¡Nivel Completado!' : '¡Buen Intento!',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
-            if (!success && _retriesLeft > 0) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(100, 255, 152, 0),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFF9800), width: 1),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Mostrar imagen del pictograma si es un minigame de tipo pictogram
+              if (widget.actividadType?.toLowerCase().trim() == 'pictogram' &&
+                  widget.minigameData != null) ...[
+                _buildPictogramImage(widget.minigameData!),
+                const SizedBox(height: 16),
+              ],
+              Text(
+                success
+                    ? '¡Excelente trabajo! Has completado el nivel con éxito.'
+                    : _retriesLeft > 0
+                    ? 'No te preocupes, puedes intentarlo de nuevo.'
+                    : 'Has agotado todos tus reintentos.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
+              ),
+              if (resultRows.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0x33FFFFFF),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < resultRows.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 8),
+                        resultRows[i],
+                      ],
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.refresh, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Reintentos disponibles: $_retriesLeft',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+              ],
+              if (!success && _retriesLeft > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(100, 255, 152, 0),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFFF9800),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Reintentos disponibles: $_retriesLeft',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            if (!success)
+              TextButton(
+                onPressed: () {
+                  _ttsService.stop();
+                  // Hay reintentos disponibles pero el usuario elige Volver → abandon.
+                  widget.telemetryHandle?.onAbandon(TerminalReason.userExit);
+                  Navigator.of(context).pop(); // Cerrar diálogo
+                  Navigator.of(context).pop(); // Volver al timeline
+                },
+                child: const Text(
+                  'Volver',
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
               ),
-            ],
-          ],
-        ),
-        actions: [
-          if (!success)
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 _ttsService.stop();
-                // Hay reintentos disponibles pero el usuario elige Volver → abandon.
-                widget.telemetryHandle?.onAbandon(TerminalReason.userExit);
                 Navigator.of(context).pop(); // Cerrar diálogo
-                Navigator.of(context).pop(); // Volver al timeline
-              },
-              child: const Text(
-                'Volver',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ),
-          ElevatedButton(
-            onPressed: () {
-              _ttsService.stop();
-              Navigator.of(context).pop(); // Cerrar diálogo
-              if (success) {
-                Navigator.of(context).pop(); // Volver al timeline
-                // El progreso ya se guardó en _handleMinigameComplete
-              } else {
-                // Reintentar: reiniciar el minigame con opciones mezcladas
-                if (_retriesLeft > 0) {
-                  _restartMinigame();
+                if (success) {
+                  Navigator.of(context).pop(); // Volver al timeline
+                  // El progreso ya se guardó en _handleMinigameComplete
                 } else {
-                  // Si no quedan reintentos, volver al timeline
-                  Navigator.of(context).pop();
+                  // Reintentar: reiniciar el minigame con opciones mezcladas
+                  if (_retriesLeft > 0) {
+                    _restartMinigame();
+                  } else {
+                    // Si no quedan reintentos, volver al timeline
+                    Navigator.of(context).pop();
+                  }
                 }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: success
-                  ? const Color(0xFF05E995)
-                  : (_retriesLeft > 0 ? const Color(0xFFFF9800) : Colors.grey),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: success
+                    ? const Color(0xFF05E995)
+                    : (_retriesLeft > 0
+                          ? const Color(0xFFFF9800)
+                          : Colors.grey),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: Text(
+                success
+                    ? 'Continuar'
+                    : (_retriesLeft > 0 ? 'Reintentar' : 'Salir'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            child: Text(
-              success
-                  ? 'Continuar'
-                  : (_retriesLeft > 0 ? 'Reintentar' : 'Salir'),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+          ],
+        );
+      }),
     );
     _handlingCompletion = false;
   }

@@ -883,6 +883,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cancelando…'**
   String get downloadsCancelling;
+
+  /// No description provided for @completionRewardsConfirmed.
+  ///
+  /// In es, this message translates to:
+  /// **'Recompensas sincronizadas.'**
+  String get completionRewardsConfirmed;
 }
 
 class _AppLocalizationsDelegate

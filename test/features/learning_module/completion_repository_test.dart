@@ -105,8 +105,12 @@ void main() {
       completedAt: DateTime(2026),
     );
     final repository = CompletionRepository(db);
-    await repository.confirm(event);
-    await repository.confirm(event);
+    final reward = await repository.confirm(event);
+    final duplicate = await repository.confirm(event);
+    expect(reward!.coins, 30);
+    expect(reward.stars, 1);
+    expect(reward.energy, -4);
+    expect(duplicate!.toJson(), reward.toJson());
     expect((db.docs['users/child']!['avatarConfig'] as Map)['monedas'], 30);
     expect(
       db.docs['users/child/progress/module/levels/level']!['estrellas'],

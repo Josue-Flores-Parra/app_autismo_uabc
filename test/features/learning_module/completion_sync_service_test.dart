@@ -38,7 +38,7 @@ void main() {
       final blocked = Completer<void>();
       final queue = CompletionSyncService(
         prefs: prefs,
-        confirm: (_) => blocked.future,
+        confirm: (_) => blocked.future.then((_) => null),
         actorProvider: () => 'parent',
       );
       await queue.enqueue(event('one'));
@@ -70,6 +70,7 @@ void main() {
         confirm: (e) async {
           if (fail) throw StateError('offline');
           ids.add(e.id);
+          return null;
         },
       );
       await queue.enqueue(event('one'));
@@ -108,7 +109,7 @@ void main() {
     await queue.flush();
     final restored = CompletionSyncService(
       prefs: prefs,
-      confirm: (_) async {},
+      confirm: (_) async => null,
       actorProvider: () => 'parent',
     );
     expect(restored.overlay('child', 'module', {})['level']!['estrellas'], 2);

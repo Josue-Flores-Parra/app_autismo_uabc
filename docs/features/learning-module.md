@@ -615,3 +615,8 @@ monedas pagadas. Una falla de guardado también permite salir. La voz y los
 refrescos no bloquean el diálogo; callbacks duplicados no abren dos resultados.
 El video conserva su último frame durante la celebración y permite volver con
 el botón del sistema incluso mientras se prepara el resultado.
+
+El diálogo escucha la confirmación de su evento: reemplaza el aviso pendiente
+por las monedas y cambios reales del avatar en cuanto la transacción termina.
+También resuelve confirmaciones recibidas antes de abrirse. Un recibo antiguo
+sin detalle muestra «Recompensas sincronizadas», sin inventar importes.

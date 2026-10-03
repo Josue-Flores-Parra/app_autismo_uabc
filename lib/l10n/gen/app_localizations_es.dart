@@ -438,4 +438,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get downloadsCancelling => 'Cancelando…';
+
+  @override
+  String get completionRewardsConfirmed => 'Recompensas sincronizadas.';
 }

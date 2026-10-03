@@ -437,4 +437,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadsCancelling => 'Cancelling…';
+
+  @override
+  String get completionRewardsConfirmed => 'Rewards synchronized.';
 }

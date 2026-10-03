@@ -12,6 +12,44 @@ import '../model/levels_models.dart';
 /// Resultado de persistencia independiente del resultado de la actividad.
 enum CompletionSyncState { pending, confirmed, failed }
 
+/// Valores realmente aplicados por la transacción, incluidos los topes del avatar.
+class CompletionReward {
+  const CompletionReward({
+    required this.stars,
+    required this.coins,
+    required this.happiness,
+    required this.energy,
+    required this.noEnergy,
+    required this.replay,
+  });
+  final int stars, coins, happiness, energy;
+  final bool noEnergy, replay;
+  Map<String, dynamic> toJson() => {
+    'stars': stars,
+    'coins': coins,
+    'happiness': happiness,
+    'energy': energy,
+    'noEnergy': noEnergy,
+    'replay': replay,
+  };
+  factory CompletionReward.fromJson(Map<String, dynamic> data) =>
+      CompletionReward(
+        stars: data['stars'] as int,
+        coins: data['coins'] as int,
+        happiness: data['happiness'] as int,
+        energy: data['energy'] as int,
+        noEnergy: data['noEnergy'] as bool,
+        replay: data['replay'] as bool,
+      );
+}
+
+/// Confirmación del actor que originó el evento; los recibos antiguos no tienen detalle.
+class CompletionConfirmation {
+  const CompletionConfirmation(this.actorId, this.reward);
+  final String actorId;
+  final CompletionReward? reward;
+}
+
 /// Evento durable: la identidad se captura antes de cualquier espera.
 class CompletionEvent {
   CompletionEvent({
@@ -135,7 +173,7 @@ class CompletionRepository {
   CompletionRepository(this.db);
   final FirebaseFirestore db;
 
-  Future<void> confirm(CompletionEvent event) async {
+  Future<CompletionReward?> confirm(CompletionEvent event) async {
     final user = db.collection('users').doc(event.learnerId);
     // El módulo reservado usa las reglas de propiedad existentes de progreso.
     // Sus recibos no se incluyen en el catálogo ni en los badges de módulos.
@@ -149,9 +187,14 @@ class CompletionRepository {
         .doc(event.moduleId)
         .collection('levels')
         .doc(event.levelId);
-    await db.runTransaction((tx) async {
+    return db.runTransaction<CompletionReward?>((tx) async {
       final existing = await tx.get(receipt);
-      if (existing.exists) return;
+      if (existing.exists) {
+        final reward = existing.data()?['reward'];
+        return reward is Map
+            ? CompletionReward.fromJson(Map<String, dynamic>.from(reward))
+            : null;
+      }
       final saved = await tx.get(progress);
       final account = await tx.get(user);
       if (!account.exists) throw StateError('El perfil ya no existe.');
@@ -175,21 +218,39 @@ class CompletionRepository {
           'activities': activities,
         }, SetOptions(merge: true));
       }
-      tx.set(user, {
-        'avatarConfig': completionAvatar(
-          avatar,
-          previous,
-          event,
-          DateTime.now(),
-        ),
-      }, SetOptions(merge: true));
+      final updatedAvatar = completionAvatar(
+        avatar,
+        previous,
+        event,
+        DateTime.now(),
+      );
+      final reward = CompletionReward(
+        stars: parseProgressEstrellas(next),
+        coins:
+            (updatedAvatar['monedas'] as int) -
+            ((avatar['monedas'] as num?)?.toInt() ?? 0),
+        happiness:
+            (updatedAvatar['felicidad'] as int) -
+            ((avatar['felicidad'] as num?)?.toInt() ?? 100),
+        energy:
+            (updatedAvatar['energia'] as int) -
+            ((avatar['energia'] as num?)?.toInt() ?? 100),
+        noEnergy: updatedAvatar['energia'] == 0,
+        replay:
+            event.success &&
+            (isCompletedProgress(previous) ||
+                parseCompletedActivities(previous).contains(event.activity)),
+      );
+      tx.set(user, {'avatarConfig': updatedAvatar}, SetOptions(merge: true));
       tx.set(receipt, {
         'completionId': event.id,
         'actorId': event.actorId,
         'moduleId': event.moduleId,
         'levelId': event.levelId,
         'confirmedAt': FieldValue.serverTimestamp(),
+        'reward': reward.toJson(),
       });
+      return reward;
     });
   }
 }
@@ -198,7 +259,7 @@ class CompletionRepository {
 class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
   CompletionSyncService({
     required SharedPreferences prefs,
-    required Future<void> Function(CompletionEvent) confirm,
+    required Future<CompletionReward?> Function(CompletionEvent) confirm,
     required String? Function() actorProvider,
   }) : _prefs = prefs,
        _confirm = confirm,
@@ -216,7 +277,8 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
   static CompletionSyncService? instance;
   static const _key = 'activity_completion_outbox_v1';
   final SharedPreferences _prefs;
-  final Future<void> Function(CompletionEvent) _confirm;
+  final Future<CompletionReward?> Function(CompletionEvent) _confirm;
+  final Map<String, CompletionConfirmation> _confirmed = {};
   final String? Function() _actorProvider;
   final List<CompletionEvent> _events = [];
   Future<void> _storageChain = Future.value();
@@ -227,6 +289,12 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
   String? lastConfirmedLearner;
 
   List<CompletionEvent> get pending => List.unmodifiable(_events);
+
+  /// Consulta la confirmación de un evento sin exponer recompensas de otra cuenta.
+  CompletionConfirmation? confirmationOf(String id) {
+    final confirmation = _confirmed[id];
+    return confirmation?.actorId == _actorProvider() ? confirmation : null;
+  }
 
   void start() {
     WidgetsBinding.instance.addObserver(this);
@@ -304,11 +372,25 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _drain() async {
     final actor = _actorProvider();
     final blocked = <String>{};
-    for (final event in List<CompletionEvent>.of(_events)) {
+    final attempted = <String>{};
+    while (true) {
+      final available = _events.where(
+        (event) =>
+            event.actorId == actor &&
+            !blocked.contains(event.learnerId) &&
+            !attempted.contains(event.id),
+      );
+      if (available.isEmpty) break;
+      final event = available.first;
+      attempted.add(event.id);
       if (_disposed || actor != _actorProvider()) break;
       if (event.actorId != actor || blocked.contains(event.learnerId)) continue;
       try {
-        await _confirm(event).timeout(const Duration(seconds: 10));
+        final reward = await _confirm(
+          event,
+        ).timeout(const Duration(seconds: 10));
+        _confirmed[event.id] = CompletionConfirmation(event.actorId, reward);
+        if (_confirmed.length > 100) _confirmed.remove(_confirmed.keys.first);
         await _store(() => _events.removeWhere((item) => item.id == event.id));
         lastConfirmedLearner = event.learnerId;
         if (!_disposed) notifyListeners();

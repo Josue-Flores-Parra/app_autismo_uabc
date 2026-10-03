@@ -407,7 +407,11 @@ Shape con preguntas explicitas:
 ## Recibos de finalización
 
 `users/{learnerUid}/progress/_completion_receipts/levels/{completionId}` contiene
-`completionId`, `actorId`, `moduleId`, `levelId` y `confirmedAt`. Es un módulo
+`completionId`, `actorId`, `moduleId`, `levelId`, `confirmedAt` y `reward`. Este
+último guarda `stars`, `coins`, `happiness`, `energy`, `noEnergy` y `replay` con
+los valores aplicados por la transacción; los reintentos devuelven el mismo
+detalle sin volver a pagar. Los recibos anteriores sin `reward` siguen siendo
+confirmaciones válidas, pero no permiten mostrar importes exactos. Es un módulo
 reservado fuera del catálogo. Comparte las reglas de propiedad del progreso:
 solo el dueño legacy o el padre del learner puede acceder. La transacción lee
 el recibo antes de actualizar progreso y `avatarConfig`; si ya existe, termina

@@ -175,5 +175,6 @@
   "deleteAccountSuccess": "Account deleted successfully.",
   "completionRewardsPending": "Rewards pending synchronization.",
   "completionSaveFailed": "The result could not be saved. You can return and try again.",
-  "downloadsCancelling": "Cancelling…"
+  "downloadsCancelling": "Cancelling…",
+  "completionRewardsConfirmed": "Rewards synchronized."
 }

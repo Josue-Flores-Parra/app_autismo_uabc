@@ -16,6 +16,9 @@ class LevelCompletionResult {
   final int stars;
   final int coins;
   final CompletionSyncState syncState;
+  final CompletionSyncService? syncService;
+  final String? completionId;
+  final bool rewardsKnown;
 
   /// Cuanto subio/bajo felicidad y energia al registrar esta actividad, para
   /// mostrarlo junto a las monedas en el dialogo de resultado.
@@ -35,11 +38,37 @@ class LevelCompletionResult {
     required this.stars,
     required this.coins,
     this.syncState = CompletionSyncState.confirmed,
+    this.syncService,
+    this.completionId,
+    this.rewardsKnown = true,
     this.felicidadDelta = 0,
     this.energiaDelta = 0,
     this.sinEnergia = false,
     this.esRepaso = false,
   });
+
+  /// Sustituye el resultado provisional solo al recibir el recibo de este evento.
+  LevelCompletionResult resolve() {
+    final confirmation = completionId == null
+        ? null
+        : syncService?.confirmationOf(completionId!);
+    if (syncState != CompletionSyncState.pending || confirmation == null) {
+      return this;
+    }
+    final reward = confirmation.reward;
+    return LevelCompletionResult(
+      success: success,
+      attempts: attempts,
+      stars: reward?.stars ?? stars,
+      coins: reward?.coins ?? 0,
+      syncState: CompletionSyncState.confirmed,
+      rewardsKnown: reward != null,
+      felicidadDelta: reward?.happiness ?? 0,
+      energiaDelta: reward?.energy ?? 0,
+      sinEnergia: reward?.noEnergy ?? false,
+      esRepaso: reward?.replay ?? false,
+    );
+  }
 }
 
 /// Centralizes progress persistence and rewards for level completion flows.
@@ -48,6 +77,19 @@ class LevelCompletionResult {
 /// separado en `activities`; las estrellas del nivel son cuantas modalidades
 /// distintas se completaron, con tope en [kLevelStarsToComplete].
 class LevelCompletionService {
+  /// Reconstruye el diálogo al confirmar la recompensa sin retrasar su apertura.
+  static Widget watchResult(
+    LevelCompletionResult? result,
+    Widget Function(LevelCompletionResult?) builder,
+  ) {
+    final queue = result?.syncService;
+    if (queue == null) return builder(result);
+    return AnimatedBuilder(
+      animation: queue,
+      builder: (_, _) => builder(result?.resolve()),
+    );
+  }
+
   /// Monedas de una actividad de observacion (pictograma, video o audio).
   static const int _observationCoins = 10;
 
@@ -209,7 +251,9 @@ class LevelCompletionService {
     final state = result?.syncState ?? CompletionSyncState.failed;
     final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
     return Text(
-      state == CompletionSyncState.pending
+      state == CompletionSyncState.confirmed
+          ? (l10n?.completionRewardsConfirmed ?? 'Recompensas sincronizadas.')
+          : state == CompletionSyncState.pending
           ? (l10n?.completionRewardsPending ??
                 'Recompensas pendientes de sincronización.')
           : (l10n?.completionSaveFailed ??
@@ -239,118 +283,126 @@ class LevelCompletionService {
               actividadType: 'video',
             ));
     if (!context.mounted) return;
-    final coins = result?.coins ?? 0;
-    final felicidadDelta = result?.felicidadDelta ?? 0;
-    final energiaDelta = result?.energiaDelta ?? 0;
-    final sinEnergia = result?.sinEnergia ?? false;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        backgroundColor: const Color(0xFF1A3D52),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.celebration, color: Color(0xFF05E995), size: 32),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '¡Nivel Completado!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      builder: (dialogContext) => watchResult(result, (result) {
+        final coins = result?.coins ?? 0;
+        final felicidadDelta = result?.felicidadDelta ?? 0;
+        final energiaDelta = result?.energiaDelta ?? 0;
+        final sinEnergia = result?.sinEnergia ?? false;
+        return AlertDialog(
+          scrollable: true,
+          backgroundColor: const Color(0xFF1A3D52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0x66FFFFFF), width: 1.5),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.celebration, color: Color(0xFF05E995), size: 32),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '¡Nivel Completado!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '¡Excelente trabajo! Has completado el nivel con éxito.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x33FFFFFF), width: 1),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '¡Excelente trabajo! Has completado el nivel con éxito.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (result?.syncState != CompletionSyncState.confirmed)
-                    buildSyncNotice(context, result),
-                  if (result?.syncState == CompletionSyncState.confirmed)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          color: Color(0xFFFFD700),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            'Monedas: +$coins',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x33FFFFFF), width: 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (result?.syncState != CompletionSyncState.confirmed ||
+                        result?.rewardsKnown == false)
+                      buildSyncNotice(context, result),
+                    if (result?.syncState == CompletionSyncState.confirmed &&
+                        result?.rewardsKnown == true)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.monetization_on,
+                            color: Color(0xFFFFD700),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Monedas: +$coins',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  if (result?.syncState == CompletionSyncState.confirmed)
-                    for (final row in buildStatRows(
-                      felicidadDelta,
-                      energiaDelta,
-                      alignment: MainAxisAlignment.center,
-                    )) ...[const SizedBox(height: 8), row],
-                  if (sinEnergia) ...[
-                    const SizedBox(height: 8),
-                    buildEnergyNotice(
-                      textAlign: TextAlign.center,
-                      alignment: MainAxisAlignment.center,
-                    ),
+                        ],
+                      ),
+                    if (result?.syncState == CompletionSyncState.confirmed &&
+                        result?.rewardsKnown == true)
+                      for (final row in buildStatRows(
+                        felicidadDelta,
+                        energiaDelta,
+                        alignment: MainAxisAlignment.center,
+                      )) ...[const SizedBox(height: 8), row],
+                    if (sinEnergia) ...[
+                      const SizedBox(height: 8),
+                      buildEnergyNotice(
+                        textAlign: TextAlign.center,
+                        alignment: MainAxisAlignment.center,
+                      ),
+                    ],
                   ],
-                ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF05E995),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: const Text(
+                'Continuar',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF05E995),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-            ),
-            child: const Text(
-              'Continuar',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+        );
+      }),
     );
   }
 
@@ -421,6 +473,8 @@ class LevelCompletionService {
         stars: parseProgressEstrellas(projected),
         coins: 0,
         syncState: CompletionSyncState.pending,
+        syncService: queue,
+        completionId: event.id,
       );
     } catch (e) {
       debugPrint('LevelCompletionService: no se pudo registrar: $e');
