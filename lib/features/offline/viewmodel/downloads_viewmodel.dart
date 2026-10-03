@@ -34,6 +34,13 @@ class ModuleDownloadInfo {
       phase == ModuleDownloadPhase.downloading ||
       phase == ModuleDownloadPhase.cancelling;
 
+  /// También permite liberar descargas fallidas o archivos sin manifiesto válido.
+  bool get canDelete =>
+      !isDownloading &&
+      (status != OfflineModuleStatus.notDownloaded ||
+          phase == ModuleDownloadPhase.failed ||
+          bytes > 0);
+
   ModuleDownloadInfo copyWith({
     OfflineModuleStatus? status,
     ModuleDownloadPhase? phase,

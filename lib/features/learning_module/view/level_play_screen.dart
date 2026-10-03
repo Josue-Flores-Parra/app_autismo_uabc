@@ -369,12 +369,14 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           children: [
             const Icon(Icons.flag, color: Color(0xFFFFD700)),
             const SizedBox(width: 8),
-            Text(
-              'Intentos usados: $attempts',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Expanded(
+              child: Text(
+                'Intentos usados: $attempts',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -386,12 +388,14 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
           children: [
             const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
             const SizedBox(width: 8),
-            Text(
-              'Monedas: +$coins',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Expanded(
+              child: Text(
+                'Monedas: +$coins',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -490,12 +494,14 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                   children: [
                     const Icon(Icons.refresh, color: Colors.white),
                     const SizedBox(width: 8),
-                    Text(
-                      'Reintentos disponibles: $_retriesLeft',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    Expanded(
+                      child: Text(
+                        'Reintentos disponibles: $_retriesLeft',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],

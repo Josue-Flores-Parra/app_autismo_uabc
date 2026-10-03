@@ -93,12 +93,14 @@ class LevelCompletionService {
           children: [
             const Icon(Icons.favorite_rounded, color: felicidadColor),
             const SizedBox(width: 8),
-            Text(
-              '${signed(felicidadDelta)} felicidad',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Flexible(
+              child: Text(
+                '${signed(felicidadDelta)} felicidad',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -112,12 +114,14 @@ class LevelCompletionService {
           children: [
             const Icon(Icons.bolt_rounded, color: energiaColor),
             const SizedBox(width: 8),
-            Text(
-              '${signed(energiaDelta)} energía',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Flexible(
+              child: Text(
+                '${signed(energiaDelta)} energía',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -299,12 +303,14 @@ class LevelCompletionService {
                           color: Color(0xFFFFD700),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Monedas: +$coins',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        Flexible(
+                          child: Text(
+                            'Monedas: +$coins',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],

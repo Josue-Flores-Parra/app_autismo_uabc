@@ -87,13 +87,23 @@ class _DownloadCancellation {
 /// sí viaja comprimida cuando el servidor lo permite (gzip lo negocia y
 /// descomprime el cliente HTTP).
 class OfflineAssetsService {
+  /// Usa escritura real por defecto; los callbacks permiten simular fallos de disco.
   OfflineAssetsService({
     http.Client? client,
     Directory? root,
     List<Duration>? retryDelays,
+    Future<RandomAccessFile> Function(File file)? openDownloadFile,
+    Future<void> Function(File file, String contents)? writeManifest,
     this.timeout = const Duration(seconds: 30),
   }) : _client = client ?? http.Client(),
        _root = root,
+       _openDownloadFile =
+           openDownloadFile ?? ((file) => file.open(mode: FileMode.write)),
+       _saveManifest =
+           writeManifest ??
+           ((file, contents) async {
+             await file.writeAsString(contents);
+           }),
        retryDelays =
            retryDelays ?? const [Duration(seconds: 1), Duration(seconds: 3)];
 
@@ -103,11 +113,15 @@ class OfflineAssetsService {
   final http.Client _client;
   final List<Duration> retryDelays;
   final Duration timeout;
+  // Permiten reproducir errores reales de disco sin llenar el dispositivo de prueba.
+  final Future<RandomAccessFile> Function(File file) _openDownloadFile;
+  final Future<void> Function(File file, String contents) _saveManifest;
 
   Directory? _root;
   final Map<String, OfflineManifest> _manifests = {};
   final Map<String, _DownloadCancellation> _activeDownloads = {};
   final Map<String, String> _index = {};
+  final Map<String, int> _diskBytes = {};
 
   static const String _manifestName = 'manifest.json';
 
@@ -118,8 +132,11 @@ class OfflineAssetsService {
     );
     await _root!.create(recursive: true);
     _manifests.clear();
+    _diskBytes.clear();
     await for (final entity in _root!.list()) {
       if (entity is! Directory) continue;
+      final moduleId = Uri.decodeComponent(p.basename(entity.path));
+      await _refreshDiskBytes(moduleId, entity);
       final manifestFile = File(p.join(entity.path, _manifestName));
       if (!await manifestFile.exists()) continue;
       try {
@@ -153,17 +170,37 @@ class OfflineAssetsService {
     final needed = urls.toSet();
     final manifest = _manifests[moduleId];
     if (needed.isEmpty || manifest == null) {
-      return OfflineModuleStatus.notDownloaded;
+      return bytesOf(moduleId) > 0
+          ? OfflineModuleStatus.partial
+          : OfflineModuleStatus.notDownloaded;
     }
     final have = needed.where(manifest.files.containsKey).length;
-    if (have == 0) return OfflineModuleStatus.notDownloaded;
+    if (have == 0) {
+      return bytesOf(moduleId) > 0
+          ? OfflineModuleStatus.partial
+          : OfflineModuleStatus.notDownloaded;
+    }
     return have == needed.length
         ? OfflineModuleStatus.downloaded
         : OfflineModuleStatus.partial;
   }
 
   /// Bytes que ocupa el módulo en disco.
-  int bytesOf(String moduleId) => _manifests[moduleId]?.totalBytes ?? 0;
+  int bytesOf(String moduleId) =>
+      _diskBytes[moduleId] ?? _manifests[moduleId]?.totalBytes ?? 0;
+
+  Future<void> _refreshDiskBytes(String moduleId, Directory dir) async {
+    var bytes = 0;
+    if (await dir.exists()) {
+      await for (final entity in dir.list()) {
+        // Incluye archivos huérfanos y parciales, aunque el manifiesto sea ilegible.
+        if (entity is File && p.basename(entity.path) != _manifestName) {
+          bytes += await entity.length();
+        }
+      }
+    }
+    _diskBytes[moduleId] = bytes;
+  }
 
   /// Descarga [urls] del módulo. Omite lo que ya está completo. Si un archivo
   /// falla tras los reintentos, lanza [OfflineDownloadException]; lo que ya se
@@ -228,14 +265,42 @@ class OfflineAssetsService {
           // Solo revierte archivos obtenidos por este intento; conserva los anteriores.
           await rollback();
         }
-        if (await dir.exists()) await _writeManifest(dir, manifest);
+        if (await dir.exists()) {
+          try {
+            await _writeManifest(dir, manifest);
+          } catch (error) {
+            // La cancelación ya liberó archivos: no exige espacio para escribir metadatos.
+            if (!cancellation.cancelled) {
+              throw OfflineDownloadException(
+                isNoSpaceError(error)
+                    ? OfflineDownloadError.noSpace
+                    : OfflineDownloadError.incomplete,
+                moduleId,
+                '$error',
+              );
+            }
+          }
+        }
         if (cancellation.cancelled && !rolledBack) {
           await rollback();
-          if (await dir.exists()) await _writeManifest(dir, manifest);
+          // Restituye el anterior si la cancelación llegó mientras se publicaba el nuevo.
+          if (await dir.exists()) {
+            try {
+              await _writeManifest(dir, manifest);
+            } catch (error) {
+              debugPrint(
+                'OfflineAssetsService: metadatos pendientes tras cancelar: $error',
+              );
+            }
+          }
         }
       } finally {
-        _activeDownloads.remove(moduleId);
-        cancellation.finished.complete();
+        try {
+          await _refreshDiskBytes(moduleId, dir);
+        } finally {
+          _activeDownloads.remove(moduleId);
+          cancellation.finished.complete();
+        }
       }
     }
     // También cubre cancelación durante la escritura final del manifiesto.
@@ -255,10 +320,12 @@ class OfflineAssetsService {
     if (_activeDownloads.containsKey(moduleId)) {
       throw StateError('Espera a que termine la descarga o su cancelación.');
     }
-    _manifests.remove(moduleId);
-    _rebuildIndex();
     final dir = _moduleDir(moduleId);
     if (await dir.exists()) await dir.delete(recursive: true);
+    // Solo cambia el estado si el borrado realmente terminó.
+    _manifests.remove(moduleId);
+    _diskBytes.remove(moduleId);
+    _rebuildIndex();
   }
 
   Directory _moduleDir(String moduleId) =>
@@ -293,7 +360,13 @@ class OfflineAssetsService {
 
   Future<void> _writeManifest(Directory dir, OfflineManifest manifest) async {
     final file = File(p.join(dir.path, _manifestName));
-    await file.writeAsString(jsonEncode(manifest.toMap()));
+    final temporary = File(p.join(dir.path, '$_manifestName.part'));
+    try {
+      await _saveManifest(temporary, jsonEncode(manifest.toMap()));
+      await temporary.rename(file.path);
+    } finally {
+      await _discard(temporary);
+    }
   }
 
   Future<OfflineFileEntry> _downloadWithRetries(
@@ -343,18 +416,31 @@ class OfflineAssetsService {
       }
 
       var bytes = 0;
-      final sink = part.openWrite();
+      final RandomAccessFile output;
+      try {
+        output = await _openDownloadFile(part);
+      } catch (_) {
+        // StreamIterator todavía no escucha: cerrar la respuesta también libera
+        // la conexión si no se pudo abrir el archivo por falta de espacio.
+        await response.stream.listen(null).cancel();
+        rethrow;
+      }
       final iterator = StreamIterator(response.stream.timeout(timeout));
       try {
         while (await cancellation.wait(iterator.moveNext())) {
           final chunk = iterator.current;
-          sink.add(chunk);
+          // Cada escritura confirma su resultado antes de consumir más red. Un IOSink
+          // fallido puede dejar close() sin resolver y bloquear la cancelación.
+          await output.writeFrom(chunk);
           bytes += chunk.length;
         }
-        await sink.flush();
+        await output.flush();
       } finally {
-        await iterator.cancel();
-        await sink.close();
+        try {
+          await iterator.cancel();
+        } finally {
+          await output.close();
+        }
       }
 
       final expected = response.contentLength;
@@ -379,6 +465,7 @@ class OfflineAssetsService {
       rethrow;
     } catch (e) {
       await _discard(part);
+      cancellation.check();
       throw OfflineDownloadException(
         isNoSpaceError(e)
             ? OfflineDownloadError.noSpace

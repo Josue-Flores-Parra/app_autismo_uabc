@@ -128,8 +128,23 @@ Los timeouts conservan el evento: una confirmación tardía no vuelve a pagar.
 ## Cancelar descargas
 
 Cancelar interrumpe la petición/stream actual y los tiempos de reintento. La
-pantalla muestra «Cancelando…» hasta restaurar el manifiesto anterior y borrar
+pantalla muestra «Cancelando…» hasta restaurar el estado anterior y borrar
 los archivos nuevos del intento, incluido cualquier `.part`. No elimina
 recursos previamente completos ni cancela otros módulos. Una falla ordinaria
 conserva los archivos completos para reintentar; una cancelación voluntaria
 revierte el intento. No se permite borrar o reiniciar el módulo durante limpieza.
+
+## Recuperación cuando se llena el disco
+
+Cada bloque se escribe con `RandomAccessFile` y se espera su resultado antes de
+seguir leyendo la red; ENOSPC cierra el archivo, limpia el parcial y no reintenta.
+El manifiesto se escribe a un temporal y se renombra para conservar la versión
+anterior si falta espacio. Cancelar no exige que esa escritura termine con éxito.
+
+El tamaño se obtiene de los archivos reales, incluidos parciales y huérfanos,
+aunque falte el manifiesto o sea ilegible al reiniciar. Las descargas incompletas
+y fallidas ofrecen **Borrar** junto a **Reintentar**. Borrar elimina la carpeta
+completa y solo después quita el índice en memoria.
+
+`flutter test test/offline_storage_recovery_test.dart` simula ENOSPC en archivos
+y manifiestos, cancelación, reinicio y borrado desde la pantalla.

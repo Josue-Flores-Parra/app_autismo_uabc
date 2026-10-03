@@ -16,13 +16,14 @@ class DownloadsScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) =>
           DownloadsViewModel(OfflineAssetsService.instance)..load(),
-      child: const _DownloadsView(),
+      child: const DownloadsView(),
     );
   }
 }
 
-class _DownloadsView extends StatelessWidget {
-  const _DownloadsView();
+/// Lista y acciones de descarga para el catálogo del modelo proporcionado.
+class DownloadsView extends StatelessWidget {
+  const DownloadsView({super.key});
 
   String _sizeLabel(int bytes) {
     final megabytes = bytes / (1024 * 1024);
@@ -69,6 +70,7 @@ class _DownloadsView extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.downloadsDeleteTitle),
         content: Text(l10n.downloadsDeleteBody),
         actions: [
@@ -108,17 +110,24 @@ class _DownloadsView extends StatelessWidget {
         label: Text(cancelling ? l10n.downloadsCancelling : l10n.cancel),
       );
     }
-    if (info.status == OfflineModuleStatus.downloaded) {
-      return IconButton(
-        tooltip: l10n.downloadsDeleteTooltip,
-        icon: Icon(Icons.delete_outline_rounded, color: colors.warning),
-        onPressed: () => _confirmDelete(context, viewModel, info),
-      );
-    }
     final failed = info.phase == ModuleDownloadPhase.failed;
-    return FilledButton.tonal(
-      onPressed: () => viewModel.download(info.moduleId),
-      child: Text(failed ? l10n.downloadsRetry : l10n.downloadsAction),
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      children: [
+        if (info.status != OfflineModuleStatus.downloaded || failed)
+          FilledButton.tonal(
+            onPressed: () => viewModel.download(info.moduleId),
+            child: Text(failed ? l10n.downloadsRetry : l10n.downloadsAction),
+          ),
+        if (info.canDelete)
+          IconButton(
+            tooltip: l10n.downloadsDeleteTooltip,
+            icon: Icon(Icons.delete_outline_rounded, color: colors.warning),
+            onPressed: () => _confirmDelete(context, viewModel, info),
+          ),
+      ],
     );
   }
 
@@ -199,8 +208,12 @@ class _DownloadsView extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  _trailing(context, viewModel, info),
                                 ],
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: _trailing(context, viewModel, info),
                               ),
                               if (info.isDownloading) ...[
                                 const SizedBox(height: 10),

@@ -247,8 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               builder: (context, authViewModel, _) {
                                 final imagePath =
                                     authViewModel.errorMessage != null
-                                        ? 'assets/images/icon-questionmark2x.png'
-                                        : 'assets/images/salute.png';
+                                    ? 'assets/images/icon-questionmark2x.png'
+                                    : 'assets/images/salute.png';
 
                                 return Center(
                                   child: AnimatedSwitcher(
@@ -392,11 +392,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text('¿Olvidaste tu contraseña?'),
                             ),
                             // Seccion para "¿No tienes una cuenta? Regístrate"
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
                                   '¿No tienes una cuenta?',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(color: colors.inkSoft),
                                 ),
                                 TextButton(

@@ -156,3 +156,9 @@ de contraseña también se desplaza cuando está abierto el teclado del sistema.
 `test/accessibility_layout_test.dart` verifica todas las páginas y flujos en
 320×568 con escalas de 1.0 a 2.3, incluyendo creación y confirmación del PIN,
 entrada inválida y recuperación con teclado visible.
+
+La invitación a registrarse en el login usa `Wrap`: el botón puede pasar a otra
+línea. Los textos junto a iconos en los resultados (intentos, monedas, felicidad,
+energía y reintentos) tienen ancho limitado para envolver sin reducir la fuente.
+`test/followup_large_text_test.dart` verifica login y diálogos de minijuegos/video
+en 320×568 con escalas de 1.0 a 3.0 y comprueba que se pueden cerrar.
