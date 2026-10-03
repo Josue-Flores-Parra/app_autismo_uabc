@@ -218,8 +218,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     try {
       final controller = _viewModel.videoController;
-      if (controller.value.isPlaying) await controller.pause();
-      await controller.seekTo(Duration.zero);
+      if (controller.value.isPlaying) {
+        await controller.pause().timeout(const Duration(milliseconds: 500));
+      }
     } catch (_) {}
 
     _celebrationHelper.playCelebration();
@@ -237,7 +238,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _pauseAndPop() async {
-    if (_isReplaying || _isFinishing) return;
+    if (_isFinishing) {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (_isReplaying) return;
     try {
       if (widget.videoUrl.isNotEmpty &&
           _viewModel.videoController.value.isInitialized &&

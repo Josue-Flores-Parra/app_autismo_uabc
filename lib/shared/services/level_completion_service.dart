@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:appy/l10n/gen/app_localizations.dart';
 
 import '../../data/services/firestore_services.dart';
 import '../../features/avatar/viewmodel/avatar_viewmodel.dart';
@@ -196,6 +197,24 @@ class LevelCompletionService {
     );
   }
 
+  /// Explica recompensas pendientes o errores sin bloquear la salida.
+  static Widget buildSyncNotice(
+    BuildContext context,
+    LevelCompletionResult? result,
+  ) {
+    final state = result?.syncState ?? CompletionSyncState.failed;
+    final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    return Text(
+      state == CompletionSyncState.pending
+          ? (l10n?.completionRewardsPending ??
+                'Recompensas pendientes de sincronización.')
+          : (l10n?.completionSaveFailed ??
+                'No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.'),
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 16, color: Colors.white70),
+    );
+  }
+
   /// Guarda el progreso del nivel de video y muestra el diálogo de recompensas.
   ///
   /// Llama a [completeObservationLevel] para persistir el progreso y luego
@@ -205,13 +224,16 @@ class LevelCompletionService {
     required BuildContext context,
     required String? moduleId,
     required String? levelId,
+    Future<LevelCompletionResult?> Function()? completionRecorder,
   }) async {
-    final result = await completeObservationLevel(
-      context: context,
-      moduleId: moduleId,
-      levelId: levelId,
-      actividadType: 'video',
-    );
+    final result =
+        await (completionRecorder?.call() ??
+            completeObservationLevel(
+              context: context,
+              moduleId: moduleId,
+              levelId: levelId,
+              actividadType: 'video',
+            ));
     if (!context.mounted) return;
     final coins = result?.coins ?? 0;
     final felicidadDelta = result?.felicidadDelta ?? 0;
@@ -221,6 +243,7 @@ class LevelCompletionService {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         backgroundColor: const Color(0xFF1A3D52),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -265,29 +288,33 @@ class LevelCompletionService {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.monetization_on,
-                        color: Color(0xFFFFD700),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Monedas: +$coins',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  if (result?.syncState != CompletionSyncState.confirmed)
+                    buildSyncNotice(context, result),
+                  if (result?.syncState == CompletionSyncState.confirmed)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.monetization_on,
+                          color: Color(0xFFFFD700),
                         ),
-                      ),
-                    ],
-                  ),
-                  for (final row in buildStatRows(
-                    felicidadDelta,
-                    energiaDelta,
-                    alignment: MainAxisAlignment.center,
-                  )) ...[const SizedBox(height: 8), row],
+                        const SizedBox(width: 8),
+                        Text(
+                          'Monedas: +$coins',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (result?.syncState == CompletionSyncState.confirmed)
+                    for (final row in buildStatRows(
+                      felicidadDelta,
+                      energiaDelta,
+                      alignment: MainAxisAlignment.center,
+                    )) ...[const SizedBox(height: 8), row],
                   if (sinEnergia) ...[
                     const SizedBox(height: 8),
                     buildEnergyNotice(

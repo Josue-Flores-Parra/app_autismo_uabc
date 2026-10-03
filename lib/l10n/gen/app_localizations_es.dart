@@ -427,4 +427,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteAccountSuccess => 'Cuenta eliminada correctamente.';
+
+  @override
+  String get completionRewardsPending =>
+      'Recompensas pendientes de sincronización.';
+
+  @override
+  String get completionSaveFailed =>
+      'No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.';
 }

@@ -607,3 +607,11 @@ video en esa posicion y sigue reproduciendolo; al volver a la pantalla completa 
 conservan los segundos vistos. La sesion de telemetria sigue abierta mientras se alterna entre vista
 previa y pantalla completa: solo se abandona al cerrar la vista previa. Completar
 el video si regresa al menu de orbes.
+
+## Salida tras finalizar
+
+Los resultados pendientes muestran un aviso de sincronización, sin anunciar
+monedas pagadas. Una falla de guardado también permite salir. La voz y los
+refrescos no bloquean el diálogo; callbacks duplicados no abren dos resultados.
+El video conserva su último frame durante la celebración y permite volver con
+el botón del sistema incluso mientras se prepara el resultado.

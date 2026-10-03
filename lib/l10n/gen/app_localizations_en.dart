@@ -427,4 +427,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountSuccess => 'Account deleted successfully.';
+
+  @override
+  String get completionRewardsPending => 'Rewards pending synchronization.';
+
+  @override
+  String get completionSaveFailed =>
+      'The result could not be saved. You can return and try again.';
 }

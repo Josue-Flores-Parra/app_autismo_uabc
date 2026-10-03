@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../data/completion_sync_service.dart';
 import '../../minigames/minigame_core.dart';
 import '../../minigames/view/minigames_widget.dart';
 import '../../../shared/services/tts_service.dart';
@@ -24,6 +26,10 @@ class LevelPlayScreen extends StatefulWidget {
   /// Handle opaco de telemetría (null si no hay consentimiento activo).
   final ActivitySessionHandle? telemetryHandle;
 
+  /// Permite inyectar el registro de resultados sin depender de Firebase en UI.
+  final Future<LevelCompletionResult?> Function(bool success, int attempts)?
+  completionRecorder;
+
   const LevelPlayScreen({
     super.key,
     required this.levelTitle,
@@ -34,6 +40,7 @@ class LevelPlayScreen extends StatefulWidget {
     this.videoUrl,
     this.launchSimpleSelectionFromCard = false,
     this.telemetryHandle,
+    this.completionRecorder,
   });
 
   @override
@@ -45,6 +52,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   Key _minigameKey = UniqueKey();
   final TtsService _ttsService = TtsService();
   bool _ttsReady = false;
+  bool _handlingCompletion = false;
 
   @override
   void initState() {
@@ -267,11 +275,13 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
   }
 
   /// Maneja la finalización del minijuego
-  void _handleMinigameComplete(
+  Future<void> _handleMinigameComplete(
     BuildContext context,
     bool success,
     int attempts,
   ) async {
+    if (_handlingCompletion || !mounted) return;
+    _handlingCompletion = true;
     final handle = widget.telemetryHandle;
     if (handle != null) {
       if (LevelCompletionService.isInteractiveType(widget.actividadType)) {
@@ -297,27 +307,33 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     // observación. Los niveles interactivos siempre escriben su documento de
     // progreso, incluso al fallar, para que el timeline lo registre.
     LevelCompletionResult? result;
-    if (isObservation) {
-      if (success) {
-        result = await LevelCompletionService.completeObservationLevel(
+    try {
+      if (widget.completionRecorder != null) {
+        result = await widget.completionRecorder!(success, attempts);
+      } else if (isObservation) {
+        if (success) {
+          result = await LevelCompletionService.completeObservationLevel(
+            context: context,
+            moduleId: widget.moduleId,
+            levelId: widget.levelId,
+            actividadType: tipo,
+          );
+        }
+      } else {
+        result = await LevelCompletionService.completeInteractiveLevel(
           context: context,
           moduleId: widget.moduleId,
           levelId: widget.levelId,
           actividadType: tipo,
+          success: success,
+          attempts: attempts,
         );
       }
-    } else {
-      result = await LevelCompletionService.completeInteractiveLevel(
-        context: context,
-        moduleId: widget.moduleId,
-        levelId: widget.levelId,
-        actividadType: tipo,
-        success: success,
-        attempts: attempts,
-      );
+    } catch (_) {
+      result = null;
     }
-
-    await _speakCompletionFeedback(success);
+    // La voz es feedback opcional, nunca un requisito para volver al carrusel.
+    unawaited(_speakCompletionFeedback(success));
     if (!mounted) return;
 
     final coins = result?.coins ?? 0;
@@ -345,7 +361,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
             ),
           ],
         ),
-      if (success)
+      if (result?.syncState != CompletionSyncState.confirmed)
+        LevelCompletionService.buildSyncNotice(this.context, result),
+      if (success && result?.syncState == CompletionSyncState.confirmed)
         Row(
           children: [
             const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
@@ -365,10 +383,11 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     ];
 
     // Mostrar resultado y navegar de regreso
-    showDialog(
+    await showDialog(
       context: this.context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         backgroundColor: const Color(0xFF1A3D52),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -519,6 +538,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
         ],
       ),
     );
+    _handlingCompletion = false;
   }
 
   /// Datos por defecto del minijuego para testing

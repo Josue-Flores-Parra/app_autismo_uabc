@@ -865,6 +865,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cuenta eliminada correctamente.'**
   String get deleteAccountSuccess;
+
+  /// No description provided for @completionRewardsPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Recompensas pendientes de sincronización.'**
+  String get completionRewardsPending;
+
+  /// No description provided for @completionSaveFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.'**
+  String get completionSaveFailed;
 }
 
 class _AppLocalizationsDelegate
