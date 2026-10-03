@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/activity_telemetry_session.dart';
 import '../model/telemetry_enums.dart';
@@ -66,7 +67,10 @@ class TelemetryRepository {
     map['createdAt'] = FieldValue.serverTimestamp();
     map['updatedAt'] = FieldValue.serverTimestamp();
     try {
-      await _sessions.doc(session.sessionId).set(map);
+      await _sessions
+          .doc(session.sessionId)
+          .set(map)
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       throw _classify(e, 'create', session.sessionId);
     }
@@ -76,14 +80,12 @@ class TelemetryRepository {
   ///
   /// Los valores `ServerTimestamp.instance` se convierten a
   /// `FieldValue.serverTimestamp()`. Siempre actualiza `updatedAt`.
-  Future<void> update(
-    String sessionId,
-    Map<String, dynamic> updates,
-  ) async {
+  Future<void> update(String sessionId, Map<String, dynamic> updates) async {
     try {
-      await _sessions.doc(sessionId).update(
-            _applyServerTimestamps(updates, includeUpdatedAt: true),
-          );
+      await _sessions
+          .doc(sessionId)
+          .update(_applyServerTimestamps(updates, includeUpdatedAt: true))
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       throw _classify(e, 'update', sessionId);
     }
@@ -98,31 +100,99 @@ class TelemetryRepository {
     Map<String, dynamic> updates,
   ) async {
     try {
-      await _firestore.runTransaction((tx) async {
-        final ref = _sessions.doc(sessionId);
-        final snap = await tx.get(ref);
-        if (snap.exists) {
-          final status = (snap.data()?['lifecycle']
-              as Map<String, dynamic>?)?['status'] as String?;
-          final state = SessionState.fromValue(status);
-          if (state != null && state.isTerminal) return;
-        }
-        tx.update(ref, _applyServerTimestamps(updates, includeUpdatedAt: true));
-      });
+      await _firestore
+          .runTransaction((tx) async {
+            final ref = _sessions.doc(sessionId);
+            final snap = await tx.get(ref);
+            if (snap.exists) {
+              final status =
+                  (snap.data()?['lifecycle']
+                          as Map<String, dynamic>?)?['status']
+                      as String?;
+              final state = SessionState.fromValue(status);
+              if (state != null && state.isTerminal) return;
+            }
+            tx.update(
+              ref,
+              _applyServerTimestamps(updates, includeUpdatedAt: true),
+            );
+          })
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       throw _classify(e, 'updateIfNotTerminal', sessionId);
     }
   }
 
+  /// Recupera launch/started si faltan y aplica el cierre sin sobrescribir terminales.
+  Future<void> confirmTerminal(
+    ActivityTelemetrySession launch,
+    Map<String, dynamic> patch,
+  ) async {
+    ActivityTelemetrySession? remote;
+    try {
+      remote = await read(launch.sessionId);
+    } on TelemetryRepositoryException catch (e) {
+      // Las reglas de get no autorizan un UUID todavía inexistente.
+      if (e.message != 'permission-denied') rethrow;
+    }
+    if (remote == null) {
+      final initial = ActivityTelemetrySession.launchRequested(
+        sessionId: launch.sessionId,
+        learnerId: launch.subject.learnerId,
+        actorId: launch.subject.actorId,
+        identityModel: launch.subject.identityModel,
+        activityType: launch.activity.activityType,
+        moduleId: launch.activity.moduleId,
+        levelId: launch.activity.levelId,
+        difficulty: launch.activity.difficulty,
+        gridSize: launch.activity.gridSize,
+        client: launch.client,
+      );
+      try {
+        await create(initial);
+      } on TelemetryRepositoryException {
+        // Otra entrega puede haber creado el mismo documento entre get y set.
+        remote = await read(launch.sessionId);
+        if (remote == null) rethrow;
+      }
+      remote ??= await read(launch.sessionId);
+    }
+    if (remote?.lifecycle.status.isTerminal == true) return;
+    final isLaunchError =
+        patch['lifecycle.status'] == SessionState.launchError.value;
+    if (!isLaunchError &&
+        remote?.lifecycle.status == SessionState.launchRequested) {
+      await updateIfNotTerminal(launch.sessionId, {
+        ...patch,
+        'lifecycle.status': SessionState.started.value,
+        'outcome.hasStarted': true,
+        'outcome.isCompleted': false,
+        'outcome.navigationSuccessful': false,
+        'outcome.terminalReason': null,
+        'timing.terminalAt': null,
+        'timing.startedAt': ServerTimestamp.instance,
+      });
+    }
+    final terminalPatch = Map<String, dynamic>.of(patch);
+    // Reintentar no cambia timestamps que el servidor ya confirmó.
+    if (remote?.timing.startedAt != null) {
+      terminalPatch.remove('timing.startedAt');
+    }
+    if (remote?.timing.objectiveMetAt != null) {
+      terminalPatch.remove('timing.objectiveMetAt');
+    }
+    await updateIfNotTerminal(launch.sessionId, terminalPatch);
+  }
+
   /// Lectura puntual para reconciliación.
   Future<ActivityTelemetrySession?> read(String sessionId) async {
     try {
-      final doc = await _sessions.doc(sessionId).get();
+      final doc = await _sessions
+          .doc(sessionId)
+          .get()
+          .timeout(const Duration(seconds: 10));
       if (!doc.exists) return null;
-      return ActivityTelemetrySession.fromMap(
-        doc.data(),
-        sessionId: doc.id,
-      );
+      return ActivityTelemetrySession.fromMap(doc.data(), sessionId: doc.id);
     } catch (e) {
       throw _classify(e, 'read', sessionId);
     }
@@ -161,6 +231,7 @@ class TelemetryRepository {
   }
 
   bool _isRecoverable(Object error) {
+    if (error is TimeoutException) return true;
     if (error is FirebaseException) {
       final code = error.code;
       if (code == 'unavailable' ||

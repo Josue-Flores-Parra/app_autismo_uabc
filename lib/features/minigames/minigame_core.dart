@@ -85,3 +85,26 @@ class MinigameFactory {
     return _builders.containsKey(type);
   }
 }
+
+/// Permite que el juego solicite salir y que la ruta registre el motivo primero.
+class MinigameExitScope extends InheritedWidget {
+  const MinigameExitScope({
+    super.key,
+    required this.onExit,
+    required super.child,
+  });
+  final VoidCallback onExit;
+
+  static void exit(BuildContext context) {
+    final scope = context.getInheritedWidgetOfExactType<MinigameExitScope>();
+    if (scope != null) {
+      scope.onExit();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  bool updateShouldNotify(MinigameExitScope oldWidget) =>
+      onExit != oldWidget.onExit;
+}

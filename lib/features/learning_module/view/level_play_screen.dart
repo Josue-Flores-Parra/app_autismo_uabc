@@ -83,6 +83,10 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
 
   @override
   void dispose() {
+    widget.telemetryHandle?.onAbandon(TerminalReason.routeRemoved);
+    widget.telemetryHandle?.onLaunchError(
+      TerminalReason.launchCancelledBeforeNavigation,
+    );
     _ttsService.dispose();
     super.dispose();
   }
@@ -157,21 +161,35 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          handle?.onAbandon(TerminalReason.userBack);
+          handle?.onLaunchError(TerminalReason.launchCancelledBeforeNavigation);
+          return;
+        }
         // Salir explícito de una actividad ya iniciada sin completar.
         handle?.onAbandon(TerminalReason.userBack);
+        handle?.onLaunchError(TerminalReason.launchCancelledBeforeNavigation);
         Navigator.of(context).pop();
       },
       child: Scaffold(
-        body: MinigamesWidget(
-          key: _minigameKey,
-          minigameType: minigameType,
-          minigameData: widget.minigameData ?? _getDefaultMinigameData(),
-          onReady: () => handle?.onActivityReady(),
-          onObjectiveMet: () => handle?.onObjectiveMet(),
-          onComplete: (success, attempts) {
-            _handleMinigameComplete(context, success, attempts);
+        body: MinigameExitScope(
+          onExit: () {
+            handle?.onAbandon(TerminalReason.userExit);
+            handle?.onLaunchError(
+              TerminalReason.launchCancelledBeforeNavigation,
+            );
+            Navigator.of(context).pop();
           },
+          child: MinigamesWidget(
+            key: _minigameKey,
+            minigameType: minigameType,
+            minigameData: widget.minigameData ?? _getDefaultMinigameData(),
+            onReady: () => handle?.onActivityReady(),
+            onObjectiveMet: () => handle?.onObjectiveMet(),
+            onComplete: (success, attempts) {
+              _handleMinigameComplete(context, success, attempts);
+            },
+          ),
         ),
       ),
     );

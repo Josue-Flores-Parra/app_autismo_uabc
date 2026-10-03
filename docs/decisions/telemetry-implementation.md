@@ -796,3 +796,18 @@ La implementación estará terminada cuando:
 - Firestore sea la única fuente remota de sesiones y no existan agregados/Functions;
 - no haya PII, campos archive, Storage, exportaciones ni BigQuery en la solución;
 - documentación de arquitectura, datos, Firebase, learning module, minijuegos y settings se actualice junto con la implementación real.
+
+## Cierres durables y salida del pictograma
+
+El botón de salida del pictograma emite `user_exit` antes de navegar. La ruta
+cubre además device back y eliminación de ruta; las señales son idempotentes y
+no convierten un resultado completado en abandono. Una actividad nueva cierra
+sesiones obsoletas del mismo actor/learner. El video conserva su handle al
+alternar preview y pantalla completa.
+
+Los cierres se guardan por actor y sessionId en `telemetry_terminal_v1_*` antes
+de esperar la cadena remota. Se conservan ante fallos, se recuperan al iniciar
+y se reintentan cada 30 segundos y al reanudar, solo con consentimiento y cuenta
+originales. La recuperación respeta `launch_requested → started → terminal` y
+no sobrescribe sesiones terminales. Opt-out descarta entregas pendientes.
+Limpiar un cierre anterior no borra el marcador de una sesión nueva.

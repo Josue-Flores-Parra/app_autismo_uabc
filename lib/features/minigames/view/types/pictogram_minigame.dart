@@ -432,7 +432,7 @@ class _PictogramMinigameState extends State<PictogramMinigame> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () => MinigameExitScope.exit(context),
                       ),
                       Expanded(
                         child: Column(
