@@ -403,3 +403,12 @@ Shape con preguntas explicitas:
 - Si cambias progreso, actualiza `FirestoreService`, `LearningViewModel`, `LevelCompletionService` y esta pagina.
 - Si agregas un `actividadType`, actualiza `MinigameType`, registro en `main.dart`, factory, docs de minigames y tests.
 - Si cambias assets remotos/locales, documenta si la UI espera `Image.asset` o acepta `Image.network`.
+
+## Recibos de finalización
+
+`users/{learnerUid}/progress/_completion_receipts/levels/{completionId}` contiene
+`completionId`, `actorId`, `moduleId`, `levelId` y `confirmedAt`. Es un módulo
+reservado fuera del catálogo. Comparte las reglas de propiedad del progreso:
+solo el dueño legacy o el padre del learner puede acceder. La transacción lee
+el recibo antes de actualizar progreso y `avatarConfig`; si ya existe, termina
+sin repetir la recompensa. Los documentos antiguos no requieren migración.

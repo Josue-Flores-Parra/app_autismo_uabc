@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/services/firestore_services.dart';
 import '../../features/avatar/viewmodel/avatar_viewmodel.dart';
+import '../../features/learning_module/data/completion_sync_service.dart';
 import '../../features/learning_module/model/levels_models.dart';
 import '../../features/learning_module/viewmodel/learning_viewmodel.dart';
 import '../../features/profiles/viewmodel/profile_viewmodel.dart';
@@ -13,6 +14,7 @@ class LevelCompletionResult {
   final int attempts;
   final int stars;
   final int coins;
+  final CompletionSyncState syncState;
 
   /// Cuanto subio/bajo felicidad y energia al registrar esta actividad, para
   /// mostrarlo junto a las monedas en el dialogo de resultado.
@@ -31,6 +33,7 @@ class LevelCompletionResult {
     required this.attempts,
     required this.stars,
     required this.coins,
+    this.syncState = CompletionSyncState.confirmed,
     this.felicidadDelta = 0,
     this.energiaDelta = 0,
     this.sinEnergia = false,
@@ -46,11 +49,6 @@ class LevelCompletionResult {
 class LevelCompletionService {
   /// Monedas de una actividad de observacion (pictograma, video o audio).
   static const int _observationCoins = 10;
-
-  /// Monedas de repasar una modalidad ya completada antes. Menos que la
-  /// primera vez, pero nunca cero: repasar tiene que valer la pena o nadie
-  /// vuelve a ver un video o a practicar un minijuego ya superado.
-  static const int _repasoCoins = 5;
 
   /// Solo las actividades interactivas tienen intentos y pueden fallar. El
   /// resto (pictograma, video y audio) es de observacion.
@@ -354,124 +352,52 @@ class LevelCompletionService {
     final learnerUid = context.read<ProfileViewModel>().learnerUid;
     if (learnerUid == null) return null;
 
-    final service = firestoreService ?? FirestoreService();
-
+    final queue = CompletionSyncService.instance;
+    if (queue == null) return null;
     try {
-      final nowIso = DateTime.now().toIso8601String();
-      final previous = await service.getUserLevelProgress(
-        learnerUid,
-        moduleId,
-        levelId,
+      // Solo se consulta caché: ninguna confirmación remota bloquea el resultado.
+      final previous = await (firestoreService ?? FirestoreService())
+          .getCachedUserLevelProgress(learnerUid, moduleId, levelId);
+      final event = CompletionEvent(
+        id: CompletionSyncService.newId(),
+        actorId: user.uid,
+        learnerId: learnerUid,
+        moduleId: moduleId,
+        levelId: levelId,
+        activity: activityKey,
+        success: success,
+        attempts: attempts,
+        firstCoins: coinsIfFirstTime,
+        totalActivities: totalActivities ?? kLevelStarsToComplete,
+        completedAt: DateTime.now(),
+        baseline: previous ?? {},
       );
-      // Basarse en las estrellas guardadas, no en `activities`: documentos
-      // antiguos pueden tener 3 estrellas sin registrar cada modalidad.
-      // Ningun replay debe modificar ese documento, ni siquiera al fallar.
-      final alreadyCompleted =
-          previous != null &&
-          parseProgressEstrellas(previous) >= kLevelStarsToComplete;
-      final completedActivities = parseCompletedActivities(previous);
-      final alreadyRewarded = completedActivities.contains(activityKey);
-
-      if (success) {
-        completedActivities.add(activityKey);
-      }
-
-      // Un nivel puede ofrecer menos de tres modalidades. Exigir siempre tres
-      // dejaría ese nivel imposible de terminar y bloquearía el siguiente, así
-      // que la meta es cuántas modalidades tiene realmente, con tope de tres.
-      final requeridas = (totalActivities ?? kLevelStarsToComplete).clamp(
-        1,
-        kLevelStarsToComplete,
+      // Capturar la proyección antes de que una confirmación rápida retire el evento.
+      final projected = completionProgress(
+        queue.overlay(learnerUid, moduleId, {levelId: ?previous})[levelId] ??
+            {},
+        event,
       );
-      final completadas = completedActivities.length;
-      final isLevelComplete = completadas >= requeridas;
-
-      // 3 estrellas significa siempre "nivel terminado", sin importar cuántas
-      // modalidades tenía; por eso las parciales nunca llegan a 3.
-      final stars = alreadyCompleted
-          ? kLevelStarsToComplete
-          : (isLevelComplete
-                ? kLevelStarsToComplete
-                : (completadas > kLevelStarsToComplete - 1
-                      ? kLevelStarsToComplete - 1
-                      : completadas));
-      // Un nivel de 3 estrellas es repaso aun si su documento antiguo no
-      // incluye esta modalidad en `activities`. Conserva la recompensa y el
-      // efecto de descanso del avatar sin tocar el progreso.
-      final coins = !success
-          ? 0
-          : (alreadyCompleted || alreadyRewarded
-                ? _repasoCoins
-                : coinsIfFirstTime);
-      final esRepaso = success && (alreadyCompleted || alreadyRewarded);
-
-      if (!alreadyCompleted) {
-        final progressData = <String, dynamic>{
-          'status': isLevelComplete ? 'completed' : 'in_progress',
-          'estrellas': stars,
-          'attempts': attempts,
-          'updatedAt': nowIso,
-          if (isLevelComplete) 'completedAt': nowIso,
-          if (isObservation) 'type': 'observation',
-          if (success)
-            'activities': {
-              activityKey: {
-                'completedAt': nowIso,
-                'attempts': attempts,
-                'rewarded': alreadyRewarded || coins > 0,
-              },
-            },
-        };
-
-        await service.updateUserLevelProgress(
-          learnerUid,
-          moduleId,
-          levelId,
-          progressData,
-        );
-      }
-
-      var felicidadDelta = 0;
-      var energiaDelta = 0;
-      var sinEnergia = false;
+      await queue.enqueue(event);
       if (context.mounted) {
-        try {
-          final avatarViewModel = context.read<AvatarViewModel>();
-          final delta = await avatarViewModel.registrarActividad(
-            success: success,
-            monedas: coins,
-            esRepaso: esRepaso,
-          );
-          felicidadDelta = delta.felicidad;
-          energiaDelta = delta.energia;
-          sinEnergia = delta.energiaFinal <= 0;
-        } catch (_) {}
+        context.read<LearningViewModel>().applyPendingProgress(moduleId);
       }
-
-      if (context.mounted) {
-        // Aislado del resultado: si la relectura falla, el resultado de la
-        // actividad sigue disponible (haya escritura nueva o sea repaso).
-        try {
-          final learningViewModel = context.read<LearningViewModel>();
-          await learningViewModel.getModuleLevels(moduleId, forceReload: true);
-          await learningViewModel.refreshModulesProgress();
-        } catch (e) {
-          debugPrint('LevelCompletionService: refresco de modulos falló: $e');
-        }
-      }
-
       return LevelCompletionResult(
         success: success,
         attempts: attempts,
-        stars: stars,
-        coins: coins,
-        felicidadDelta: felicidadDelta,
-        energiaDelta: energiaDelta,
-        sinEnergia: sinEnergia,
-        esRepaso: esRepaso,
+        stars: parseProgressEstrellas(projected),
+        coins: 0,
+        syncState: CompletionSyncState.pending,
       );
-    } catch (_) {
-      return null;
+    } catch (e) {
+      debugPrint('LevelCompletionService: no se pudo registrar: $e');
+      return LevelCompletionResult(
+        success: success,
+        attempts: attempts,
+        stars: 0,
+        coins: 0,
+        syncState: CompletionSyncState.failed,
+      );
     }
   }
 }

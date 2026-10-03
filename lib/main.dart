@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'features/learning_module/data/completion_sync_service.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -65,6 +67,13 @@ void main() async {
   registerPuzzleMinigame();
 
   final prefs = await SharedPreferences.getInstance();
+  final completions = CompletionSyncService(
+    prefs: prefs,
+    confirm: CompletionRepository(FirebaseFirestore.instance).confirm,
+    actorProvider: () => FirebaseAuth.instance.currentUser?.uid,
+  );
+  CompletionSyncService.instance = completions;
+  completions.start();
   final telemetryService = ActivityTelemetryService(
     repository: TelemetryRepository(FirebaseFirestore.instance),
     pendingStore: PendingSessionStore(prefs),
@@ -145,6 +154,15 @@ class MyApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => LoadingService()),
+        Provider<_CompletionRefresh>(
+          create: (context) => _CompletionRefresh(
+            context.read<ProfileViewModel>(),
+            context.read<AvatarViewModel>(),
+            context.read<LearningViewModel>(),
+          ),
+          lazy: false,
+          dispose: (_, refresh) => refresh.dispose(),
+        ),
         ProxyProvider2<
           SettingsViewModel,
           AuthViewModel,
@@ -202,4 +220,26 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Refresca solo el perfil activo tras confirmar una recompensa pendiente.
+class _CompletionRefresh {
+  _CompletionRefresh(this.profiles, this.avatar, this.learning) {
+    CompletionSyncService.instance?.addListener(refresh);
+  }
+  final ProfileViewModel profiles;
+  final AvatarViewModel avatar;
+  final LearningViewModel learning;
+  void refresh() {
+    final queue = CompletionSyncService.instance;
+    if (queue?.lastConfirmedLearner != profiles.learnerUid) return;
+    unawaited(
+      avatar.loadAvatarConfigFromFirestore().catchError((Object e) {
+        debugPrint('No se pudo refrescar recompensa: $e');
+      }),
+    );
+    unawaited(learning.refreshModulesProgress());
+  }
+
+  void dispose() => CompletionSyncService.instance?.removeListener(refresh);
 }

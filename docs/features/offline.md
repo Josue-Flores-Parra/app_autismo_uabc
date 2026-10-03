@@ -113,3 +113,14 @@ Los perfiles se leen con `get()`, que sale de la cache de Firestore. Una
 transaccion exige servidor, por eso `ProfileRepository.ensureParent` solo la
 corre si la cuenta aun necesita correccion. La cache se llena la primera vez que
 la cuenta inicia sesion con red: sin ese primer inicio no hay nada que leer.
+
+## Finalización sin conexión
+
+Las actividades terminadas se guardan primero en `activity_completion_outbox_v1`
+(SharedPreferences), con UID del padre, UID del perfil y un ID único. El progreso
+provisional abre niveles sin red; monedas, felicidad y energía se aplican solo
+al confirmar la transacción remota. La cola se recupera al iniciar, reintenta
+cada 30 segundos y al volver al foreground; nunca procesa otra cuenta.
+
+La confirmación actualiza progreso y avatar junto con un recibo idempotente.
+Los timeouts conservan el evento: una confirmación tardía no vuelve a pagar.
