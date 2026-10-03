@@ -65,7 +65,7 @@ void main() {
       game.onComplete(true, 0);
       await tester.pumpAndSettle();
       expect(calls, 1);
-      expect(find.text('Rewards pending synchronization.'), findsOneWidget);
+      expect(find.text('Rewards pending synchronization.'), findsNothing);
       expect(find.text('Monedas: +0'), findsNothing);
       await tester.tap(find.text('Continuar'));
       await tester.pumpAndSettle();
@@ -103,7 +103,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text('Recompensas pendientes de sincronización.'),
-      findsOneWidget,
+      findsNothing,
     );
     await tester.tap(find.text('Continuar'));
     await tester.pumpAndSettle();

@@ -388,8 +388,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                 ),
               ],
             ),
-          if (result?.syncState != CompletionSyncState.confirmed ||
-              result?.rewardsKnown == false)
+          if (result?.showsSyncNotice ?? true)
             LevelCompletionService.buildSyncNotice(this.context, result),
           if (success &&
               result?.syncState == CompletionSyncState.confirmed &&

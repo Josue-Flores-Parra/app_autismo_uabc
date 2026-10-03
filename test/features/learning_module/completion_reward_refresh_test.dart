@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:appy/features/learning_module/data/completion_sync_service.dart';
+import 'package:appy/data/services/network_connection_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:appy/features/learning_module/view/level_play_screen.dart';
 import 'package:appy/features/minigames/minigame_core.dart';
 import 'package:appy/features/minigames/view/minigames_widget.dart';
@@ -99,91 +101,118 @@ void main() {
   });
 
   for (final video in [false, true]) {
-    testWidgets(
-      '${video ? 'video' : 'minigame'} dialog updates only after server acknowledgement',
-      (tester) async {
-        final acknowledgement = Completer<CompletionReward?>();
-        final prefs = await SharedPreferences.getInstance();
-        final queue = CompletionSyncService(
-          prefs: prefs,
-          confirm: (_) => acknowledgement.future,
-          actorProvider: () => 'parent',
-        );
-        for (final type in MinigameType.values) {
-          MinigameFactory.register(
-            type,
-            ({
-              required onComplete,
-              required minigameData,
-              onReady,
-              onObjectiveMet,
-            }) => const SizedBox(),
+    for (final offline in [true, false]) {
+      testWidgets(
+        '${video ? 'video' : 'minigame'} dialog starts offline=$offline and updates only after server acknowledgement',
+        (tester) async {
+          final acknowledgement = Completer<CompletionReward?>();
+          final prefs = await SharedPreferences.getInstance();
+          final changes = StreamController<List<ConnectivityResult>>.broadcast(
+            sync: true,
           );
-        }
-        await queue.enqueue(_event('one'));
-        await tester.pumpWidget(
-          _app(
-            Builder(
-              builder: (context) => Scaffold(
-                body: TextButton(
-                  child: const Text('Open'),
-                  onPressed: () {
-                    if (video) {
-                      LevelCompletionService.showVideoCompletionDialog(
-                        context: context,
-                        moduleId: 'module',
-                        levelId: 'level',
-                        completionRecorder: () async => _result(queue, 'one'),
-                      );
-                    } else {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => LevelPlayScreen(
-                            levelTitle: 'Nivel',
-                            actividadType: 'puzzle',
-                            completionRecorder: (_, _) async =>
-                                _result(queue, 'one'),
+          addTearDown(changes.close);
+          final network = NetworkConnectionService(
+            check: () async => [
+              offline ? ConnectivityResult.none : ConnectivityResult.wifi,
+            ],
+            changes: changes.stream,
+          );
+          await network.start();
+          addTearDown(network.dispose);
+          final queue = CompletionSyncService(
+            prefs: prefs,
+            confirm: (_) => acknowledgement.future,
+            actorProvider: () => 'parent',
+            network: network,
+          );
+          for (final type in MinigameType.values) {
+            MinigameFactory.register(
+              type,
+              ({
+                required onComplete,
+                required minigameData,
+                onReady,
+                onObjectiveMet,
+              }) => const SizedBox(),
+            );
+          }
+          await queue.enqueue(_event('one'));
+          await tester.pumpWidget(
+            _app(
+              Builder(
+                builder: (context) => Scaffold(
+                  body: TextButton(
+                    child: const Text('Open'),
+                    onPressed: () {
+                      if (video) {
+                        LevelCompletionService.showVideoCompletionDialog(
+                          context: context,
+                          moduleId: 'module',
+                          levelId: 'level',
+                          completionRecorder: () async => _result(queue, 'one'),
+                        );
+                      } else {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => LevelPlayScreen(
+                              levelTitle: 'Nivel',
+                              actividadType: 'puzzle',
+                              completionRecorder: (_, _) async =>
+                                  _result(queue, 'one'),
+                            ),
                           ),
-                        ),
-                      );
-                    }
-                  },
+                        );
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
-        if (!video) {
-          tester
-              .widget<MinigamesWidget>(find.byType(MinigamesWidget))
-              .onComplete(true, 0);
+          );
+          await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-        }
-        expect(
-          find.text('Recompensas pendientes de sincronización.'),
-          findsOneWidget,
-        );
-        expect(find.text('Monedas: +30'), findsNothing);
-        acknowledgement.complete(_reward);
-        await queue.flush();
-        await tester.pumpAndSettle();
-        expect(
-          find.text('Recompensas pendientes de sincronización.'),
-          findsNothing,
-        );
-        expect(find.text('Monedas: +30'), findsOneWidget);
-        expect(find.text('+5 felicidad'), findsOneWidget);
-        expect(find.text('-4 energía'), findsOneWidget);
-        await tester.tap(find.text('Continuar'));
-        await tester.pumpAndSettle();
-        expect(find.byType(AlertDialog), findsNothing);
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox());
-        queue.dispose();
-      },
-    );
+          if (!video) {
+            tester
+                .widget<MinigamesWidget>(find.byType(MinigamesWidget))
+                .onComplete(true, 0);
+            await tester.pumpAndSettle();
+          }
+          expect(
+            find.text('Recompensas pendientes de sincronización.'),
+            offline ? findsOneWidget : findsNothing,
+          );
+          changes.add([ConnectivityResult.none]);
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Recompensas pendientes de sincronización.'),
+            findsOneWidget,
+          );
+          changes.add([ConnectivityResult.mobile]);
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Recompensas pendientes de sincronización.'),
+            findsNothing,
+          );
+          expect(find.text('Monedas: +30'), findsNothing);
+          acknowledgement.complete(_reward);
+          await queue.flush();
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Recompensas pendientes de sincronización.'),
+            findsNothing,
+          );
+          expect(find.text('Monedas: +30'), findsOneWidget);
+          expect(find.text('+5 felicidad'), findsOneWidget);
+          expect(find.text('-4 energía'), findsOneWidget);
+          await tester.tap(find.text('Continuar'));
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          queue.dispose();
+        },
+      );
+    }
   }
 
   testWidgets('legacy receipt confirms without inventing a reward amount', (

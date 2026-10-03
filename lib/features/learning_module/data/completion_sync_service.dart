@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../model/levels_models.dart';
+import '../../../data/services/network_connection_service.dart';
 
 /// Resultado de persistencia independiente del resultado de la actividad.
 enum CompletionSyncState { pending, confirmed, failed }
@@ -261,8 +262,10 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
     required SharedPreferences prefs,
     required Future<CompletionReward?> Function(CompletionEvent) confirm,
     required String? Function() actorProvider,
+    NetworkConnectionService? network,
   }) : _prefs = prefs,
        _confirm = confirm,
+       _network = network,
        _actorProvider = actorProvider {
     final stored = _prefs.getString(_key);
     if (stored != null) {
@@ -272,6 +275,7 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
         );
       }
     }
+    _network?.addListener(_onNetworkChanged);
   }
 
   static CompletionSyncService? instance;
@@ -280,6 +284,7 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
   final Future<CompletionReward?> Function(CompletionEvent) _confirm;
   final Map<String, CompletionConfirmation> _confirmed = {};
   final String? Function() _actorProvider;
+  final NetworkConnectionService? _network;
   final List<CompletionEvent> _events = [];
   Future<void> _storageChain = Future.value();
   Future<void>? _flush;
@@ -289,6 +294,19 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
   String? lastConfirmedLearner;
 
   List<CompletionEvent> get pending => List.unmodifiable(_events);
+
+  /// Si el sistema informó explícitamente que no hay ninguna red activa.
+  bool get isOffline =>
+      _network?.status == NetworkConnectionStatus.disconnected;
+
+  void _onNetworkChanged() {
+    if (_disposed) return;
+    lastConfirmedLearner = null;
+    notifyListeners();
+    if (_network?.status == NetworkConnectionStatus.connected) {
+      unawaited(flush());
+    }
+  }
 
   /// Consulta la confirmación de un evento sin exponer recompensas de otra cuenta.
   CompletionConfirmation? confirmationOf(String id) {
@@ -414,6 +432,7 @@ class CompletionSyncService extends ChangeNotifier with WidgetsBindingObserver {
     _disposed = true;
     _retry?.cancel();
     _auth?.cancel();
+    _network?.removeListener(_onNetworkChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

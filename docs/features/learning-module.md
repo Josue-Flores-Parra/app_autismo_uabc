@@ -620,3 +620,8 @@ El diálogo escucha la confirmación de su evento: reemplaza el aviso pendiente
 por las monedas y cambios reales del avatar en cuanto la transacción termina.
 También resuelve confirmaciones recibidas antes de abrirse. Un recibo antiguo
 sin detalle muestra «Recompensas sincronizadas», sin inventar importes.
+
+El aviso pendiente solo aparece cuando `connectivity_plus` informa que no hay
+ninguna interfaz de red activa. Wi-Fi, datos móviles y Ethernet mantienen el
+aviso oculto mientras se espera a Firestore; desconocer el estado tampoco lo
+muestra. Una reconexión oculta el aviso y reintenta la cola de inmediato.

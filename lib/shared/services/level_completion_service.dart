@@ -47,6 +47,11 @@ class LevelCompletionResult {
     this.esRepaso = false,
   });
 
+  /// Muestra pendientes solo sin red; los errores y recibos antiguos conservan su aviso.
+  bool get showsSyncNotice => syncState == CompletionSyncState.pending
+      ? (syncService?.isOffline ?? false)
+      : syncState == CompletionSyncState.failed || !rewardsKnown;
+
   /// Sustituye el resultado provisional solo al recibir el recibo de este evento.
   LevelCompletionResult resolve() {
     final confirmation = completionId == null
@@ -248,6 +253,7 @@ class LevelCompletionService {
     BuildContext context,
     LevelCompletionResult? result,
   ) {
+    if (result?.showsSyncNotice == false) return const SizedBox.shrink();
     final state = result?.syncState ?? CompletionSyncState.failed;
     final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
     return Text(
@@ -323,62 +329,66 @@ class LevelCompletionService {
                 style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+              if ((result?.showsSyncNotice ?? true) ||
+                  result?.syncState == CompletionSyncState.confirmed)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0x33FFFFFF),
+                      width: 1,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x33FFFFFF), width: 1),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (result?.syncState != CompletionSyncState.confirmed ||
-                        result?.rewardsKnown == false)
-                      buildSyncNotice(context, result),
-                    if (result?.syncState == CompletionSyncState.confirmed &&
-                        result?.rewardsKnown == true)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.monetization_on,
-                            color: Color(0xFFFFD700),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'Monedas: +$coins',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (result?.showsSyncNotice ?? true)
+                        buildSyncNotice(context, result),
+                      if (result?.syncState == CompletionSyncState.confirmed &&
+                          result?.rewardsKnown == true)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.monetization_on,
+                              color: Color(0xFFFFD700),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Monedas: +$coins',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    if (result?.syncState == CompletionSyncState.confirmed &&
-                        result?.rewardsKnown == true)
-                      for (final row in buildStatRows(
-                        felicidadDelta,
-                        energiaDelta,
-                        alignment: MainAxisAlignment.center,
-                      )) ...[const SizedBox(height: 8), row],
-                    if (sinEnergia) ...[
-                      const SizedBox(height: 8),
-                      buildEnergyNotice(
-                        textAlign: TextAlign.center,
-                        alignment: MainAxisAlignment.center,
-                      ),
+                          ],
+                        ),
+                      if (result?.syncState == CompletionSyncState.confirmed &&
+                          result?.rewardsKnown == true)
+                        for (final row in buildStatRows(
+                          felicidadDelta,
+                          energiaDelta,
+                          alignment: MainAxisAlignment.center,
+                        )) ...[const SizedBox(height: 8), row],
+                      if (sinEnergia) ...[
+                        const SizedBox(height: 8),
+                        buildEnergyNotice(
+                          textAlign: TextAlign.center,
+                          alignment: MainAxisAlignment.center,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
             ],
           ),
           actions: [

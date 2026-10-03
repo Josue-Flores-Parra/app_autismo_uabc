@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'data/services/network_connection_service.dart';
 import 'package:flutter/material.dart';
 import 'features/learning_module/data/completion_sync_service.dart';
 import 'core/preference_text_scaler.dart';
@@ -68,10 +69,13 @@ void main() async {
   registerPuzzleMinigame();
 
   final prefs = await SharedPreferences.getInstance();
+  final network = NetworkConnectionService();
+  unawaited(network.start());
   final completions = CompletionSyncService(
     prefs: prefs,
     confirm: CompletionRepository(FirebaseFirestore.instance).confirm,
     actorProvider: () => FirebaseAuth.instance.currentUser?.uid,
+    network: network,
   );
   CompletionSyncService.instance = completions;
   completions.start();
