@@ -440,4 +440,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completionRewardsConfirmed => 'Rewards synchronized.';
+
+  @override
+  String get completionRewardsLoading => 'Loading rewards';
 }

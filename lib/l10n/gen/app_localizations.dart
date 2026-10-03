@@ -889,6 +889,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Recompensas sincronizadas.'**
   String get completionRewardsConfirmed;
+
+  /// No description provided for @completionRewardsLoading.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando recompensas'**
+  String get completionRewardsLoading;
 }
 
 class _AppLocalizationsDelegate

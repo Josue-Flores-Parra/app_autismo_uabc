@@ -176,5 +176,6 @@
   "completionRewardsPending": "Recompensas pendientes de sincronización.",
   "completionSaveFailed": "No se pudo guardar el resultado. Puedes volver e intentarlo de nuevo.",
   "downloadsCancelling": "Cancelando…",
-  "completionRewardsConfirmed": "Recompensas sincronizadas."
+  "completionRewardsConfirmed": "Recompensas sincronizadas.",
+  "completionRewardsLoading": "Cargando recompensas"
 }

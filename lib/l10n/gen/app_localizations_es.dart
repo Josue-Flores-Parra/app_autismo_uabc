@@ -441,4 +441,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get completionRewardsConfirmed => 'Recompensas sincronizadas.';
+
+  @override
+  String get completionRewardsLoading => 'Cargando recompensas';
 }

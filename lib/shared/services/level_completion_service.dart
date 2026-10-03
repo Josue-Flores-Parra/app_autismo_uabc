@@ -1,3 +1,4 @@
+import '../widgets/completion_rewards_section.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -82,6 +83,14 @@ class LevelCompletionResult {
 /// separado en `activities`; las estrellas del nivel son cuantas modalidades
 /// distintas se completaron, con tope en [kLevelStarsToComplete].
 class LevelCompletionService {
+  /// Etiqueta accesible del esqueleto mientras se confirman las recompensas.
+  static String rewardsLoadingLabel(BuildContext context) =>
+      Localizations.of<AppLocalizations>(
+        context,
+        AppLocalizations,
+      )?.completionRewardsLoading ??
+      'Cargando recompensas';
+
   /// Reconstruye el diálogo al confirmar la recompensa sin retrasar su apertura.
   static Widget watchResult(
     LevelCompletionResult? result,
@@ -126,14 +135,16 @@ class LevelCompletionService {
   /// mismo peso visual que "Errores" y "Monedas": ícono + texto en negrita,
   /// no un subtítulo chico. Se usa igual en el diálogo de minijuego y en el
   /// de video para que ambos se vean consistentes.
+  /// `includeUnchanged` conserva las filas confirmadas en cero para mantener los espacios.
   static List<Widget> buildStatRows(
     int felicidadDelta,
     int energiaDelta, {
     MainAxisAlignment alignment = MainAxisAlignment.start,
+    bool includeUnchanged = false,
   }) {
     String signed(int value) => value >= 0 ? '+$value' : '$value';
     final rows = <Widget>[];
-    if (felicidadDelta != 0) {
+    if (felicidadDelta != 0 || includeUnchanged) {
       rows.add(
         Row(
           mainAxisAlignment: alignment,
@@ -154,7 +165,7 @@ class LevelCompletionService {
         ),
       );
     }
-    if (energiaDelta != 0) {
+    if (energiaDelta != 0 || includeUnchanged) {
       rows.add(
         Row(
           mainAxisAlignment: alignment,
@@ -298,6 +309,7 @@ class LevelCompletionService {
         final energiaDelta = result?.energiaDelta ?? 0;
         final sinEnergia = result?.sinEnergia ?? false;
         return AlertDialog(
+          constraints: const BoxConstraints(maxWidth: 560),
           scrollable: true,
           backgroundColor: const Color(0xFF1A3D52),
           shape: RoundedRectangleBorder(
@@ -329,66 +341,63 @@ class LevelCompletionService {
                 style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 16),
-              if ((result?.showsSyncNotice ?? true) ||
-                  result?.syncState == CompletionSyncState.confirmed)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0x33FFFFFF),
-                      width: 1,
-                    ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2C5F7A), Color(0xFF1A3D52)],
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (result?.showsSyncNotice ?? true)
-                        buildSyncNotice(context, result),
-                      if (result?.syncState == CompletionSyncState.confirmed &&
-                          result?.rewardsKnown == true)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.monetization_on,
-                              color: Color(0xFFFFD700),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                'Monedas: +$coins',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x33FFFFFF), width: 1),
+                ),
+                child: CompletionRewardsSection(
+                  loading:
+                      result?.syncState == CompletionSyncState.pending &&
+                      result?.showsSyncNotice != true,
+                  loadingLabel: rewardsLoadingLabel(context),
+                  children: [
+                    if (result?.showsSyncNotice ?? true)
+                      buildSyncNotice(context, result),
+                    if (result?.syncState == CompletionSyncState.confirmed &&
+                        result?.rewardsKnown == true)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.monetization_on,
+                            color: Color(0xFFFFD700),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Monedas: +$coins',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
-                          ],
-                        ),
-                      if (result?.syncState == CompletionSyncState.confirmed &&
-                          result?.rewardsKnown == true)
-                        for (final row in buildStatRows(
-                          felicidadDelta,
-                          energiaDelta,
-                          alignment: MainAxisAlignment.center,
-                        )) ...[const SizedBox(height: 8), row],
-                      if (sinEnergia) ...[
-                        const SizedBox(height: 8),
-                        buildEnergyNotice(
-                          textAlign: TextAlign.center,
-                          alignment: MainAxisAlignment.center,
-                        ),
-                      ],
-                    ],
-                  ),
+                          ),
+                        ],
+                      ),
+                    if (result?.syncState == CompletionSyncState.confirmed &&
+                        result?.rewardsKnown == true)
+                      ...buildStatRows(
+                        felicidadDelta,
+                        energiaDelta,
+                        alignment: MainAxisAlignment.center,
+                        includeUnchanged: true,
+                      ),
+                    if (sinEnergia)
+                      buildEnergyNotice(
+                        textAlign: TextAlign.center,
+                        alignment: MainAxisAlignment.center,
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
           actions: [

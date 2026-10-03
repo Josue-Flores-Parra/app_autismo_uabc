@@ -44,6 +44,10 @@ LevelCompletionResult _result(CompletionSyncService queue, String id) =>
       syncService: queue,
     );
 Widget _app(Widget home) => MaterialApp(
+  builder: (context, child) => MediaQuery(
+    data: MediaQuery.of(context).copyWith(disableAnimations: true),
+    child: child!,
+  ),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   locale: const Locale('es'),

@@ -1,3 +1,4 @@
+import '../../../shared/widgets/completion_rewards_section.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/completion_sync_service.dart';
@@ -388,32 +389,50 @@ class _LevelPlayScreenState extends State<LevelPlayScreen> {
                 ),
               ],
             ),
-          if (result?.showsSyncNotice ?? true)
-            LevelCompletionService.buildSyncNotice(this.context, result),
-          if (success &&
-              result?.syncState == CompletionSyncState.confirmed &&
-              result?.rewardsKnown == true)
-            Row(
-              children: [
-                const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Monedas: +$coins',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+          CompletionRewardsSection(
+            loading:
+                result?.syncState == CompletionSyncState.pending &&
+                result?.showsSyncNotice != true,
+            loadingLabel: LevelCompletionService.rewardsLoadingLabel(
+              this.context,
             ),
-          ...LevelCompletionService.buildStatRows(felicidadDelta, energiaDelta),
-          if (sinEnergia) LevelCompletionService.buildEnergyNotice(),
+            rowCount: success ? 3 : 2,
+            children: [
+              if (result?.showsSyncNotice ?? true)
+                LevelCompletionService.buildSyncNotice(this.context, result),
+              if (success &&
+                  result?.syncState == CompletionSyncState.confirmed &&
+                  result?.rewardsKnown == true)
+                Row(
+                  children: [
+                    const Icon(Icons.monetization_on, color: Color(0xFFFFD700)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Monedas: +$coins',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (result?.syncState == CompletionSyncState.confirmed &&
+                  result?.rewardsKnown == true)
+                ...LevelCompletionService.buildStatRows(
+                  felicidadDelta,
+                  energiaDelta,
+                  includeUnchanged: true,
+                ),
+              if (sinEnergia) LevelCompletionService.buildEnergyNotice(),
+            ],
+          ),
         ];
 
         return AlertDialog(
+          constraints: const BoxConstraints(maxWidth: 560),
           scrollable: true,
           backgroundColor: const Color(0xFF1A3D52),
           shape: RoundedRectangleBorder(

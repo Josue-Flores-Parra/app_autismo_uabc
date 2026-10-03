@@ -213,6 +213,9 @@ class MyApp extends StatelessWidget {
                 final mediaQuery = MediaQuery.of(context);
                 return MediaQuery(
                   data: mediaQuery.copyWith(
+                    disableAnimations:
+                        mediaQuery.disableAnimations ||
+                        settings.reduceAnimations,
                     textScaler: PreferenceTextScaler(
                       mediaQuery.textScaler,
                       settings.textScaleFactor,

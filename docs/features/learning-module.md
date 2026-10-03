@@ -625,3 +625,13 @@ El aviso pendiente solo aparece cuando `connectivity_plus` informa que no hay
 ninguna interfaz de red activa. Wi-Fi, datos móviles y Ethernet mantienen el
 aviso oculto mientras se espera a Firestore; desconocer el estado tampoco lo
 muestra. Una reconexión oculta el aviso y reintenta la cola de inmediato.
+
+Los diálogos de minijuegos y video reservan el área de recompensas con
+`CompletionRewardsSection`. Mientras se confirma un resultado online muestran
+un esqueleto con shimmer; sin red muestran el aviso pendiente en el mismo espacio.
+Al confirmar se reemplaza el esqueleto por monedas, felicidad y energía,
+incluidas las variaciones en cero. El aviso de energía puede desplazarse dentro
+del área sin mover el diálogo ni sus botones. La altura respeta la escala de texto.
+El ajuste de reducir animaciones de la app o del sistema mantiene el esqueleto
+estático. `test/completion_skeleton_layout_test.dart` compara las medidas del
+diálogo y la posición de Continuar antes y después de la confirmación.
