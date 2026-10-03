@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'features/learning_module/data/completion_sync_service.dart';
+import 'core/preference_text_scaler.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -186,7 +187,6 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<SettingsViewModel>(
         builder: (context, settings, _) {
-          final textScaler = TextScaler.linear(settings.textScaleFactor);
           return LoadingWrapper(
             child: MaterialApp(
               title: 'Appy',
@@ -208,7 +208,12 @@ class MyApp extends StatelessWidget {
               builder: (context, child) {
                 final mediaQuery = MediaQuery.of(context);
                 return MediaQuery(
-                  data: mediaQuery.copyWith(textScaler: textScaler),
+                  data: mediaQuery.copyWith(
+                    textScaler: PreferenceTextScaler(
+                      mediaQuery.textScaler,
+                      settings.textScaleFactor,
+                    ),
+                  ),
                   child: child ?? const SizedBox.shrink(),
                 );
               },

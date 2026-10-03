@@ -142,3 +142,17 @@ Firestore.
 - Tiene boton para repetir audio/TTS si la actividad depende de audio.
 - Maneja assets faltantes con fallback visible.
 - Si usa PIN/control parental, no deja rutas alternativas sin documentar.
+
+## Escala del sistema y pantallas pequeñas
+
+`PreferenceTextScaler` conserva el escalado (incluido el no lineal) del sistema
+y multiplica el resultado por la preferencia de la app. El onboarding permite
+desplazar cada página verticalmente, limita la ilustración y mantiene visibles
+los controles de navegación. Los párrafos RichText usan el mismo escalador.
+
+Los diálogos de PIN adaptan casillas y teclado al ancho disponible, permiten
+leer errores completos y desplazan contenido sin reducir la fuente. El diálogo
+de contraseña también se desplaza cuando está abierto el teclado del sistema.
+`test/accessibility_layout_test.dart` verifica todas las páginas y flujos en
+320×568 con escalas de 1.0 a 2.3, incluyendo creación y confirmación del PIN,
+entrada inválida y recuperación con teclado visible.

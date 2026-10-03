@@ -20,14 +20,14 @@ class SettingsAccessGuard {
     final verified = await showDialog<bool?>(
       context: context,
       barrierDismissible: false,
-      builder: (c) => _PinDialog(storedPin: current),
+      builder: (c) => SettingsPinDialog(storedPin: current),
     );
     if (verified != true || !context.mounted) return false;
 
     final newPin = await showDialog<String?>(
       context: context,
       barrierDismissible: false,
-      builder: (c) => const _PinDialog(),
+      builder: (c) => const SettingsPinDialog(),
     );
 
     if (newPin != null) {
@@ -127,7 +127,7 @@ class SettingsAccessGuard {
   static Future<bool> _promptCreatePin(BuildContext context, String uid) async {
     final result = await _showPinDialog<String?>(
       context: context,
-      builder: (_) => const _PinDialog(),
+      builder: (_) => const SettingsPinDialog(),
     );
 
     if (result != null) {
@@ -144,7 +144,7 @@ class SettingsAccessGuard {
   ) async {
     final result = await _showPinDialog<bool?>(
       context: context,
-      builder: (_) => _PinDialog(storedPin: storedPin),
+      builder: (_) => SettingsPinDialog(storedPin: storedPin),
     );
 
     if (!context.mounted) return false;
@@ -188,43 +188,11 @@ class SettingsAccessGuard {
     String title = 'Recuperar PIN',
     String? body,
   }) async {
-    final controller = TextEditingController();
     return showDialog<String?>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Correo: $email'),
-              if (body != null) ...[const SizedBox(height: 8), Text(body)],
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                obscureText: true,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña de la cuenta',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Confirmar'),
-            ),
-          ],
-        );
-      },
+      builder: (_) =>
+          AccountPasswordDialog(email: email, title: title, body: body),
     );
   }
 
@@ -239,16 +207,16 @@ class SettingsAccessGuard {
 /// Con `storedPin` verifica y cierra con `true`/`false` (o `null` si el
 /// usuario olvido el PIN). Sin `storedPin` crea uno en dos pasos y cierra con
 /// el PIN elegido, o `null` al cancelar.
-class _PinDialog extends StatefulWidget {
-  const _PinDialog({this.storedPin});
+class SettingsPinDialog extends StatefulWidget {
+  const SettingsPinDialog({super.key, this.storedPin});
 
   final String? storedPin;
 
   @override
-  State<_PinDialog> createState() => _PinDialogState();
+  State<SettingsPinDialog> createState() => _PinDialogState();
 }
 
-class _PinDialogState extends State<_PinDialog> {
+class _PinDialogState extends State<SettingsPinDialog> {
   static const _length = 4;
 
   String _digits = '';
@@ -346,9 +314,11 @@ class _PinDialogState extends State<_PinDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 for (var i = 0; i < _length; i++)
-                  Padding(
-                    padding: EdgeInsets.only(left: i == 0 ? 0 : 10),
-                    child: _PinBox(filled: i < _digits.length),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: i == 0 ? 0 : 10),
+                      child: Align(child: _PinBox(filled: i < _digits.length)),
+                    ),
                   ),
               ],
             ),
@@ -362,7 +332,6 @@ class _PinDialogState extends State<_PinDialog> {
                   : Text(
                       _error!,
                       textAlign: TextAlign.center,
-                      maxLines: 2,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -383,15 +352,17 @@ class _PinDialogState extends State<_PinDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     for (final key in row)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: _PinKey(
-                          label: key,
-                          onTap: switch (key) {
-                            '' => null,
-                            'back' => _pop,
-                            _ => () => _push(key),
-                          },
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _PinKey(
+                            label: key,
+                            onTap: switch (key) {
+                              '' => null,
+                              'back' => _pop,
+                              _ => () => _push(key),
+                            },
+                          ),
                         ),
                       ),
                   ],
@@ -467,7 +438,10 @@ class _PinKey extends StatelessWidget {
     final colors = context.appColors;
     return SizedBox(
       width: 64,
-      height: 64,
+      height: (MediaQuery.textScalerOf(context).scale(22) + 24).clamp(
+        64.0,
+        double.infinity,
+      ),
       child: onTap == null
           ? null
           : Material(
@@ -499,4 +473,63 @@ class _PinKey extends StatelessWidget {
             ),
     );
   }
+}
+
+/// Solicita la contraseña para crear o recuperar el PIN con contenido desplazable.
+class AccountPasswordDialog extends StatefulWidget {
+  const AccountPasswordDialog({
+    super.key,
+    required this.email,
+    this.title = 'Recuperar PIN',
+    this.body,
+  });
+  final String email, title;
+  final String? body;
+  @override
+  State<AccountPasswordDialog> createState() => _AccountPasswordDialogState();
+}
+
+class _AccountPasswordDialogState extends State<AccountPasswordDialog> {
+  final _controller = TextEditingController();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: Text(widget.title),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Correo: ${widget.email}'),
+        if (widget.body != null) ...[
+          const SizedBox(height: 8),
+          Text(widget.body!),
+        ],
+        const SizedBox(height: 12),
+        TextField(
+          controller: _controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Contraseña de la cuenta',
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+        child: const Text('Confirmar'),
+      ),
+    ],
+  );
 }
