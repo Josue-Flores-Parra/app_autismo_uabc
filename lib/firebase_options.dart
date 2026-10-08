@@ -58,18 +58,17 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDq9_EcZ9rxiHtRCypdQADCarxm6A9XYYE',
-    appId: '1:591509844503:android:cb109334431d2ca726e252',
+    appId: '1:591509844503:android:1a1a80a59ac1629326e252',
     messagingSenderId: '591509844503',
     projectId: 'app-autismo-25f44',
     storageBucket: 'app-autismo-25f44.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAHuKNT-l3iPYAxstjGWNZ9mr3Ikv47h2E',
-    appId: '1:591509844503:ios:69798e0e1ee93bf326e252',
+    appId: '1:591509844503:ios:77dbd1cefb63451c26e252',
     messagingSenderId: '591509844503',
     projectId: 'app-autismo-25f44',
     storageBucket: 'app-autismo-25f44.firebasestorage.app',
-    iosBundleId: 'com.example.appAutismoUabc',
+    iosBundleId: 'com.appytea.appy',
   );
 }

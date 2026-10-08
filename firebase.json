@@ -4,18 +4,17 @@
       "android": {
         "default": {
           "projectId": "app-autismo-25f44",
-          "appId": "1:591509844503:android:cb109334431d2ca726e252",
+          "appId": "1:591509844503:android:1a1a80a59ac1629326e252",
           "fileOutput": "android/app/google-services.json"
         }
-      }
-    },
-    "dart": {
-      "lib/firebase_options.dart": {
-        "projectId": "app-autismo-25f44",
-        "configurations": {
-          "android": "1:591509844503:android:cb109334431d2ca726e252",
-          "ios": "1:591509844503:ios:69798e0e1ee93bf326e252",
-          "web": "1:591509844503:web:739430b021b2b7ae26e252"
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "app-autismo-25f44",
+          "configurations": {
+            "android": "1:591509844503:android:1a1a80a59ac1629326e252",
+            "ios": "1:591509844503:ios:77dbd1cefb63451c26e252"
+          }
         }
       }
     }
