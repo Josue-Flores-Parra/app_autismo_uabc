@@ -1,0 +1,12 @@
+{
+  "name": "appy-firestore-content",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Copia modules y levels de un proyecto Firebase a otro (prod -> dev).",
+  "scripts": {
+    "copy": "node copy-content.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

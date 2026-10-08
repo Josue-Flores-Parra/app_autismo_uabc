@@ -48,9 +48,8 @@ flutter run -d android
 flutter run -d chrome
 ```
 
-Android es la plataforma mejor configurada en el repo porque existe
-`android/app/google-services.json` y `android/app/build.gradle.kts` aplica
-`com.google.gms.google-services`.
+`flutter run` se conecta al proyecto de desarrollo `appy-dev-uabc` y muestra
+una banda `DEV`. Ver `docs/environments.md`.
 
 ## Firebase local
 
@@ -79,12 +78,9 @@ Archivos reales:
 
 Si necesitas regenerar Firebase:
 
-```bash
-flutterfire configure
-```
-
-Despues revisa que no se haya agregado configuracion que contradiga
-`docs/firebase.md`.
+Sigue los comandos de `docs/environments.md`: cada proyecto escribe su propio
+archivo de opciones y FlutterFire vuelve a agregar el plugin google-services,
+que hay que quitar.
 
 ## Android
 
@@ -99,11 +95,9 @@ Datos de `android/app/build.gradle.kts`:
 | `kotlinOptions.jvmTarget` | Java 11 |
 | Release signing | Usa `android/key.properties` si existe; si no, la llave debug. Ver `docs/release.md`. |
 
-Si Android falla por Firebase, primero confirma:
-
-```text
-android/app/google-services.json
-```
+Android inicializa Firebase desde `lib/firebase_options*.dart`, no desde
+`google-services.json`. Si falla con `duplicate-app`, revisa que
+`android/app/build.gradle.kts` no aplique `com.google.gms.google-services`.
 
 ## iOS
 
@@ -114,8 +108,8 @@ iosBundleId: com.appytea.appy
 ```
 
 El repo no contiene `ios/Runner/GoogleService-Info.plist` y no lo necesita:
-`main.dart` inicializa Firebase con `DefaultFirebaseOptions.currentPlatform`.
-Si cambia el bundle id, vuelve a correr `flutterfire configure`.
+`main.dart` inicializa Firebase con las opciones del entorno activo. Si cambia
+el bundle id, regenera ambos archivos como indica `docs/environments.md`.
 
 ## Web
 
@@ -182,7 +176,7 @@ flutter test test/puzzle_minigame_test.dart
 ## Problemas frecuentes de setup
 
 - Si `flutter run` falla por plataforma no configurada, usa Android o Web antes de desktop.
-- Si Android falla por Firebase, revisa `android/app/google-services.json`.
+- Si Android falla con `duplicate-app`, quita el plugin google-services de `android/app/build.gradle.kts`.
 - Si iOS falla por Firebase, confirma que el bundle id de Xcode coincida con `iosBundleId` en `lib/firebase_options.dart`.
 - Si aparece `UnsupportedError` en macOS/Windows/Linux, esa plataforma no tiene Firebase configurado.
 - Si un asset no carga, confirma que el path exista y que este cubierto por `pubspec.yaml`.

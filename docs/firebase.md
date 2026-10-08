@@ -7,11 +7,8 @@ FlutterFire usada por el proyecto.
 
 ## Proyecto configurado
 
-El proyecto Firebase usado por los archivos actuales es:
-
-```text
-app-autismo-25f44
-```
+El proyecto de produccion es `app-autismo-25f44`. Desarrollo usa
+`appy-dev-uabc`; ver `docs/environments.md` para elegir entorno.
 
 Archivos reales relacionados con Firebase:
 
@@ -19,7 +16,7 @@ Archivos reales relacionados con Firebase:
 | --- | --- |
 | `firebase.json` | Declara metadata de FlutterFire para Android y las apps Dart de Android/iOS. |
 | `lib/firebase_options.dart` | Generado por FlutterFire CLI. Contiene opciones para Web, Android e iOS. |
-| `android/app/google-services.json` | Presente en el repo. Se usa por el plugin `com.google.gms.google-services`. |
+| `android/app/google-services.json` | Presente, de produccion. Android no aplica el plugin google-services; ver `docs/environments.md`. |
 | `ios/Runner/GoogleService-Info.plist` | No existe; iOS se inicializa con `firebase_options.dart`. |
 
 ## Plataformas
@@ -57,10 +54,11 @@ La inicializacion ocurre en `lib/main.dart` antes de `runApp`:
 
 ```dart
 WidgetsFlutterBinding.ensureInitialized();
-await Firebase.initializeApp(
-  options: DefaultFirebaseOptions.currentPlatform,
-);
+await Firebase.initializeApp(options: currentFirebaseOptions);
 ```
+
+`currentFirebaseOptions` viene de `lib/core/app_environment.dart` y devuelve las
+opciones de produccion o de desarrollo segun la build.
 
 Ninguna feature inicializa Firebase por su cuenta. Si una pantalla o servicio
 usa Firebase, asume que `main()` ya termino esa inicializacion.

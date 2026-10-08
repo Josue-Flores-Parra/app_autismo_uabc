@@ -53,7 +53,8 @@ Antes de publicar Android:
 
 - Confirmar que `android/key.properties` exista y apunte al keystore de subida
   (ver "Firma Android").
-- Confirmar `android/app/google-services.json`.
+- Construir sin `--dart-define=APP_ENV=dev` para que la build use produccion
+  y no muestre la banda `DEV`.
 - Incrementar `version` en `pubspec.yaml`.
 - Ejecutar pruebas manuales de login, modulos, minijuegos, avatar y settings.
 - Probar los recordatorios en Android 13 o superior (permiso de notificaciones)

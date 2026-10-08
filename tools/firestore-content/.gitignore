@@ -1,0 +1,4 @@
+node_modules/
+# Las llaves de cuentas de servicio nunca se versionan.
+*-key.json
+*service-account*.json

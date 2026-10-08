@@ -1,0 +1,84 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outcome.hasStarted", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lifecycle.status", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lifecycle.status", "order": "ASCENDING" },
+        { "fieldPath": "lifecycle.wasInterrupted", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "interaction.attemptsApplicable", "order": "ASCENDING" },
+        { "fieldPath": "lifecycle.status", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject.learnerId", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject.learnerId", "order": "ASCENDING" },
+        { "fieldPath": "activity.moduleId", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "activity.moduleId", "order": "ASCENDING" },
+        { "fieldPath": "activity.levelId", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "activity.activityType", "order": "ASCENDING" },
+        { "fieldPath": "outcome.hasStarted", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "telemetryActivitySessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject.learnerId", "order": "ASCENDING" },
+        { "fieldPath": "activity.moduleId", "order": "ASCENDING" },
+        { "fieldPath": "lifecycle.status", "order": "ASCENDING" },
+        { "fieldPath": "timing.startedAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

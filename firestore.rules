@@ -1,0 +1,218 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // App identity: one authenticated parent owns learner profiles. Learner
+    // state remains in users/{learnerUid}; only that learner's parent may use it.
+    match /users/{userId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == userId
+          || resource.data.parentUid == request.auth.uid);
+      // A parent can initialize its own account document; a learner document
+      // is addressable by a different ID but must point back to its creator.
+      allow create: if request.auth != null
+        && ((request.auth.uid == userId
+            && request.resource.data.get('role', '') != 'learner')
+          || (request.resource.data.get('role', '') == 'learner'
+            && request.resource.data.get('parentUid', '') == request.auth.uid));
+      // Legacy accounts predate `role`/`parentUid`: missing fields read as
+      // '' so their owner can still claim the parent role and update them.
+      allow update: if request.auth != null
+        && ((request.auth.uid == userId
+            && resource.data.get('role', '') != 'learner'
+            && request.resource.data.get('role', resource.data.get('role', '')) != 'learner')
+          || (resource.data.get('parentUid', '') == request.auth.uid
+            && request.resource.data.get('parentUid', '') == resource.data.get('parentUid', '')
+            && request.resource.data.get('role', '') == 'learner'));
+      allow delete: if request.auth != null
+        && (request.auth.uid == userId
+          || resource.data.parentUid == request.auth.uid);
+
+      match /learners/{learnerId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null
+          && request.auth.uid == userId
+          && request.resource.data.parentUid == userId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.allowedModules is int
+          && request.resource.data.allowedModules >= 0
+          && request.resource.data.allowedModules <= 10
+          && request.resource.data.keys().hasAll(['name', 'parentUid', 'allowedModules'])
+          && validLearnerSettings(request.resource.data);
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /progress/{moduleId} {
+        // Progress is keyed by learner UID, while the authenticated caller is
+        // the parent. Verify the ownership back-reference on the root user doc.
+        allow read, write: if request.auth != null
+          && (request.auth.uid == userId
+            || get(/databases/$(database)/documents/users/$(userId)).data.parentUid == request.auth.uid);
+        allow delete: if request.auth != null
+          && (request.auth.uid == userId
+            || get(/databases/$(database)/documents/users/$(userId)).data.parentUid == request.auth.uid);
+
+        match /levels/{levelId} {
+          allow read, write: if request.auth != null
+            && (request.auth.uid == userId
+              || get(/databases/$(database)/documents/users/$(userId)).data.parentUid == request.auth.uid);
+          allow delete: if request.auth != null
+            && (request.auth.uid == userId
+              || get(/databases/$(database)/documents/users/$(userId)).data.parentUid == request.auth.uid);
+        }
+      }
+    }
+
+    // Catalog data is readable in the authenticated app; management remains
+    // an admin operation and is never client-writable.
+    match /modules/{moduleId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+      match /levels/{levelId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
+    // =========================================================================
+    // Telemetría de actividades
+    // Colección raíz: telemetryActivitySessions/{sessionId}
+    // =========================================================================
+    match /telemetryActivitySessions/{sessionId} {
+      function validSubject(data) {
+        return (data.subject.identityModel == 'account_as_learner'
+                && data.subject.learnerId == request.auth.uid)
+            || (data.subject.identityModel == 'parent_as_learner'
+                && exists(/databases/$(database)/documents/users/$(request.auth.uid)/learners/$(data.subject.learnerId)));
+      }
+
+      allow create: if isCreateValid(request.resource.data, sessionId)
+        && validSubject(request.resource.data);
+      allow update: if isUpdateValid(request.resource.data, resource.data)
+        && validSubject(request.resource.data);
+      allow delete: if false; // El cliente no borra histórico.
+      allow get: if request.auth != null && isOwnDocument(resource.data); // Solo get puntual propio.
+      allow list: if false; // Negar listados amplios al cliente móvil.
+    }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  // Per-child learning and accessibility preferences. Absent on documents
+  // written before the split; anything present must stay in range.
+  function validLearnerSettings(data) {
+    return !('settings' in data)
+      || (data.settings.fontScale in ['small', 'medium', 'large']
+        && data.settings.highContrast is bool
+        && data.settings.reduceAnimations is bool
+        && data.settings.audioFeedback is bool
+        && data.settings.hapticFeedback is bool
+        && data.settings.remindersEnabled is bool
+        && data.settings.reminderTime is string);
+  }
+
+  function isUuid(id) {
+    return id.matches('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+  }
+
+  function isOwnDocument(data) {
+    return data.subject.actorId == request.auth.uid;
+  }
+
+  function isTerminalStatus(status) {
+    return status in ['completed', 'abandoned', 'failed', 'launch_error'];
+  }
+
+  function isNonTerminalStatus(status) {
+    return status in ['launch_requested', 'started'];
+  }
+
+  function validStatus(status) {
+    return isTerminalStatus(status) || isNonTerminalStatus(status);
+  }
+
+  function validActivityType(type) {
+    return type in ['simple_selection', 'puzzle', 'video', 'pictogram', 'audio'];
+  }
+
+  function validTransition(oldStatus, newStatus) {
+    return (oldStatus == 'launch_requested' && newStatus in ['started', 'launch_error'])
+        || (oldStatus == 'started' && newStatus in ['completed', 'abandoned', 'failed'])
+        || (oldStatus == newStatus);
+  }
+
+  // Contadores y duración nunca decrecen. null para intentos de media es válido.
+  function noDecrement(newData, oldData) {
+    return oldData == null
+        || (newData.timing.activeDurationMs >= oldData.timing.activeDurationMs
+            && newData.lifecycle.interruptionCount >= oldData.lifecycle.interruptionCount
+            && newData.interaction.runCount >= oldData.interaction.runCount
+            && newData.video.replayCount >= oldData.video.replayCount
+            && (oldData.interaction.attempts == null
+                || (newData.interaction.attempts != null
+                    && newData.interaction.attempts >= oldData.interaction.attempts)));
+  }
+
+  // La interrupción es sticky: una vez true nunca vuelve a false.
+  function stickyInterruption(newData, oldData) {
+    return oldData == null
+        || !(oldData.lifecycle.wasInterrupted == true
+             && newData.lifecycle.wasInterrupted == false);
+  }
+
+  // Campos comunes e invariantes (comunes a create y update).
+  function validBase(newData, oldData) {
+    return newData.schemaVersion == 1
+        && newData.subject.actorId == request.auth.uid
+        && validActivityType(newData.activity.activityType)
+        && newData.activity.moduleId is string
+        && newData.activity.moduleId.size() > 0
+        && newData.activity.levelId is string
+        && newData.activity.levelId.size() > 0
+        && (oldData == null
+            || (newData.subject.actorId == oldData.subject.actorId
+                && newData.subject.learnerId == oldData.subject.learnerId
+                && newData.subject.identityModel == oldData.subject.identityModel
+                && newData.sessionId == oldData.sessionId
+                && newData.schemaVersion == oldData.schemaVersion
+                && newData.activity.activityType == oldData.activity.activityType
+                && newData.activity.moduleId == oldData.activity.moduleId
+                && newData.activity.levelId == oldData.activity.levelId
+                && newData.activity.activityId == oldData.activity.activityId))
+        && noDecrement(newData, oldData)
+        && stickyInterruption(newData, oldData)
+        && !('archive' in newData)
+        && !('archived' in newData)
+        && !('archiveAt' in newData);
+  }
+
+  function isCreateValid(newData, sessionId) {
+    return request.auth != null
+        && isUuid(sessionId)
+        && newData.sessionId == sessionId
+        && newData.lifecycle.status == 'launch_requested'
+        && newData.outcome.hasStarted == false
+        && validBase(newData, null);
+  }
+
+  function isUpdateValid(newData, oldData) {
+    return request.auth != null
+        && isOwnDocument(oldData)
+        && !isTerminalStatus(oldData.lifecycle.status)
+        && validStatus(newData.lifecycle.status)
+        && validTransition(oldData.lifecycle.status, newData.lifecycle.status)
+        && validBase(newData, oldData)
+        && (newData.lifecycle.status == 'completed'
+            ? newData.outcome.isCompleted == true
+              && newData.outcome.hasStarted == true
+              && newData.outcome.terminalReason == 'objective_completed'
+            : true)
+        && (newData.lifecycle.status in ['abandoned', 'failed']
+            ? newData.outcome.isCompleted == false
+              && newData.outcome.hasStarted == true
+            : true)
+        && (newData.lifecycle.status == 'launch_error'
+            ? newData.outcome.hasStarted == false
+            : true);
+  }
+}
