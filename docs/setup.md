@@ -8,7 +8,7 @@ app Flutter actual.
 - Flutter con Dart compatible con `sdk: ^3.9.2`.
 - Android Studio o Visual Studio Code con plugins Flutter/Dart.
 - Un dispositivo fisico o emulador Android para el camino mas directo.
-- Para iOS: Xcode y configuracion Firebase iOS adicional, porque `ios/Runner/GoogleService-Info.plist` no esta en el repo.
+- Para iOS: Xcode con una cuenta del equipo de desarrollo de Apple para firmar.
 - Firebase CLI y FlutterFire CLI solo si vas a regenerar configuracion Firebase.
 
 Dependencias relevantes:
@@ -75,7 +75,7 @@ Archivos reales:
 | `firebase.json` | Metadata de FlutterFire. |
 | `lib/firebase_options.dart` | Opciones para Android, iOS y Web. |
 | `android/app/google-services.json` | Presente. |
-| `ios/Runner/GoogleService-Info.plist` | Ausente. |
+| `ios/Runner/GoogleService-Info.plist` | Ausente; no se necesita porque iOS usa `firebase_options.dart`. |
 
 Si necesitas regenerar Firebase:
 
@@ -92,12 +92,12 @@ Datos de `android/app/build.gradle.kts`:
 
 | Campo | Valor |
 | --- | --- |
-| `namespace` | `com.example.app_autismo_uabc` |
-| `applicationId` | `com.example.app_autismo_uabc` |
+| `namespace` | `com.appytea.appy` |
+| `applicationId` | `com.appytea.appy` |
 | `minSdk` | `26` |
 | `compileOptions` | Java 11 |
 | `kotlinOptions.jvmTarget` | Java 11 |
-| Release signing | Usa `signingConfigs.getByName("debug")` actualmente. |
+| Release signing | Usa `android/key.properties` si existe; si no, la llave debug. Ver `docs/release.md`. |
 
 Si Android falla por Firebase, primero confirma:
 
@@ -110,17 +110,12 @@ android/app/google-services.json
 `lib/firebase_options.dart` tiene opciones iOS con:
 
 ```text
-iosBundleId: com.example.appAutismoUabc
+iosBundleId: com.appytea.appy
 ```
 
-Pero el repo no contiene:
-
-```text
-ios/Runner/GoogleService-Info.plist
-```
-
-Para correr iOS con Firebase, genera o agrega ese archivo desde FlutterFire CLI
-o Firebase Console y confirma que el bundle id coincida.
+El repo no contiene `ios/Runner/GoogleService-Info.plist` y no lo necesita:
+`main.dart` inicializa Firebase con `DefaultFirebaseOptions.currentPlatform`.
+Si cambia el bundle id, vuelve a correr `flutterfire configure`.
 
 ## Web
 
@@ -188,6 +183,6 @@ flutter test test/puzzle_minigame_test.dart
 
 - Si `flutter run` falla por plataforma no configurada, usa Android o Web antes de desktop.
 - Si Android falla por Firebase, revisa `android/app/google-services.json`.
-- Si iOS falla por Firebase, agrega `ios/Runner/GoogleService-Info.plist`.
+- Si iOS falla por Firebase, confirma que el bundle id de Xcode coincida con `iosBundleId` en `lib/firebase_options.dart`.
 - Si aparece `UnsupportedError` en macOS/Windows/Linux, esa plataforma no tiene Firebase configurado.
 - Si un asset no carga, confirma que el path exista y que este cubierto por `pubspec.yaml`.

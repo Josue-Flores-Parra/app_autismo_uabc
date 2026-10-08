@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:591509844503:android:1a1a80a59ac1629326e252",
+        "android_client_info": {
+          "package_name": "com.appytea.appy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDq9_EcZ9rxiHtRCypdQADCarxm6A9XYYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:591509844503:android:cb109334431d2ca726e252",
         "android_client_info": {
           "package_name": "com.example.app_autismo_uabc"

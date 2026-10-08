@@ -1,4 +1,4 @@
-package com.example.app_autismo_uabc
+package com.appytea.appy
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -17,20 +17,24 @@ Archivos reales relacionados con Firebase:
 
 | Archivo | Estado actual |
 | --- | --- |
-| `firebase.json` | Declara metadata de FlutterFire para Android y las apps Dart de Android/iOS/Web. |
+| `firebase.json` | Declara metadata de FlutterFire para Android y las apps Dart de Android/iOS. |
 | `lib/firebase_options.dart` | Generado por FlutterFire CLI. Contiene opciones para Web, Android e iOS. |
 | `android/app/google-services.json` | Presente en el repo. Se usa por el plugin `com.google.gms.google-services`. |
-| `ios/Runner/GoogleService-Info.plist` | No existe actualmente en el repo. |
+| `ios/Runner/GoogleService-Info.plist` | No existe; iOS se inicializa con `firebase_options.dart`. |
 
 ## Plataformas
 
-`firebase.json` contiene estas referencias:
+`firebase.json` contiene estas referencias, ambas para `com.appytea.appy`:
 
 ```text
-android: 1:591509844503:android:cb109334431d2ca726e252
-ios:     1:591509844503:ios:69798e0e1ee93bf326e252
-web:     1:591509844503:web:739430b021b2b7ae26e252
+android: 1:591509844503:android:1a1a80a59ac1629326e252
+ios:     1:591509844503:ios:77dbd1cefb63451c26e252
 ```
+
+La opcion Web de `lib/firebase_options.dart` sigue usando
+`1:591509844503:web:739430b021b2b7ae26e252`. Las apps `com.example.*` siguen
+registradas en el proyecto solo para que las builds de prueba anteriores
+funcionen durante la transicion.
 
 `lib/firebase_options.dart` soporta:
 
