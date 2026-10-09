@@ -2,9 +2,9 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
+    // Sin el plugin google-services: si Android inicia Firebase desde
+    // google-services.json, Dart ya no puede elegir el proyecto de desarrollo.
+    // `lib/core/app_environment.dart` pasa las opciones de cada entorno.
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")

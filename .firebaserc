@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "appy-dev-uabc",
+    "dev": "appy-dev-uabc",
+    "prod": "app-autismo-25f44"
+  }
+}

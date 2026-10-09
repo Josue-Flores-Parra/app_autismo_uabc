@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appy/l10n/gen/app_localizations.dart';
 
 // Firebase
-import 'package:appy/firebase_options.dart';
+import 'package:appy/core/app_environment.dart';
 
 // Auth
 import 'package:appy/features/authentication/viewmodel/auth_viewmodel.dart';
@@ -53,7 +53,7 @@ void main() async {
   // La app se usa en vertical. Solo el reproductor de video pide horizontal
   // al entrar a pantalla completa y lo devuelve al salir.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(options: currentFirebaseOptions);
 
   // Lee lo descargado para usarlo sin conexión. Si falla, la app sigue con red.
   try {
@@ -211,7 +211,7 @@ class MyApp extends StatelessWidget {
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               builder: (context, child) {
                 final mediaQuery = MediaQuery.of(context);
-                return MediaQuery(
+                final app = MediaQuery(
                   data: mediaQuery.copyWith(
                     disableAnimations:
                         mediaQuery.disableAnimations ||
@@ -222,6 +222,13 @@ class MyApp extends StatelessWidget {
                     ),
                   ),
                   child: child ?? const SizedBox.shrink(),
+                );
+                // La marca evita confundir una build de QA con produccion.
+                if (appEnvironment != AppEnvironment.dev) return app;
+                return Banner(
+                  message: 'DEV',
+                  location: BannerLocation.topEnd,
+                  child: app,
                 );
               },
               home:
