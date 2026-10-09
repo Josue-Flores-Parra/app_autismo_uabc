@@ -47,6 +47,12 @@ post_install do |installer|
 
       # Fixes a common "deployment target" mismatch warning while we are here
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # La app no graba audio. audio_session (via just_audio) compila sin su
+      # codigo de microfono para que App Store no exija
+      # NSMicrophoneUsageDescription (ITMS-90683).
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'AUDIO_SESSION_MICROPHONE=0'
     end
     # ----------------------
 

@@ -9,7 +9,7 @@ identificador productivo `com.appytea.appy`, registrado en el proyecto Firebase
 La version vive en `pubspec.yaml`:
 
 ```yaml
-version: 1.0.0+5
+version: 1.0.0+6
 ```
 
 Formato:
@@ -85,8 +85,14 @@ equipo.
 Build:
 
 ```bash
-flutter build ios --release
+flutter clean
+AUDIO_SESSION_MICROPHONE=0 flutter build ipa --release
 ```
+
+`AUDIO_SESSION_MICROPHONE=0` es obligatorio (ver "Microfono" abajo). Sube
+`build/ios/ipa/*.ipa` con Transporter, o abre `build/ios/archive/Runner.xcarchive`
+en el Organizer de Xcode. No archives directo desde Xcode sin este comando:
+Xcode toma un numero de build viejo y el codigo de microfono vuelve.
 
 Estado actual:
 
@@ -101,8 +107,36 @@ Antes de publicar iOS:
 
 - Usar el registro de App Store Connect de `com.appytea.appy`; el registro
   anterior con `com.example.appAutismoUabc` no puede cambiar de bundle id.
+- Verificar el microfono en el `.ipa` antes de subirlo (ver abajo).
+- Cada subida necesita un numero de build mayor, aunque la anterior haya sido
+  rechazada al procesarse.
 - Configurar certificados y provisioning profiles en Xcode.
 - Probar inicializacion Firebase en dispositivo/simulador.
+
+### Microfono
+
+La app no graba audio, pero `audio_session` (dependencia de `just_audio`)
+incluye llamadas al microfono. Si quedan en el binario, App Store rechaza la
+build por falta de `NSMicrophoneUsageDescription` (ITMS-90683). El plugin las
+quita al compilar con `AUDIO_SESSION_MICROPHONE=0`:
+
+- Swift Package Manager (lo que usa Flutter por omision): la variable de entorno
+  en el comando de build. Correr `flutter clean` cuando cambia su valor.
+- CocoaPods: `ios/Podfile` ya define la bandera en `post_install`.
+
+Comprobacion del `.ipa` en macOS; no debe imprimir ninguna linea `MIC API`:
+
+```bash
+rm -rf /tmp/ipa-check && mkdir /tmp/ipa-check
+unzip -q build/ios/ipa/*.ipa -d /tmp/ipa-check
+APP=/tmp/ipa-check/Payload/Runner.app
+for bin in "$APP/Runner" "$APP"/Frameworks/*.framework/*(.); do
+  strings -a "$bin" 2>/dev/null | grep -qxE 'recordPermission|requestRecordPermission:' && echo "MIC API: $bin"
+done
+```
+
+Si algun dia la app usa el microfono, quitar la bandera de ambos lugares y
+agregar `NSMicrophoneUsageDescription` a `ios/Runner/Info.plist`.
 
 ## Web
 
