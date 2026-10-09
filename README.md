@@ -153,13 +153,12 @@ equipo en Signing & Capabilities del target Runner.
 ```bash
 flutter pub get
 cd ios && pod install && cd ..
-flutter clean
-AUDIO_SESSION_MICROPHONE=0 flutter build ipa --release
+flutter build ipa --release
 ```
 
-`AUDIO_SESSION_MICROPHONE=0` es obligatorio: sin él, App Store rechaza la build
-por código de micrófono que la app no usa. El motivo y cómo verificar el `.ipa`
-están en [docs/release.md](./docs/release.md).
+`Info.plist` incluye `NSMicrophoneUsageDescription` aunque la app no use el
+micrófono: App Store la exige por código de una dependencia de audio. El motivo
+y cómo verificar el `.ipa` están en [docs/release.md](./docs/release.md).
 
 Si los Pods quedan en mal estado, `./clear-ios-build.sh` limpia la build y los
 reinstala.

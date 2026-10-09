@@ -28,7 +28,7 @@ Ejemplos:
 ```bash
 # Build release para testers que debe escribir en desarrollo
 flutter build appbundle --release --dart-define=APP_ENV=dev
-AUDIO_SESSION_MICROPHONE=0 flutter build ipa --release --dart-define=APP_ENV=dev
+flutter build ipa --release --dart-define=APP_ENV=dev
 
 # Probar localmente contra produccion (solo lectura, con cuidado)
 flutter run --dart-define=APP_ENV=prod

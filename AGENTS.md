@@ -16,7 +16,7 @@ Use Flutter with Dart compatible with `sdk: ^3.9.2`. Run commands from the repos
 - `flutter devices` and `flutter run -d <device-id>`: select a device and run locally against the development project.
 - `flutter run -d chrome`: run the web app.
 - `flutter build appbundle --release`: build the Android release bundle for Play (production project).
-- `AUDIO_SESSION_MICROPHONE=0 flutter build ipa --release`: build the iOS release on macOS (production project). The variable is required: without it `audio_session` keeps microphone code and App Store rejects the build (ITMS-90683). Run `flutter clean` first when its value changes; see `docs/release.md`.
+- `flutter build ipa --release`: build the iOS release on macOS (production project). Keep `NSMicrophoneUsageDescription` in `ios/Runner/Info.plist`: `audio_session` contains microphone code and App Store rejects builds without it (ITMS-90683); see `docs/release.md`.
 - Add `--dart-define=APP_ENV=dev` to a release build for QA testers, or `--dart-define=APP_ENV=prod` to point a debug build at production.
 - `dart format .` and `flutter analyze`: format Dart and check configured lints.
 - `flutter test`: run the Flutter test suite.
