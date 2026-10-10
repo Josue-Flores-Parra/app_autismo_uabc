@@ -58,7 +58,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.';
+      'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares, progresos y métricas de uso. Escribe BORRAR para continuar.';
 
   @override
   String get deleteAccountConfirmAction => 'BORRAR';
@@ -410,7 +410,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String profileDeleteBody(String name) {
-    return 'Se eliminará el perfil de $name, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.';
+    return 'Se eliminará el perfil de $name, incluyendo su avatar, ajustes, progreso y métricas de uso. Esta acción no se puede deshacer.';
   }
 
   @override

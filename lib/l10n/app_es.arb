@@ -15,7 +15,7 @@
   "logout": "Cerrar sesión",
   "deleteAccount": "Eliminar cuenta",
   "deleteAccountConfirmTitle": "¿Eliminar cuenta?",
-  "deleteAccountConfirmBody": "Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.",
+  "deleteAccountConfirmBody": "Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares, progresos y métricas de uso. Escribe BORRAR para continuar.",
   "deleteAccountConfirmAction": "BORRAR",
   "languageSection": "Idioma",
   "languageSpanish": "Español",
@@ -158,7 +158,7 @@
       "name": { "type": "String" }
     }
   },
-  "profileDeleteBody": "Se eliminará el perfil de {name}, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.",
+  "profileDeleteBody": "Se eliminará el perfil de {name}, incluyendo su avatar, ajustes, progreso y métricas de uso. Esta acción no se puede deshacer.",
   "@profileDeleteBody": {
     "placeholders": {
       "name": { "type": "String" }

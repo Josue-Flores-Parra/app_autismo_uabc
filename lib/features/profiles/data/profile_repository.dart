@@ -162,23 +162,64 @@ class ProfileRepository {
     ).set({'parentSettings': settings}, SetOptions(merge: true));
   }
 
-  Future<void> clearLearnerProgress(String learnerUid) async {
-    final modules = await _user(learnerUid).collection('progress').get();
-    for (final module in modules.docs) {
-      final levels = await module.reference.collection('levels').get();
+  /// Borra el progreso de niveles del perfil [learnerUid].
+  ///
+  /// Con [includeReceipts] también borra los recibos de finalización. Solo se
+  /// usa al eliminar el perfil o la cuenta: al reiniciar el progreso los
+  /// recibos se conservan para que un evento pendiente no vuelva a otorgar
+  /// recompensas ya entregadas.
+  Future<void> clearLearnerProgress(
+    String learnerUid, {
+    bool includeReceipts = false,
+  }) async {
+    final progress = _user(learnerUid).collection('progress');
+    // Los niveles se escriben sin crear su documento progress/{moduleId}, así
+    // que listar `progress` omite esos módulos y sus niveles quedaban
+    // huérfanos. Los recibos viven en un módulo reservado que tampoco está en
+    // el catálogo.
+    final moduleIds = await _progressModuleIds(learnerUid);
+    if (includeReceipts) moduleIds.add(_completionReceiptsModule);
+    for (final moduleId in moduleIds) {
+      final levels = await progress.doc(moduleId).collection('levels').get();
       await _deleteRefs(levels.docs.map((doc) => doc.reference).toList());
     }
-    await _deleteRefs(modules.docs.map((doc) => doc.reference).toList());
+    final parents = await progress.get();
+    await _deleteRefs(parents.docs.map((doc) => doc.reference).toList());
+  }
+
+  /// Módulo reservado de `CompletionSyncService` para los recibos.
+  static const _completionReceiptsModule = '_completion_receipts';
+
+  /// IDs de módulo que pueden tener niveles bajo `users/{uid}/progress`.
+  ///
+  /// Une el catálogo `modules` con los documentos intermedios que sí existan,
+  /// porque las escrituras de nivel nunca crean `progress/{moduleId}` y una
+  /// consulta a `progress` no devuelve documentos inexistentes.
+  Future<Set<String>> _progressModuleIds(String uid) async {
+    final moduleIds = <String>{};
+    try {
+      final catalog = await _db.collection('modules').get();
+      for (final module in catalog.docs) {
+        moduleIds.add(module.id);
+      }
+    } catch (_) {
+      // Catálogo sin conexión o denegado: usa los padres que existan.
+    }
+    final existingParents = await _user(uid).collection('progress').get();
+    for (final module in existingParents.docs) {
+      moduleIds.add(module.id);
+    }
+    return moduleIds;
   }
 
   /// Elimina para siempre un perfil infantil: su progreso de niveles, su
   /// enlace bajo el parent y su documento `users/{learnerId}` (avatar,
-  /// nombre y ajustes incluidos). El historial de telemetría se conserva a
-  /// propósito. El orden importa: las reglas de progreso y del documento
+  /// nombre y ajustes incluidos). Su telemetría la borra antes
+  /// `ProfileViewModel.deleteLearner`. El orden importa: las reglas de progreso y del documento
   /// resuelven propiedad vía `users/{learnerId}.parentUid`, así que el
   /// progreso va primero y el documento al final.
   Future<void> deleteLearner(String parentUid, String learnerId) async {
-    await clearLearnerProgress(learnerId);
+    await clearLearnerProgress(learnerId, includeReceipts: true);
     await _learners(parentUid).doc(learnerId).delete();
     await _user(learnerId).delete();
   }
@@ -292,23 +333,7 @@ class ProfileRepository {
   }
 
   Future<void> _copyLegacyProgress(String sourceUid, String learnerUid) async {
-    // Las escrituras de nivel nunca crean su documento intermedio
-    // progress/{moduleId}, así que listar esa colección puede omitir módulos
-    // por completo. Lee los niveles de cada módulo del catálogo directo,
-    // más los documentos intermedios que sí existan.
-    final moduleIds = <String>{};
-    try {
-      final catalog = await _db.collection('modules').get();
-      for (final module in catalog.docs) {
-        moduleIds.add(module.id);
-      }
-    } catch (_) {
-      // Catálogo sin conexión o denegado: usa los padres que existan.
-    }
-    final existingParents = await _user(sourceUid).collection('progress').get();
-    for (final module in existingParents.docs) {
-      moduleIds.add(module.id);
-    }
+    final moduleIds = await _progressModuleIds(sourceUid);
     for (final moduleId in moduleIds) {
       final levels = await _user(
         sourceUid,
@@ -343,7 +368,7 @@ class ProfileRepository {
       ...profiles.docs.map((doc) => doc.id),
     };
     for (final learnerId in learnerIds) {
-      await clearLearnerProgress(learnerId);
+      await clearLearnerProgress(learnerId, includeReceipts: true);
     }
     final childRefs = learnerIds
         .where((id) => id != parentUid)

@@ -58,7 +58,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Your account and linked child profiles, including their avatars and progress, will be removed. Anonymous metrics already sent cannot be deleted. Type DELETE to continue.';
+      'Your account and linked child profiles, including their avatars, progress and usage metrics, will be removed. Type DELETE to continue.';
 
   @override
   String get deleteAccountConfirmAction => 'DELETE';
@@ -410,7 +410,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String profileDeleteBody(String name) {
-    return 'This will permanently delete $name’s profile, including avatar, settings and progress. This cannot be undone.';
+    return 'This will permanently delete $name’s profile, including avatar, settings, progress and usage metrics. This cannot be undone.';
   }
 
   @override

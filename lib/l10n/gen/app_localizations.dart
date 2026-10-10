@@ -197,7 +197,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountConfirmBody.
   ///
   /// In es, this message translates to:
-  /// **'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.'**
+  /// **'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares, progresos y métricas de uso. Escribe BORRAR para continuar.'**
   String get deleteAccountConfirmBody;
 
   /// No description provided for @deleteAccountConfirmAction.
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileDeleteBody.
   ///
   /// In es, this message translates to:
-  /// **'Se eliminará el perfil de {name}, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.'**
+  /// **'Se eliminará el perfil de {name}, incluyendo su avatar, ajustes, progreso y métricas de uso. Esta acción no se puede deshacer.'**
   String profileDeleteBody(String name);
 
   /// No description provided for @profileDeleteConfirm.

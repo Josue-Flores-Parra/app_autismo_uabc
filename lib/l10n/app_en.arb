@@ -15,7 +15,7 @@
   "logout": "Sign out",
   "deleteAccount": "Delete account",
   "deleteAccountConfirmTitle": "Delete account?",
-  "deleteAccountConfirmBody": "Your account and linked child profiles, including their avatars and progress, will be removed. Anonymous metrics already sent cannot be deleted. Type DELETE to continue.",
+  "deleteAccountConfirmBody": "Your account and linked child profiles, including their avatars, progress and usage metrics, will be removed. Type DELETE to continue.",
   "deleteAccountConfirmAction": "DELETE",
   "languageSection": "Language",
   "languageSpanish": "Spanish",
@@ -158,7 +158,7 @@
       "name": { "type": "String" }
     }
   },
-  "profileDeleteBody": "This will permanently delete {name}’s profile, including avatar, settings and progress. This cannot be undone.",
+  "profileDeleteBody": "This will permanently delete {name}’s profile, including avatar, settings, progress and usage metrics. This cannot be undone.",
   "@profileDeleteBody": {
     "placeholders": {
       "name": { "type": "String" }
