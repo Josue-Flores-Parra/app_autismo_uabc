@@ -153,7 +153,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get telemetryConsentBody =>
-      'To improve the experience, Appy can send anonymous metrics about activity usage. No personal data is sent and you can review it anytime in Settings.';
+      'To generate indicators of educational performance, Appy can collect pseudonymized metrics about activity usage. This data is associated with an account identifier and does not include names or email addresses.\nThis collection is optional. You can decline without losing access to activities and change your choice at any time in Settings.';
 
   @override
   String get telemetryConsentAccept => 'Accept';

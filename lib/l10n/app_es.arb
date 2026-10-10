@@ -50,7 +50,7 @@
   "clearCache": "Limpiar caché de recursos",
   "sendMetrics": "Enviar métricas anónimas",
   "telemetryConsentTitle": "Ayúdanos a mejorar",
-  "telemetryConsentBody": "Para mejorar la experiencia, Appy puede enviar métricas anónimas sobre el uso de las actividades. No se envían datos personales y puedes revisarlo cuando quieras en Ajustes.",
+  "telemetryConsentBody": "Para generar indicadores del desempeño educativo, Appy puede recopilar metricas seudonimizadas sobre el uso de actividades. Estos datos se asocian a un identificador de cuenta y no incluyen nombres ni correos electronicos.\nEsta recopilación es opcional. Puedes rechazarla sin perder acceso a las actividades y cambiar tu eleccion en cualquier momento desde las configuraciones",
   "telemetryConsentAccept": "Aceptar",
   "telemetryConsentDecline": "No, gracias",
   "parentalSection": "Control parental",

@@ -377,7 +377,7 @@ abstract class AppLocalizations {
   /// No description provided for @telemetryConsentBody.
   ///
   /// In es, this message translates to:
-  /// **'Para mejorar la experiencia, Appy puede enviar métricas anónimas sobre el uso de las actividades. No se envían datos personales y puedes revisarlo cuando quieras en Ajustes.'**
+  /// **'Para generar indicadores del desempeño educativo, Appy puede recopilar metricas seudonimizadas sobre el uso de actividades. Estos datos se asocian a un identificador de cuenta y no incluyen nombres ni correos electronicos.\nEsta recopilación es opcional. Puedes rechazarla sin perder acceso a las actividades y cambiar tu eleccion en cualquier momento desde las configuraciones'**
   String get telemetryConsentBody;
 
   /// No description provided for @telemetryConsentAccept.
