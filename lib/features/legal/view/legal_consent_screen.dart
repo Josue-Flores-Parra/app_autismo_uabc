@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../l10n/gen/app_localizations.dart';
 import '../../../shared/services/haptics_service.dart';
 import '../../authentication/viewmodel/auth_viewmodel.dart';
 import '../../settings/viewmodel/settings_viewmodel.dart';
@@ -63,10 +64,8 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
     setState(() => _isSaving = false);
     if (!saved) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo registrar tu aceptación. Revisa tu conexión e inténtalo de nuevo.',
-          ),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).legalConsentSaveFailed),
         ),
       );
     }
@@ -74,25 +73,24 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
 
   Future<void> _decline() async {
     HapticsService.selection();
+    final l10n = AppLocalizations.of(context);
     final salir = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: LegalPalette.paper,
         surfaceTintColor: LegalPalette.paper,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
-          'Continuar sin aceptar',
-          style: TextStyle(
+        title: Text(
+          l10n.legalConsentDeclineTitle,
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,
             color: LegalPalette.ink,
           ),
         ),
-        content: const Text(
-          'Para usar Appy es necesario aceptar los Términos y Condiciones y el '
-          'Aviso de Privacidad. Si prefieres no hacerlo ahora, cerraremos tu '
-          'sesión y podrás volver cuando quieras.',
-          style: TextStyle(
+        content: Text(
+          l10n.legalConsentDeclineBody,
+          style: const TextStyle(
             fontSize: 14.5,
             height: 1.55,
             color: LegalPalette.inkSoft,
@@ -102,14 +100,14 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             style: TextButton.styleFrom(foregroundColor: LegalPalette.inkSoft),
-            child: const Text('Seguir leyendo'),
+            child: Text(l10n.legalConsentKeepReading),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFB3261E),
             ),
-            child: const Text('Cerrar sesión'),
+            child: Text(l10n.logout),
           ),
         ],
       ),
@@ -125,6 +123,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
     final locale = context.watch<SettingsViewModel>().locale.languageCode;
     final terms = termsOfUse(locale);
     final privacy = privacyNotice(locale);
+    final l10n = AppLocalizations.of(context);
 
     return PopScope(
       // No se puede esquivar con el botón atrás: o se acepta, o se cierra sesión.
@@ -138,7 +137,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                   children: [
-                    _buildHeader(),
+                    _buildHeader(l10n),
                     const SizedBox(height: 28),
                     const Divider(
                       height: 1,
@@ -148,6 +147,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                     _buildDocumentRow(
                       title: terms.shortTitle,
                       read: _termsRead,
+                      l10n: l10n,
                       onTap: () => _openDocument(terms, true),
                     ),
                     const Divider(
@@ -158,6 +158,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                     _buildDocumentRow(
                       title: privacy.shortTitle,
                       read: _privacyRead,
+                      l10n: l10n,
                       onTap: () => _openDocument(privacy, false),
                     ),
                     const Divider(
@@ -166,13 +167,13 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                       color: LegalPalette.rule,
                     ),
                     const SizedBox(height: 24),
-                    _buildConsentNote(),
+                    _buildConsentNote(l10n),
                     const SizedBox(height: 20),
-                    _buildCheckbox(),
+                    _buildCheckbox(l10n),
                   ],
                 ),
               ),
-              _buildActions(),
+              _buildActions(l10n),
             ],
           ),
         ),
@@ -180,7 +181,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations l10n) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -196,24 +197,23 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Antes de continuar',
-                style: TextStyle(
+                l10n.legalConsentTitle,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: LegalPalette.ink,
                   height: 1.25,
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                'Lee y acepta los documentos que rigen el uso de Appy y el '
-                'tratamiento de los datos personales.',
-                style: TextStyle(
+                l10n.legalConsentSubtitle,
+                style: const TextStyle(
                   fontSize: 14.5,
                   height: 1.5,
                   color: LegalPalette.inkSoft,
@@ -229,6 +229,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
   Widget _buildDocumentRow({
     required String title,
     required bool read,
+    required AppLocalizations l10n,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -251,7 +252,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    read ? 'Leído' : 'Sin leer',
+                    read ? l10n.legalConsentRead : l10n.legalConsentUnread,
                     style: TextStyle(
                       fontSize: 13,
                       color: read ? LegalPalette.brand : LegalPalette.inkSoft,
@@ -274,15 +275,11 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
     );
   }
 
-  Widget _buildConsentNote() {
-    return const Text(
-      'Appy está dirigida al apoyo de personas con Trastorno del Espectro '
-      'Autista. Por ello, el uso de la aplicación puede relacionarse con '
-      'información sobre la salud de la persona menor de edad, considerada dato '
-      'personal sensible. La legislación exige que el consentimiento se otorgue '
-      'de forma expresa.',
+  Widget _buildConsentNote(AppLocalizations l10n) {
+    return Text(
+      l10n.legalConsentSensitiveNote,
       textAlign: TextAlign.justify,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 13.5,
         height: 1.6,
         color: LegalPalette.inkSoft,
@@ -290,7 +287,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
     );
   }
 
-  Widget _buildCheckbox() {
+  Widget _buildCheckbox(AppLocalizations l10n) {
     return InkWell(
       onTap: _bothRead
           ? () {
@@ -322,9 +319,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                'He leído y acepto los Términos y Condiciones y el Aviso de '
-                'Privacidad, y manifiesto que soy mayor de edad y que soy madre, '
-                'padre o tutor legal de quien usará la aplicación.',
+                l10n.legalConsentCheckbox,
                 textAlign: TextAlign.justify,
                 style: TextStyle(
                   fontSize: 13.5,
@@ -339,7 +334,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
     );
   }
 
-  Widget _buildActions() {
+  Widget _buildActions(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
       decoration: const BoxDecoration(
@@ -350,11 +345,14 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (!_bothRead)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: Text(
-                'Abre y lee ambos documentos para poder aceptar.',
-                style: TextStyle(fontSize: 13, color: LegalPalette.inkSoft),
+                l10n.legalConsentReadBothHint,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: LegalPalette.inkSoft,
+                ),
               ),
             ),
           Row(
@@ -366,9 +364,9 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                     foregroundColor: LegalPalette.inkSoft,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text(
-                    'No acepto',
-                    style: TextStyle(fontSize: 15),
+                  child: Text(
+                    l10n.legalConsentDecline,
+                    style: const TextStyle(fontSize: 15),
                   ),
                 ),
               ),
@@ -396,9 +394,9 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Acepto',
-                          style: TextStyle(
+                      : Text(
+                          l10n.legalConsentAccept,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),

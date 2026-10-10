@@ -443,4 +443,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completionRewardsLoading => 'Loading rewards';
+
+  @override
+  String get legalConsentTitle => 'Before you continue';
+
+  @override
+  String get legalConsentSubtitle =>
+      'Read and accept the documents that govern the use of Appy and the processing of personal data.';
+
+  @override
+  String get legalConsentRead => 'Read';
+
+  @override
+  String get legalConsentUnread => 'Not read';
+
+  @override
+  String get legalConsentSensitiveNote =>
+      'Appy is designed to support people with Autism Spectrum Disorder. Because of this, using the app may relate to information about the child\'s health, which is sensitive personal data. The law requires consent to be given expressly.';
+
+  @override
+  String get legalConsentCheckbox =>
+      'I have read and accept the Terms and Conditions and the Privacy Notice, and I declare that I am of legal age and the parent or legal guardian of the person who will use the app.';
+
+  @override
+  String get legalConsentReadBothHint =>
+      'Open and read both documents to be able to accept.';
+
+  @override
+  String get legalConsentDecline => 'I don\'t accept';
+
+  @override
+  String get legalConsentAccept => 'I accept';
+
+  @override
+  String get legalConsentSaveFailed =>
+      'Your acceptance could not be saved. Check your connection and try again.';
+
+  @override
+  String get legalConsentDeclineTitle => 'Continue without accepting';
+
+  @override
+  String get legalConsentDeclineBody =>
+      'To use Appy you need to accept the Terms and Conditions and the Privacy Notice. If you\'d rather not do it now, we\'ll sign you out and you can come back whenever you like.';
+
+  @override
+  String get legalConsentKeepReading => 'Keep reading';
+
+  @override
+  String get verifyEmailTitle => 'Confirm your email';
+
+  @override
+  String verifyEmailBody(String email) {
+    return 'We sent a link to $email. Open it to confirm that you are the adult responsible for the account. This step is required before a child uses Appy.';
+  }
+
+  @override
+  String get verifyEmailSpamHint =>
+      'If you don\'t see it, check your spam folder.';
+
+  @override
+  String get verifyEmailConfirmed => 'I\'ve confirmed it';
+
+  @override
+  String get verifyEmailResend => 'Resend email';
+
+  @override
+  String verifyEmailResendIn(int seconds) {
+    return 'Resend in $seconds s';
+  }
+
+  @override
+  String get verifyEmailSent => 'We sent you a new link.';
+
+  @override
+  String get verifyEmailSendFailed =>
+      'The email could not be sent. Check your connection and try again.';
+
+  @override
+  String get verifyEmailNotYet =>
+      'Your email isn\'t confirmed yet. Open the link and try again.';
 }
