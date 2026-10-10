@@ -184,6 +184,39 @@ class TelemetryRepository {
     await updateIfNotTerminal(launch.sessionId, terminalPatch);
   }
 
+  /// Borra las sesiones del actor; con [learnerId], solo las de ese perfil.
+  ///
+  /// Se usa al eliminar la cuenta o un perfil infantil. Las reglas solo
+  /// autorizan listados filtrados por `subject.actorId` igual al UID
+  /// autenticado, así que el filtro por actor es obligatorio aun cuando se
+  /// borra un solo perfil. Repite la consulta hasta vaciar el resultado porque
+  /// cada lote elimina los documentos que la siguiente página devolvería.
+  Future<void> deleteForActor(String actorId, {String? learnerId}) async {
+    Query<Map<String, dynamic>> query = _sessions.where(
+      'subject.actorId',
+      isEqualTo: actorId,
+    );
+    if (learnerId != null) {
+      query = query.where('subject.learnerId', isEqualTo: learnerId);
+    }
+    try {
+      while (true) {
+        final page = await query
+            .limit(400)
+            .get()
+            .timeout(const Duration(seconds: 10));
+        if (page.docs.isEmpty) return;
+        final batch = _firestore.batch();
+        for (final doc in page.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit().timeout(const Duration(seconds: 10));
+      }
+    } catch (e) {
+      throw _classify(e, 'deleteForActor', null);
+    }
+  }
+
   /// Lectura puntual para reconciliación.
   Future<ActivityTelemetrySession?> read(String sessionId) async {
     try {

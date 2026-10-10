@@ -628,6 +628,59 @@ class ActivityTelemetryService extends WidgetsBindingObserver {
     }
   }
 
+  // ── Borrado de historial ───────────────────────────────────────────────────
+
+  /// Borra la telemetría local y remota de toda la cuenta [actorId].
+  ///
+  /// Se llama al eliminar la cuenta, con la sesión todavía autenticada. Deja el
+  /// consentimiento inactivo para que ninguna señal posterior escriba de nuevo;
+  /// Settings lo vuelve a evaluar con la siguiente cuenta.
+  Future<void> purgeForAccount(String actorId) async {
+    _consentEnabled = false;
+    await _discardLocal(actorId, (_) => true);
+    await _pendingStore.discardTerminals(actorId);
+    await _pendingStore.clear(actorId);
+    await _retryTask;
+    await _repository.deleteForActor(actorId);
+  }
+
+  /// Borra la telemetría local y remota del perfil [learnerId] de [actorId].
+  ///
+  /// La telemetría de los demás perfiles de la cuenta sigue activa.
+  Future<void> purgeForLearner(String actorId, String learnerId) async {
+    await _discardLocal(
+      actorId,
+      (session) => session.subject.learnerId == learnerId,
+    );
+    await _pendingStore.discardTerminalsForLearner(actorId, learnerId);
+    // Un reintento en curso pudo tomar un cierre antes del descarte; esperarlo
+    // garantiza que su escritura ocurra antes del borrado remoto y no después.
+    await _retryTask;
+    await _repository.deleteForActor(actorId, learnerId: learnerId);
+  }
+
+  /// Retira de memoria las sesiones del actor que cumplen [matches].
+  ///
+  /// Marcarlas como terminales bloquea señales nuevas; después se espera la
+  /// cadena de escrituras en vuelo para que termine antes del borrado remoto.
+  Future<void> _discardLocal(
+    String actorId,
+    bool Function(ActivityTelemetrySession session) matches,
+  ) async {
+    for (final runtime in _sessions.values.toList()) {
+      final session = runtime.session;
+      if (session.subject.actorId != actorId || !matches(session)) continue;
+      runtime.clock.stopSegment();
+      runtime.terminal = true;
+      try {
+        await runtime.chain.timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      await _pendingStore.clearIfMatches(actorId, session.sessionId);
+      _sessions.remove(session.sessionId);
+      if (_activeSessionId == session.sessionId) _activeSessionId = null;
+    }
+  }
+
   /// Reconciliación de arranque de marcador pendiente (proceso muerto).
   Future<void> reconcilePending({required bool consentEnabled}) async {
     final actor = _uidProvider();

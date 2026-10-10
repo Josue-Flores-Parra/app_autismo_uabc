@@ -90,9 +90,13 @@ service cloud.firestore {
         && validSubject(request.resource.data);
       allow update: if isUpdateValid(request.resource.data, resource.data)
         && validSubject(request.resource.data);
-      allow delete: if false; // El cliente no borra histórico.
+      // El dueño borra su histórico al eliminar la cuenta o un perfil infantil;
+      // el aviso de privacidad promete ese borrado.
+      allow delete: if request.auth != null && isOwnDocument(resource.data);
       allow get: if request.auth != null && isOwnDocument(resource.data); // Solo get puntual propio.
-      allow list: if false; // Negar listados amplios al cliente móvil.
+      // Solo listados acotados al propio actor, necesarios para ese borrado.
+      // La consulta debe filtrar por subject.actorId == UID autenticado.
+      allow list: if request.auth != null && isOwnDocument(resource.data);
     }
   }
 

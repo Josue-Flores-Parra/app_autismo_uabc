@@ -125,8 +125,12 @@ class AuthService {
     await _firestoreService.setUserData(user.uid, {
       'deletedAt': DateTime.now().toIso8601String(),
     });
-    // Remove child documents/progress before deleting the parent document;
-    // already-sent telemetry stays as historical analytics.
+    // El aviso de privacidad promete borrar todos los datos de la cuenta, y
+    // las métricas siguen ligadas a los IDs de los perfiles. Se borran mientras
+    // el UID aún puede listar sus propios documentos.
+    await ActivityTelemetryService.instance?.purgeForAccount(user.uid);
+    // Los documentos y el progreso de los perfiles se borran antes que el
+    // documento del padre, que las reglas usan para validar la pertenencia.
     await _profileRepository.deleteFamily(user.uid);
     // El PIN vive en el dispositivo: si no se borra aquí, sobrevive a la
     // cuenta y la siguiente no puede definir uno nuevo.

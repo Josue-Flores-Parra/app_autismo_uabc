@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../shared/services/reminder_service.dart';
 import '../../../shared/services/settings_access_guard.dart';
+import '../../telemetry/service/activity_telemetry_service.dart';
 import '../data/profile_repository.dart';
 import '../model/learner_profile.dart';
 
@@ -256,11 +257,18 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   /// Borra para siempre un perfil infantil y todos sus datos de Firestore
-  /// (progreso, avatar, ajustes). Si era el perfil seleccionado, limpia la
-  /// selección con su preferencia vieja para que el hub nunca apunte a un
-  /// documento que ya no existe.
+  /// (progreso, avatar, ajustes y métricas de uso). Si era el perfil
+  /// seleccionado, limpia la selección con su preferencia vieja para que el
+  /// hub nunca apunte a un documento que ya no existe.
   Future<void> deleteLearner(LearnerProfile learner) async {
     final parentUid = _requireParent();
+    // Las métricas van primero: si el borrado falla a medias, el perfil sigue
+    // visible y el padre puede reintentar, en vez de quedar métricas huérfanas
+    // de un perfil que ya no puede seleccionar.
+    await ActivityTelemetryService.instance?.purgeForLearner(
+      parentUid,
+      learner.id,
+    );
     await _repository.deleteLearner(parentUid, learner.id);
     try {
       await _reminders.cancel(learner.id);

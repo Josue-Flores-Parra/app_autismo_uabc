@@ -5,7 +5,7 @@
 //
 // Covers the §12 matrix: create own/foreign/invalid, immutable fields, terminal
 // immutability, counter no-decrement, declared transitions, sticky interruption,
-// delete denied, read own-only, list denied.
+// delete own-only, read own-only, list only filtered by own actorId.
 
 const { before, after, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -227,10 +227,17 @@ describe('telemetryActivitySessions rules', () => {
   });
 
   describe('delete, read, list', () => {
-    it('rejects delete', async () => {
+    // Account and child-profile deletion remove the owner's telemetry.
+    it('allows deleting own document', async () => {
       const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
       await assertSucceeds(ref(owner(), data.sessionId).set(data));
-      await assertFails(ref(owner(), data.sessionId).delete());
+      await assertSucceeds(ref(owner(), data.sessionId).delete());
+    });
+
+    it('rejects deleting another user document', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertFails(ref(other(), data.sessionId).delete());
     });
 
     it('allows reading own document', async () => {
@@ -245,10 +252,45 @@ describe('telemetryActivitySessions rules', () => {
       await assertFails(ref(other(), data.sessionId).get());
     });
 
-    it('rejects listing the collection', async () => {
+    it('rejects listing the collection without an actor filter', async () => {
       const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
       await assertSucceeds(ref(owner(), data.sessionId).set(data));
       await assertFails(owner().collection('telemetryActivitySessions').get());
+    });
+
+    it('allows listing filtered by own actorId', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertSucceeds(
+        owner().collection('telemetryActivitySessions')
+          .where('subject.actorId', '==', 'uid-1').get(),
+      );
+    });
+
+    it('allows listing filtered by own actorId and learnerId', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertSucceeds(
+        owner().collection('telemetryActivitySessions')
+          .where('subject.actorId', '==', 'uid-1')
+          .where('subject.learnerId', '==', 'uid-1').get(),
+      );
+    });
+
+    it('rejects listing filtered by another actorId', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertFails(
+        other().collection('telemetryActivitySessions')
+          .where('subject.actorId', '==', 'uid-1').get(),
+      );
+    });
+
+    it('rejects listing filtered only by learnerId', async () => {
+      await assertFails(
+        owner().collection('telemetryActivitySessions')
+          .where('subject.learnerId', '==', 'uid-1').get(),
+      );
     });
   });
 
