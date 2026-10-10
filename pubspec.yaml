@@ -2,7 +2,7 @@ name: appy
 description: "Appy - Aplicación educativa para autismo"
 publish_to: "none" # Para paquetes privados
 
-version: 1.0.0+5 # Se necesita para la build de iOS
+version: 1.0.0+6 # Se necesita para la build de iOS
 
 environment:
   sdk: ^3.9.2
@@ -116,10 +116,17 @@ flutter_launcher_icons:
   image_path: "assets/images/app_icon.png"  # Use 2048x2048 or higher for best quality
   adaptive_icon_background: "#FFFFFF"  # Background color for Android adaptive icon
   adaptive_icon_foreground: "assets/images/app_icon.png"
+  # App Store rechaza iconos con canal alfa; se aplana sobre blanco.
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
 
 # Splash screen configuration
 flutter_native_splash:
-  color: "#1A3D52"  # Background color
-  image: "assets/images/splash_icon.png"  # Use high resolution (2048x2048+)
+  # La imagen tiene fondo blanco opaco: el color lo iguala para que no se vea
+  # un recuadro. El paquete toma la imagen como 4x, asi que 800 px quedan en
+  # unos 200 pt y caben en cualquier telefono.
+  color: "#FBFCF8"
+  image: "assets/images/splash_native.png"
   android: true
-  ios: true  # Foreground image for Android
+  ios: true
+  web: false

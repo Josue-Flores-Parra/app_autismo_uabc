@@ -9,7 +9,7 @@ identificador productivo `com.appytea.appy`, registrado en el proyecto Firebase
 La version vive en `pubspec.yaml`:
 
 ```yaml
-version: 1.0.0+5
+version: 1.0.0+6
 ```
 
 Formato:
@@ -85,8 +85,12 @@ equipo.
 Build:
 
 ```bash
-flutter build ios --release
+flutter build ipa --release
 ```
+
+Sube `build/ios/ipa/*.ipa` con Transporter, o abre
+`build/ios/archive/Runner.xcarchive` en el Organizer de Xcode. No archives
+directo desde Xcode sin este comando: Xcode toma un numero de build viejo.
 
 Estado actual:
 
@@ -101,8 +105,34 @@ Antes de publicar iOS:
 
 - Usar el registro de App Store Connect de `com.appytea.appy`; el registro
   anterior con `com.example.appAutismoUabc` no puede cambiar de bundle id.
+- Verificar que el `.ipa` tenga `NSMicrophoneUsageDescription` (ver abajo).
+- Cada subida necesita un numero de build mayor, aunque la anterior haya sido
+  rechazada al procesarse.
 - Configurar certificados y provisioning profiles en Xcode.
 - Probar inicializacion Firebase en dispositivo/simulador.
+
+### Microfono
+
+La app no graba audio, pero `audio_session` (dependencia de `just_audio`)
+incluye llamadas al microfono, y App Store exige `NSMicrophoneUsageDescription`
+si estan en el binario (ITMS-90683), aunque nunca se ejecuten.
+
+`ios/Runner/Info.plist` incluye esa descripcion. La app nunca pide el permiso,
+asi que el usuario no la ve. No quitarla mientras la app dependa de
+`audio_session`.
+
+La bandera `AUDIO_SESSION_MICROPHONE=0` del plugin (en `ios/Podfile` para
+CocoaPods) no basta con Swift Package Manager, que es lo que usa Flutter por
+omision: Xcode guarda en cache la evaluacion de `Package.swift` y no ve la
+variable de entorno. Por eso se usa la descripcion.
+
+Comprobacion del `.ipa` en macOS; debe imprimir la descripcion:
+
+```bash
+rm -rf /tmp/ipa-check && mkdir /tmp/ipa-check
+unzip -q build/ios/ipa/*.ipa -d /tmp/ipa-check
+plutil -p /tmp/ipa-check/Payload/Runner.app/Info.plist | grep NSMicrophoneUsageDescription
+```
 
 ## Web
 

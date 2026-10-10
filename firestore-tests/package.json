@@ -1,0 +1,13 @@
+{
+  "name": "appy-firestore-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Emulator tests for telemetry Firestore rules and KPI aggregate validation. Isolated from the Flutter project.",
+  "scripts": {
+    "test": "node --test tests/rules.test.js && node --test tests/kpi.test.js && node --test tests/terminal-recovery.test.js"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.0",
+    "firebase-admin": "^13.0.0"
+  }
+}
