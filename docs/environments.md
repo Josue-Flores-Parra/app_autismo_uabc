@@ -86,8 +86,9 @@ firebase deploy --only functions --project dev
 
 El primer despliegue pide `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `MAIL_FROM`,
 `LEGAL_BASE_URL` y `CONTACT_EMAIL` y los guarda en `functions/.env.<proyecto>`.
-La contrasenia vive solo en Secret Manager. Para probarla sin esperar al
-horario, ejecuta el job desde Cloud Scheduler en la consola de Google Cloud.
+La contraseña se encuentra en Secret Manager. Para probarla sin esperar al
+horario, ejecuta el job desde Cloud Scheduler en la consola de Google Cloud. 
+Para obtener el archivo env completo, consulta el folder de google drive.
 
 Produccion se despliega solo cuando el equipo lo pide:
 `firebase deploy --only functions --project prod`.
