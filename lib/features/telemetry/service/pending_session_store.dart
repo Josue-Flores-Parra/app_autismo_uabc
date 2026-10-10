@@ -235,7 +235,10 @@ class PendingSessionStore {
   ///
   /// Al borrar un perfil, un cierre guardado podría recrear su documento en el
   /// siguiente reintento; los cierres de otros perfiles se conservan.
-  Future<void> discardTerminalsForLearner(String actor, String learnerId) async {
+  Future<void> discardTerminalsForLearner(
+    String actor,
+    String learnerId,
+  ) async {
     for (final entry in terminals(actor)) {
       if (entry.launch.subject.learnerId == learnerId) {
         await clearTerminal(actor, entry.launch.sessionId);
