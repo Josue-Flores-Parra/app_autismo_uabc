@@ -146,7 +146,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get clearCache => 'Limpiar caché de recursos';
 
   @override
-  String get sendMetrics => 'Enviar métricas anónimas';
+  String get sendMetrics => 'Enviar métricas de uso';
 
   @override
   String get telemetryConsentTitle => 'Ayúdanos a mejorar';

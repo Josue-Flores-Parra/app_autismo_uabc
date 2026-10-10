@@ -48,7 +48,7 @@
   "reminderPermissionDenied": "Turn on Appy notifications in the phone settings to get reminders.",
   "privacySection": "Privacy & data",
   "clearCache": "Clear cached resources",
-  "sendMetrics": "Send anonymous metrics",
+  "sendMetrics": "Send usage metrics",
   "telemetryConsentTitle": "Help us improve",
   "telemetryConsentBody": "To generate indicators of educational performance, Appy can collect pseudonymized metrics about activity usage. This data is associated with an account identifier and does not include names or email addresses.\nThis collection is optional. You can decline without losing access to activities and change your choice at any time in Settings.",
   "telemetryConsentAccept": "Accept",

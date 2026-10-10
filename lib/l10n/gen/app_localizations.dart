@@ -365,7 +365,7 @@ abstract class AppLocalizations {
   /// No description provided for @sendMetrics.
   ///
   /// In es, this message translates to:
-  /// **'Enviar métricas anónimas'**
+  /// **'Enviar métricas de uso'**
   String get sendMetrics;
 
   /// No description provided for @telemetryConsentTitle.

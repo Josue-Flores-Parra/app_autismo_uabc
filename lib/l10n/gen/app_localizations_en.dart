@@ -146,7 +146,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearCache => 'Clear cached resources';
 
   @override
-  String get sendMetrics => 'Send anonymous metrics';
+  String get sendMetrics => 'Send usage metrics';
 
   @override
   String get telemetryConsentTitle => 'Help us improve';
