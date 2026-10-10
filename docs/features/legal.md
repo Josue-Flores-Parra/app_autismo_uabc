@@ -45,8 +45,10 @@ Constantes que el equipo debe revisar antes de cada publicacion:
 | Constante | Uso |
 | --- | --- |
 | `kLegalVersion` | Version vigente. Subirla obliga a aceptar de nuevo a todas las cuentas. |
-| `kLegalLastUpdated` | Fecha visible en el encabezado de ambos documentos. |
-| `kLegalResponsable` | Nombre con el que el equipo se identifica como responsable de los datos. |
+| `kLegalLastUpdated` | Fecha visible en el encabezado de los documentos en espanol. |
+| `kLegalLastUpdatedEn` | La misma fecha para los documentos en ingles. |
+| `kLegalResponsable` | Persona fisica responsable del tratamiento y titular del servicio. |
+| `kLegalDomicilio` | Domicilio del responsable para oir y recibir notificaciones. |
 | `kLegalContactEmail` | Correo unico para asuntos legales y derechos sobre datos personales. |
 | `kLegalJurisdiccion` | Entidad cuya legislacion rige el servicio. |
 | `kLegalPublicBaseUrl` | Direccion publica donde se publican las paginas de `docs/legal/`. Vacia hasta publicarlas. |
@@ -73,7 +75,14 @@ dart run tool/generate_legal_pages.dart
 
 (`tool/legal_pages.dart` arma el HTML). Hay que volver a generarlas cada vez que
 cambie `legal_documents.dart`; `test/legal_pages_test.dart` falla si quedaron
-viejas. Para publicarlas se sube la carpeta `docs/legal/` a un hosting estatico
+viejas. Si alguien edita el HTML publicado directamente, el cambio debe
+llevarse tambien a `legal_documents.dart`: la app muestra el texto de Dart, no
+el de las paginas.
+
+`support.html` es la excepcion: no depende de los textos versionados, se
+mantiene a mano y el generador no la toca; `index.html` la enlaza.
+
+Para publicarlas se sube la carpeta `docs/legal/` a un hosting estatico
 (por ejemplo GitHub Pages) y se anota la direccion `https` en
 `kLegalPublicBaseUrl`. Mientras no se publiquen, el repositorio no hace nada con
 ellas.
@@ -92,14 +101,42 @@ users/{uid}.legal
 | Campo | Tipo | Valor |
 | --- | --- | --- |
 | `version` | `int` | Valor de `kLegalVersion` aceptado. |
-| `acceptedAt` | `String` ISO 8601 | Momento de la aceptacion. |
+| `acceptedAt` | `String` ISO 8601 | Momento de la aceptacion, hora local del dispositivo. |
+| `acceptedAtServer` | `Timestamp` | Hora de servidor de la aceptacion; la usa la funcion de confirmacion. |
+| `consentMethod` | `String` | `email_plus`: correo verificado mas correo de confirmacion. |
+| `confirmationPending` | `bool` | `true` al aceptar; la funcion `sendConsentConfirmations` lo apaga al enviar el correo. |
+| `confirmationSentAt` | `Timestamp` | Escrito solo por la funcion al enviar la confirmacion. |
+| `confirmationVersion` | `int` | Version a la que corresponde el ultimo correo de confirmacion. |
+
+Las reglas impiden que el cliente escriba `confirmationSentAt` o
+`confirmationVersion` y que apague `confirmationPending`; solo puede encenderlo
+al aceptar.
 
 Se guarda por cuenta y no por dispositivo: reinstalar la app o cambiar de
 telefono no vuelve a preguntar, y una cuenta nueva siempre pasa por la
 pantalla.
 
-`FirestoreService` expone `getAcceptedLegalVersion(uid)` y
-`setAcceptedLegalVersion(uid, version)`.
+`FirestoreService` expone `getAcceptedLegalVersion(uid)`,
+`setAcceptedLegalVersion(uid, version)` y `legalAcceptance(version)`, el mapa
+que comparten la pantalla de consentimiento y el registro.
+
+## Consentimiento parental ("email plus")
+
+La app esta dirigida a menores de 13 anios, asi que el consentimiento sigue el
+metodo "email plus" que COPPA acepta cuando los datos solo se usan de forma
+interna (ver `docs/decisions/adr-0002-consentimiento-parental.md`):
+
+1. Al registrarse, Firebase envia un correo de verificacion a la persona adulta.
+   `AuthGate` muestra `VerifyEmailScreen` hasta que el correo esta verificado;
+   antes no se carga ni se crea ningun perfil infantil.
+2. La persona adulta lee y acepta los documentos; se guarda
+   `confirmationPending: true`.
+3. Al menos 24 horas despues, la funcion programada
+   `sendConsentConfirmations` (`functions/`) envia un correo bilingue que
+   confirma el consentimiento y explica como revocarlo, y apaga la marca.
+
+Orden de `AuthGate`: sesion → correo verificado → documentos aceptados →
+perfiles.
 
 ## LegalViewModel
 

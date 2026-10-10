@@ -114,8 +114,13 @@ Operaciones reales:
 }
 ```
 
-4. Ejecuta `user.reload()`.
-5. Retorna `result.user`.
+4. Envia el correo de verificacion (`sendEmailVerification`). Si falla, la
+   cuenta sigue creada y `VerifyEmailScreen` permite reenviarlo.
+5. Ejecuta `user.reload()`.
+6. Retorna `result.user`.
+
+`sendEmailVerification()` reenvia el enlace y `reloadEmailVerified()` recarga la
+cuenta, renueva el token y devuelve si el correo ya esta verificado.
 
 Nota: `AuthViewModel.register` cierra la sesion auto-iniciada por Firebase
 (`logout()`) justo despues para que el usuario inicie sesion manualmente.
@@ -181,10 +186,12 @@ Firebase puede exigir reautenticacion reciente; el codigo actual solo captura
 1. Retorna `false` si no hay usuario actual.
 2. Reautentica al parent con su contraseña y cierra la telemetría activa.
 3. Escribe el marcador transitorio `deletedAt`.
-4. Borra el progreso, documento de datos y referencia de cada learner vinculado,
-   y después el documento de la cuenta parent. No borra telemetría histórica.
-5. Limpia el PIN y preferencias locales de esa cuenta y llama `user.delete()`.
-6. Retorna `true`.
+4. Borra la telemetría de la cuenta (`purgeForAccount`), como promete el aviso
+   de privacidad.
+5. Borra el progreso, documento de datos y referencia de cada learner vinculado,
+   y después el documento de la cuenta parent.
+6. Limpia el PIN y preferencias locales de esa cuenta y llama `user.delete()`.
+7. Retorna `true`.
 
 ## AuthGate
 
@@ -203,7 +210,11 @@ lib/features/authentication/view/auth_gate.dart
 - Usa `Consumer<AuthViewModel>` para escuchar cambios de `currentUser`.
 - `currentUser == null` y bienvenida no vista → `OnboardingScreen` (ver `docs/features/onboarding.md`).
 - `currentUser == null` → `LoginScreen`.
-- `currentUser != null` → `_LegalGate`, que muestra `LegalConsentScreen` o `_ProfileGate`. El gate carga perfiles y siempre muestra el mismo hub (`ProfileSelectorScreen`); solo el modo learner entra a `MainShell`. El hub no tiene variantes: `parentUnlocked` solo decide si Editar/Agregar/Ajustes piden PIN antes de continuar.
+- `currentUser != null` con correo sin verificar → `VerifyEmailScreen`. Es el
+  primer paso del consentimiento parental (ver `docs/features/legal.md`).
+  Permite reenviar el correo cada 60 s, comprobar con "Ya lo confirmé" y cerrar
+  sesion; tambien comprueba sola al volver la app a primer plano.
+- `currentUser != null` con correo verificado → `_LegalGate`, que muestra `LegalConsentScreen` o `_ProfileGate`. El gate carga perfiles y siempre muestra el mismo hub (`ProfileSelectorScreen`); solo el modo learner entra a `MainShell`. El hub no tiene variantes: `parentUnlocked` solo decide si Editar/Agregar/Ajustes piden PIN antes de continuar.
 
 Como `AuthViewModel` notifica en cada mutacion de `_currentUser` (login, logout,
 deleteAccount, registro), el gate hace el swap automatico y **elimina la
@@ -371,7 +382,8 @@ Si el usuario toca "Olvide el PIN":
 `AuthService.deleteAccount(password)` reautentica antes de borrar porque
 Firebase exige sesión reciente. Después borra avatares, progreso y perfiles de
 los learners vinculados, limpia el PIN y preferencias locales parent, y elimina
-la cuenta Auth. Las sesiones de telemetría histórica no se borran.
+la cuenta Auth. También borra las sesiones de telemetría de la cuenta; borrar
+un perfil infantil borra solo las de ese perfil.
 
 ## Reglas de mantenimiento
 

@@ -72,6 +72,26 @@ firebase deploy --only firestore:rules,firestore:indexes --project prod
 
 Corre las pruebas de `firestore-tests/` antes de desplegar a produccion.
 
+## Cloud Functions
+
+`functions/` contiene `sendConsentConfirmations`, que envia el correo de
+confirmacion del consentimiento parental cada 6 horas. Requiere el plan Blaze
+en el proyecto y un proveedor SMTP.
+
+```bash
+cd functions && npm ci && npm test && cd ..
+firebase functions:secrets:set SMTP_PASSWORD --project dev
+firebase deploy --only functions --project dev
+```
+
+El primer despliegue pide `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `MAIL_FROM`,
+`LEGAL_BASE_URL` y `CONTACT_EMAIL` y los guarda en `functions/.env.<proyecto>`.
+La contrasenia vive solo en Secret Manager. Para probarla sin esperar al
+horario, ejecuta el job desde Cloud Scheduler en la consola de Google Cloud.
+
+Produccion se despliega solo cuando el equipo lo pide:
+`firebase deploy --only functions --project prod`.
+
 ## Copiar contenido a desarrollo
 
 `tools/firestore-content/copy-content.js` copia `modules` y sus `levels` de
