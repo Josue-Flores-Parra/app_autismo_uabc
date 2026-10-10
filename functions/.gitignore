@@ -1,2 +1,5 @@
 node_modules/
+# Parametros y secretos locales para el emulador; nunca se suben.
+.env.local
 .env.*.local
+.secret.local
