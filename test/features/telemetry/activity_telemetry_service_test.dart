@@ -98,6 +98,18 @@ class _FakeRepository extends TelemetryRepository {
     if (data == null) return null;
     return ActivityTelemetrySession.fromMap(data, sessionId: sessionId);
   }
+
+  final List<(String, String?)> deleteCalls = [];
+
+  @override
+  Future<void> deleteForActor(String actorId, {String? learnerId}) async {
+    deleteCalls.add((actorId, learnerId));
+    docs.removeWhere((_, doc) {
+      final subject = doc['subject'] as Map;
+      return subject['actorId'] == actorId &&
+          (learnerId == null || subject['learnerId'] == learnerId);
+    });
+  }
 }
 
 const _client = TelemetryClient(
@@ -349,6 +361,96 @@ void main() {
       expect(doc['lifecycle']['status'], 'abandoned');
       expect(doc['outcome']['terminalReason'], 'telemetry_opt_out');
       expect(service.activeSessionCount, 0);
+    });
+  });
+
+  group('purge', () {
+    ActivitySessionHandle? launchFor(String learnerId) {
+      return service.requestLaunch(
+        moduleId: 'm1',
+        levelId: 'l1',
+        activityType: TelemetryActivityType.simpleSelection,
+        client: _client,
+        learnerId: learnerId,
+      );
+    }
+
+    Future<void> flush() async {
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    test('purgeForAccount deletes every session of the actor', () async {
+      final first = launchFor('learner-a')!;
+      first.onActivityReady();
+      first.onComplete();
+      await flush();
+      final active = launchFor('learner-b')!;
+      active.onActivityReady();
+      await flush();
+      repo.docs['foreign'] = {
+        'subject': {'actorId': 'uid-2', 'learnerId': 'uid-2'},
+      };
+
+      await service.purgeForAccount('uid-1');
+
+      expect(repo.deleteCalls, [('uid-1', null)]);
+      expect(repo.docs.keys, ['foreign']);
+      expect(service.activeSessionCount, 0);
+      expect(store.read('uid-1'), isNull);
+      expect(store.terminals('uid-1'), isEmpty);
+    });
+
+    test('purgeForAccount blocks writes from later signals', () async {
+      final handle = launchFor('learner-a')!;
+      handle.onActivityReady();
+      await flush();
+
+      await service.purgeForAccount('uid-1');
+      handle.onComplete();
+      await flush();
+
+      expect(repo.docs, isEmpty);
+      expect(launchFor('learner-a'), isNull);
+    });
+
+    test('purgeForLearner keeps other profiles and consent', () async {
+      final a = launchFor('learner-a')!;
+      a.onActivityReady();
+      a.onComplete();
+      await flush();
+      final b = launchFor('learner-b')!;
+      b.onActivityReady();
+      b.onComplete();
+      await flush();
+
+      await service.purgeForLearner('uid-1', 'learner-a');
+
+      expect(repo.deleteCalls, [('uid-1', 'learner-a')]);
+      expect(repo.docs.keys, [b.sessionId]);
+      expect(launchFor('learner-b'), isNotNull);
+    });
+
+    test('purgeForLearner discards stored closes so retries do not '
+        'recreate documents', () async {
+      repo.failWrites = true;
+      final a = launchFor('learner-a')!;
+      a.onActivityReady();
+      a.onAbandon(TerminalReason.userExit);
+      final b = launchFor('learner-b')!;
+      b.onActivityReady();
+      b.onAbandon(TerminalReason.userExit);
+      await flush();
+      expect(store.terminals('uid-1'), hasLength(2));
+
+      await service.purgeForLearner('uid-1', 'learner-a');
+      repo.failWrites = false;
+      await service.retryPendingTerminals();
+
+      expect(repo.docs.containsKey(a.sessionId), isFalse);
+      expect(repo.docs.containsKey(b.sessionId), isTrue);
+      expect(store.terminals('uid-1'), isEmpty);
     });
   });
 }

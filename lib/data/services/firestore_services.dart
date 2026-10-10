@@ -90,13 +90,22 @@ class FirestoreService {
   respalda el consentimiento expreso del padre o tutor.
   */
   Future<void> setAcceptedLegalVersion(String uid, int version) async {
-    await setUserData(uid, {
-      'legal': {
-        'version': version,
-        'acceptedAt': DateTime.now().toIso8601String(),
-      },
-    });
+    await setUserData(uid, {'legal': legalAcceptance(version)});
   }
+
+  /// Campos de `users.legal` que registran una aceptación de [version].
+  ///
+  /// `confirmationPending` marca que falta el correo de confirmación del
+  /// consentimiento (método "email plus"); la función programada
+  /// `sendConsentConfirmations` lo envía y apaga la marca. `acceptedAtServer`
+  /// le da una hora confiable para esperar 24 horas antes de enviarlo.
+  static Map<String, dynamic> legalAcceptance(int version) => {
+    'version': version,
+    'acceptedAt': DateTime.now().toIso8601String(),
+    'acceptedAtServer': FieldValue.serverTimestamp(),
+    'consentMethod': 'email_plus',
+    'confirmationPending': true,
+  };
 
   // =======================================
   // Métodos para Módulos de Aprendizaje

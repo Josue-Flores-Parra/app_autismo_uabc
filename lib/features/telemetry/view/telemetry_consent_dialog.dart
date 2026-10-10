@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../l10n/gen/app_localizations.dart';
 
-/// Diálogo de consentimiento de telemetría que se muestra inmediatamente
-/// después de crear la cuenta por primera vez.
+/// Solicita el consentimiento de telemetría después de crear la cuenta.
 ///
-/// Devuelve `true` si el usuario acepta el envío de métricas anónimas,
+/// Devuelve `true` si el usuario acepta el envío de métricas seudonimizadas,
 /// `false` si lo rechaza. No es dismissible (el usuario debe elegir).
 Future<bool> showTelemetryConsentDialog(BuildContext context) async {
   final l10n = AppLocalizations.of(context);
@@ -12,6 +11,8 @@ Future<bool> showTelemetryConsentDialog(BuildContext context) async {
     context: context,
     barrierDismissible: false,
     builder: (dialogContext) => AlertDialog(
+      // Permite leer el mensaje completo en pantallas bajas o con texto ampliado.
+      scrollable: true,
       backgroundColor: const Color(0xFF1A3D52),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -23,7 +24,7 @@ Future<bool> showTelemetryConsentDialog(BuildContext context) async {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              l10n?.telemetryConsentTitle ?? 'Ayúdanos a mejorar',
+              l10n.telemetryConsentTitle,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -34,17 +35,18 @@ Future<bool> showTelemetryConsentDialog(BuildContext context) async {
         ],
       ),
       content: Text(
-        l10n?.telemetryConsentBody ??
-            'Para mejorar la experiencia, Appy puede enviar métricas anónimas '
-                'sobre el uso de las actividades. No se envían datos personales '
-                'y puedes revisarlo cuando quieras en Ajustes.',
-        style: const TextStyle(fontSize: 15, color: Colors.white70, height: 1.4),
+        l10n.telemetryConsentBody,
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.white70,
+          height: 1.4,
+        ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: Text(
-            l10n?.telemetryConsentDecline ?? 'No, gracias',
+            l10n.telemetryConsentDecline,
             style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ),
@@ -59,7 +61,7 @@ Future<bool> showTelemetryConsentDialog(BuildContext context) async {
             ),
           ),
           child: Text(
-            l10n?.telemetryConsentAccept ?? 'Aceptar',
+            l10n.telemetryConsentAccept,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),

@@ -197,7 +197,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountConfirmBody.
   ///
   /// In es, this message translates to:
-  /// **'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.'**
+  /// **'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares, progresos y métricas de uso. Escribe BORRAR para continuar.'**
   String get deleteAccountConfirmBody;
 
   /// No description provided for @deleteAccountConfirmAction.
@@ -365,7 +365,7 @@ abstract class AppLocalizations {
   /// No description provided for @sendMetrics.
   ///
   /// In es, this message translates to:
-  /// **'Enviar métricas anónimas'**
+  /// **'Enviar métricas de uso'**
   String get sendMetrics;
 
   /// No description provided for @telemetryConsentTitle.
@@ -377,7 +377,7 @@ abstract class AppLocalizations {
   /// No description provided for @telemetryConsentBody.
   ///
   /// In es, this message translates to:
-  /// **'Para mejorar la experiencia, Appy puede enviar métricas anónimas sobre el uso de las actividades. No se envían datos personales y puedes revisarlo cuando quieras en Ajustes.'**
+  /// **'Para generar indicadores del desempeño educativo, Appy puede recopilar metricas seudonimizadas sobre el uso de actividades. Estos datos se asocian a un identificador de cuenta y no incluyen nombres ni correos electronicos.\nEsta recopilación es opcional. Puedes rechazarla sin perder acceso a las actividades y cambiar tu eleccion en cualquier momento desde las configuraciones'**
   String get telemetryConsentBody;
 
   /// No description provided for @telemetryConsentAccept.
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileDeleteBody.
   ///
   /// In es, this message translates to:
-  /// **'Se eliminará el perfil de {name}, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.'**
+  /// **'Se eliminará el perfil de {name}, incluyendo su avatar, ajustes, progreso y métricas de uso. Esta acción no se puede deshacer.'**
   String profileDeleteBody(String name);
 
   /// No description provided for @profileDeleteConfirm.
@@ -895,6 +895,138 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cargando recompensas'**
   String get completionRewardsLoading;
+
+  /// No description provided for @legalConsentTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Antes de continuar'**
+  String get legalConsentTitle;
+
+  /// No description provided for @legalConsentSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Lee y acepta los documentos que rigen el uso de Appy y el tratamiento de los datos personales.'**
+  String get legalConsentSubtitle;
+
+  /// No description provided for @legalConsentRead.
+  ///
+  /// In es, this message translates to:
+  /// **'Leído'**
+  String get legalConsentRead;
+
+  /// No description provided for @legalConsentUnread.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin leer'**
+  String get legalConsentUnread;
+
+  /// No description provided for @legalConsentSensitiveNote.
+  ///
+  /// In es, this message translates to:
+  /// **'Appy está dirigida al apoyo de personas con Trastorno del Espectro Autista. Por ello, el uso de la aplicación puede relacionarse con información sobre la salud de la persona menor de edad, considerada dato personal sensible. La legislación exige que el consentimiento se otorgue de forma expresa.'**
+  String get legalConsentSensitiveNote;
+
+  /// No description provided for @legalConsentCheckbox.
+  ///
+  /// In es, this message translates to:
+  /// **'He leído y acepto los Términos y Condiciones y el Aviso de Privacidad, y manifiesto que soy mayor de edad y que soy madre, padre o tutor legal de quien usará la aplicación.'**
+  String get legalConsentCheckbox;
+
+  /// No description provided for @legalConsentReadBothHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Abre y lee ambos documentos para poder aceptar.'**
+  String get legalConsentReadBothHint;
+
+  /// No description provided for @legalConsentDecline.
+  ///
+  /// In es, this message translates to:
+  /// **'No acepto'**
+  String get legalConsentDecline;
+
+  /// No description provided for @legalConsentAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Acepto'**
+  String get legalConsentAccept;
+
+  /// No description provided for @legalConsentSaveFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo registrar tu aceptación. Revisa tu conexión e inténtalo de nuevo.'**
+  String get legalConsentSaveFailed;
+
+  /// No description provided for @legalConsentDeclineTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar sin aceptar'**
+  String get legalConsentDeclineTitle;
+
+  /// No description provided for @legalConsentDeclineBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Para usar Appy es necesario aceptar los Términos y Condiciones y el Aviso de Privacidad. Si prefieres no hacerlo ahora, cerraremos tu sesión y podrás volver cuando quieras.'**
+  String get legalConsentDeclineBody;
+
+  /// No description provided for @legalConsentKeepReading.
+  ///
+  /// In es, this message translates to:
+  /// **'Seguir leyendo'**
+  String get legalConsentKeepReading;
+
+  /// No description provided for @verifyEmailTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma tu correo'**
+  String get verifyEmailTitle;
+
+  /// No description provided for @verifyEmailBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviamos un enlace a {email}. Ábrelo para confirmar que eres la persona adulta responsable de la cuenta. Este paso es necesario antes de que una niña o un niño use Appy.'**
+  String verifyEmailBody(String email);
+
+  /// No description provided for @verifyEmailSpamHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Si no lo ves, revisa la carpeta de correo no deseado.'**
+  String get verifyEmailSpamHint;
+
+  /// No description provided for @verifyEmailConfirmed.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya lo confirmé'**
+  String get verifyEmailConfirmed;
+
+  /// No description provided for @verifyEmailResend.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenviar correo'**
+  String get verifyEmailResend;
+
+  /// No description provided for @verifyEmailResendIn.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenviar en {seconds} s'**
+  String verifyEmailResendIn(int seconds);
+
+  /// No description provided for @verifyEmailSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Te enviamos un nuevo enlace.'**
+  String get verifyEmailSent;
+
+  /// No description provided for @verifyEmailSendFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo enviar el correo. Revisa tu conexión e inténtalo de nuevo.'**
+  String get verifyEmailSendFailed;
+
+  /// No description provided for @verifyEmailNotYet.
+  ///
+  /// In es, this message translates to:
+  /// **'Todavía no vemos tu correo confirmado. Abre el enlace y vuelve a intentarlo.'**
+  String get verifyEmailNotYet;
 }
 
 class _AppLocalizationsDelegate

@@ -72,6 +72,85 @@ firebase deploy --only firestore:rules,firestore:indexes --project prod
 
 Corre las pruebas de `firestore-tests/` antes de desplegar a produccion.
 
+## Cloud Functions
+
+`functions/` contiene `sendConsentConfirmations`, que envia el correo de
+confirmacion del consentimiento parental cada 6 horas. Requiere el plan Blaze
+en el proyecto y un proveedor SMTP.
+
+```bash
+cd functions && npm ci && npm test && cd ..
+firebase functions:secrets:set SMTP_PASSWORD --project dev
+firebase deploy --only functions --project dev
+```
+
+El primer despliegue pide `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `MAIL_FROM`,
+`LEGAL_BASE_URL` y `CONTACT_EMAIL` y los guarda en `functions/.env.<proyecto>`.
+La contraseña se encuentra en Secret Manager. Para probarla sin esperar al
+horario, ejecuta el job desde Cloud Scheduler en la consola de Google Cloud. 
+Para obtener el archivo env completo, consulta el folder de google drive.
+
+Produccion se despliega solo cuando el equipo lo pide:
+`firebase deploy --only functions --project prod`.
+
+### Probar la funcion sin plan Blaze
+
+Desarrollo no tiene Blaze, asi que la funcion se prueba en los emuladores, que
+no lo necesitan. El proyecto `demo-appy` garantiza que nada toque un proyecto
+real.
+
+1. Crea un buzon SMTP de prueba (los correos se capturan, no se entregan):
+
+   ```bash
+   cd functions && npm ci
+   node -e "require('nodemailer').createTestAccount().then(a=>console.log(a.user, a.pass))"
+   ```
+
+2. Crea `functions/.env.local` y `functions/.secret.local` (ambos ignorados por
+   git) con esos datos:
+
+   ```bash
+   # functions/.env.local
+   SMTP_HOST=smtp.ethereal.email
+   SMTP_PORT=587
+   SMTP_USER=<usuario>
+   MAIL_FROM="Appy <usuario>"
+   LEGAL_BASE_URL=https://example.org/legal
+   CONTACT_EMAIL=rosalesq.software@gmail.com
+
+   # functions/.secret.local
+   SMTP_PASSWORD=<contrasenia>
+   ```
+
+3. En la raiz del repo, arranca los emuladores (Pub/Sub es necesario para que
+   la funcion programada se registre):
+
+   ```bash
+   firebase emulators:start --only auth,firestore,functions,pubsub --project demo-appy
+   ```
+
+4. En otra terminal, siembra tres padres de prueba y ejecuta la funcion:
+
+   ```bash
+   cd functions
+   FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+     node scripts/seed-emulator.js
+   scripts/trigger-emulator.sh
+   ```
+
+   La terminal de los emuladores debe mostrar `"pending":3,"sent":1`: solo
+   `debe-recibir` cumple las condiciones (`sin-verificar` no confirmo su correo y
+   `muy-reciente` acepto hace una hora). Una segunda ejecucion muestra
+   `"sent":0`. En http://127.0.0.1:4000/firestore, `users/debe-recibir.legal`
+   tiene `confirmationPending: false` y `confirmationSentAt`.
+
+5. Para ver el correo, entra a https://ethereal.email/login con el usuario y la
+   contrasenia del paso 1 y abre "Messages".
+
+La app no se conecta a los emuladores: el flujo de la app (verificar correo,
+aceptar, perfiles, borrado de telemetria) se prueba en desarrollo con
+`flutter run`, que no necesita Blaze.
+
 ## Copiar contenido a desarrollo
 
 `tools/firestore-content/copy-content.js` copia `modules` y sus `levels` de

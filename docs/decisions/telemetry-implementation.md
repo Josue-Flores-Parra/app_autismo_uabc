@@ -571,7 +571,7 @@ Reglas mínimas del cliente móvil:
 - Permitir sólo transiciones declaradas (`launch_requested -> started|launch_error`; `started -> completed|abandoned|failed`; updates no terminales de contadores/lifecycle que mantengan `started`).
 - Exigir que contadores y duración no decrezcan y que flags sticky no vuelvan a falso.
 - Validar coherencia de `outcome` con estado/interrupción.
-- No permitir delete desde móvil; desactivar telemetría no borra histórico.
+- Desactivar telemetría no borra histórico. El delete móvil se limita al dueño al eliminar la cuenta o un perfil (ver la enmienda de octubre de 2026 al final).
 - Lectura móvil: limitar a documentos propios sólo si la app realmente necesita reconciliación; de lo contrario, permitir únicamente el get puntual propio necesario y negar listados amplios.
 
 El dashboard futuro no debe autenticarse como cliente móvil común para leer toda la colección. Usará custom claims verificadas por reglas o un backend privilegiado. El acceso a `users/{learnerId}` para resolver nombre visible será exclusivo de ese rol/backend y no causará copia de PII a telemetría.
@@ -811,3 +811,25 @@ y se reintentan cada 30 segundos y al reanudar, solo con consentimiento y cuenta
 originales. La recuperación respeta `launch_requested → started → terminal` y
 no sobrescribe sesiones terminales. Opt-out descarta entregas pendientes.
 Limpiar un cierre anterior no borra el marcador de una sesión nueva.
+
+## Enmienda 2026-10: borrado al eliminar cuenta o perfil
+
+El plan original negaba `delete` y `list` al cliente para conservar el histórico.
+El aviso de privacidad promete borrar los datos de la cuenta al eliminarla, y
+las sesiones conservan `subject.actorId` y `subject.learnerId`, que son IDs de
+Firebase y no datos anónimos. Para cumplir esa promesa (y la prohibición de
+retención indefinida de COPPA), se cambia lo siguiente:
+
+- Las reglas permiten `delete` y `list` solo sobre documentos con
+  `subject.actorId == request.auth.uid`. Un listado debe filtrar por ese campo;
+  cualquier otro listado sigue negado.
+- `AuthService.deleteAccount` llama a
+  `ActivityTelemetryService.purgeForAccount` antes de borrar los perfiles.
+  `ProfileViewModel.deleteLearner` llama a `purgeForLearner` antes de borrar
+  el perfil.
+- La purga descarta primero sesiones en memoria, marcadores y cierres
+  pendientes, y espera reintentos en curso; solo después borra en remoto, para
+  que ningún reintento recree un documento ya borrado.
+- Desactivar `sendMetrics` sigue sin borrar el histórico.
+
+La retención declarada es "hasta eliminar el perfil o la cuenta"; no hay TTL.

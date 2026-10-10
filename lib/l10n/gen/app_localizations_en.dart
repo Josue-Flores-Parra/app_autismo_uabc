@@ -58,7 +58,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Your account and linked child profiles, including their avatars and progress, will be removed. Anonymous metrics already sent cannot be deleted. Type DELETE to continue.';
+      'Your account and linked child profiles, including their avatars, progress and usage metrics, will be removed. Type DELETE to continue.';
 
   @override
   String get deleteAccountConfirmAction => 'DELETE';
@@ -146,14 +146,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearCache => 'Clear cached resources';
 
   @override
-  String get sendMetrics => 'Send anonymous metrics';
+  String get sendMetrics => 'Send usage metrics';
 
   @override
   String get telemetryConsentTitle => 'Help us improve';
 
   @override
   String get telemetryConsentBody =>
-      'To improve the experience, Appy can send anonymous metrics about activity usage. No personal data is sent and you can review it anytime in Settings.';
+      'To generate indicators of educational performance, Appy can collect pseudonymized metrics about activity usage. This data is associated with an account identifier and does not include names or email addresses.\nThis collection is optional. You can decline without losing access to activities and change your choice at any time in Settings.';
 
   @override
   String get telemetryConsentAccept => 'Accept';
@@ -410,7 +410,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String profileDeleteBody(String name) {
-    return 'This will permanently delete $name’s profile, including avatar, settings and progress. This cannot be undone.';
+    return 'This will permanently delete $name’s profile, including avatar, settings, progress and usage metrics. This cannot be undone.';
   }
 
   @override
@@ -443,4 +443,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completionRewardsLoading => 'Loading rewards';
+
+  @override
+  String get legalConsentTitle => 'Before you continue';
+
+  @override
+  String get legalConsentSubtitle =>
+      'Read and accept the documents that govern the use of Appy and the processing of personal data.';
+
+  @override
+  String get legalConsentRead => 'Read';
+
+  @override
+  String get legalConsentUnread => 'Not read';
+
+  @override
+  String get legalConsentSensitiveNote =>
+      'Appy is designed to support people with Autism Spectrum Disorder. Because of this, using the app may relate to information about the child\'s health, which is sensitive personal data. The law requires consent to be given expressly.';
+
+  @override
+  String get legalConsentCheckbox =>
+      'I have read and accept the Terms and Conditions and the Privacy Notice, and I declare that I am of legal age and the parent or legal guardian of the person who will use the app.';
+
+  @override
+  String get legalConsentReadBothHint =>
+      'Open and read both documents to be able to accept.';
+
+  @override
+  String get legalConsentDecline => 'I don\'t accept';
+
+  @override
+  String get legalConsentAccept => 'I accept';
+
+  @override
+  String get legalConsentSaveFailed =>
+      'Your acceptance could not be saved. Check your connection and try again.';
+
+  @override
+  String get legalConsentDeclineTitle => 'Continue without accepting';
+
+  @override
+  String get legalConsentDeclineBody =>
+      'To use Appy you need to accept the Terms and Conditions and the Privacy Notice. If you\'d rather not do it now, we\'ll sign you out and you can come back whenever you like.';
+
+  @override
+  String get legalConsentKeepReading => 'Keep reading';
+
+  @override
+  String get verifyEmailTitle => 'Confirm your email';
+
+  @override
+  String verifyEmailBody(String email) {
+    return 'We sent a link to $email. Open it to confirm that you are the adult responsible for the account. This step is required before a child uses Appy.';
+  }
+
+  @override
+  String get verifyEmailSpamHint =>
+      'If you don\'t see it, check your spam folder.';
+
+  @override
+  String get verifyEmailConfirmed => 'I\'ve confirmed it';
+
+  @override
+  String get verifyEmailResend => 'Resend email';
+
+  @override
+  String verifyEmailResendIn(int seconds) {
+    return 'Resend in $seconds s';
+  }
+
+  @override
+  String get verifyEmailSent => 'We sent you a new link.';
+
+  @override
+  String get verifyEmailSendFailed =>
+      'The email could not be sent. Check your connection and try again.';
+
+  @override
+  String get verifyEmailNotYet =>
+      'Your email isn\'t confirmed yet. Open the link and try again.';
 }

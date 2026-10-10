@@ -272,6 +272,33 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Reenvía el correo de verificación. Devuelve `false` si no se pudo enviar.
+  Future<bool> sendEmailVerification() async {
+    try {
+      await _authService.sendEmailVerification();
+      return true;
+    } catch (e) {
+      debugPrint('AuthViewModel: verificación no enviada: $e');
+      return false;
+    }
+  }
+
+  /// Consulta a Firebase si el correo ya se verificó y actualiza la cuenta.
+  ///
+  /// Notifica a los oyentes cuando cambia el estado, para que `AuthGate`
+  /// avance de la pantalla de verificación sin reiniciar la app.
+  Future<bool> checkEmailVerified() async {
+    try {
+      final verified = await _authService.reloadEmailVerified();
+      _currentUser = _authService.currentUser;
+      notifyListeners();
+      return verified;
+    } catch (e) {
+      debugPrint('AuthViewModel: no se pudo recargar la cuenta: $e');
+      return false;
+    }
+  }
+
   Future<void> _refreshUser() async {
     await _authService.currentUser?.reload();
     _currentUser = _authService.currentUser;

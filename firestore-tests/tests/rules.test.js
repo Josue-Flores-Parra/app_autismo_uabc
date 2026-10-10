@@ -5,7 +5,7 @@
 //
 // Covers the §12 matrix: create own/foreign/invalid, immutable fields, terminal
 // immutability, counter no-decrement, declared transitions, sticky interruption,
-// delete denied, read own-only, list denied.
+// delete own-only, read own-only, list only filtered by own actorId.
 
 const { before, after, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -227,10 +227,17 @@ describe('telemetryActivitySessions rules', () => {
   });
 
   describe('delete, read, list', () => {
-    it('rejects delete', async () => {
+    // Account and child-profile deletion remove the owner's telemetry.
+    it('allows deleting own document', async () => {
       const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
       await assertSucceeds(ref(owner(), data.sessionId).set(data));
-      await assertFails(ref(owner(), data.sessionId).delete());
+      await assertSucceeds(ref(owner(), data.sessionId).delete());
+    });
+
+    it('rejects deleting another user document', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertFails(ref(other(), data.sessionId).delete());
     });
 
     it('allows reading own document', async () => {
@@ -245,10 +252,45 @@ describe('telemetryActivitySessions rules', () => {
       await assertFails(ref(other(), data.sessionId).get());
     });
 
-    it('rejects listing the collection', async () => {
+    it('rejects listing the collection without an actor filter', async () => {
       const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
       await assertSucceeds(ref(owner(), data.sessionId).set(data));
       await assertFails(owner().collection('telemetryActivitySessions').get());
+    });
+
+    it('allows listing filtered by own actorId', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertSucceeds(
+        owner().collection('telemetryActivitySessions')
+          .where('subject.actorId', '==', 'uid-1').get(),
+      );
+    });
+
+    it('allows listing filtered by own actorId and learnerId', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertSucceeds(
+        owner().collection('telemetryActivitySessions')
+          .where('subject.actorId', '==', 'uid-1')
+          .where('subject.learnerId', '==', 'uid-1').get(),
+      );
+    });
+
+    it('rejects listing filtered by another actorId', async () => {
+      const data = ownSession({ lifecycle: { status: 'launch_requested' }, outcome: { hasStarted: false } });
+      await assertSucceeds(ref(owner(), data.sessionId).set(data));
+      await assertFails(
+        other().collection('telemetryActivitySessions')
+          .where('subject.actorId', '==', 'uid-1').get(),
+      );
+    });
+
+    it('rejects listing filtered only by learnerId', async () => {
+      await assertFails(
+        owner().collection('telemetryActivitySessions')
+          .where('subject.learnerId', '==', 'uid-1').get(),
+      );
     });
   });
 
@@ -485,6 +527,63 @@ describe('telemetryActivitySessions rules', () => {
         outcome: { hasStarted: false },
       });
       await assertFails(ref(owner(), unlinked.sessionId).set(unlinked));
+    });
+  });
+
+  // Parental consent record: only the confirmation function (Admin SDK)
+  // may clear the pending flag or record the confirmation email.
+  describe('users.legal consent confirmation', () => {
+    const userDoc = (db) => db.collection('users').doc('uid-1');
+    const accepted = {
+      role: 'parent',
+      legal: { version: 2, consentMethod: 'email_plus', confirmationPending: true },
+    };
+
+    it('allows a parent to record an acceptance pending confirmation', async () => {
+      await assertSucceeds(userDoc(owner()).set(accepted));
+    });
+
+    it('rejects a parent writing confirmationSentAt', async () => {
+      await assertFails(
+        userDoc(owner()).set({
+          role: 'parent',
+          legal: { version: 2, confirmationPending: false, confirmationSentAt: 'now' },
+        }),
+      );
+    });
+
+    it('rejects a parent clearing the pending flag', async () => {
+      await assertSucceeds(userDoc(owner()).set(accepted));
+      await assertFails(
+        userDoc(owner()).set({ legal: { confirmationPending: false } }, { merge: true }),
+      );
+    });
+
+    it('keeps server-written confirmation fields on unrelated updates', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('users').doc('uid-1').set({
+          role: 'parent',
+          legal: {
+            version: 2,
+            confirmationPending: false,
+            confirmationVersion: 2,
+            confirmationSentAt: 'server',
+          },
+        });
+      });
+      await assertSucceeds(userDoc(owner()).set({ name: 'Ana' }, { merge: true }));
+    });
+
+    it('allows re-acceptance of a new version to request a new confirmation', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('users').doc('uid-1').set({
+          role: 'parent',
+          legal: { version: 2, confirmationPending: false, confirmationVersion: 2, confirmationSentAt: 'server' },
+        });
+      });
+      await assertSucceeds(
+        userDoc(owner()).set({ legal: { version: 3, confirmationPending: true } }, { merge: true }),
+      );
     });
   });
 });

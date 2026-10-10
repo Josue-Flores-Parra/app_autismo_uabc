@@ -213,7 +213,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       _SwitchRow(
                         icon: Icons.analytics_outlined,
-                        title: l10n?.sendMetrics ?? 'Enviar métricas anónimas',
+                        title: l10n?.sendMetrics ?? 'Enviar métricas de uso',
                         value: settings.sendMetrics,
                         onChanged: settings.toggleSendMetrics,
                       ),

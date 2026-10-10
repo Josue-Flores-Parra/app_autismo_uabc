@@ -12,13 +12,21 @@ que ya habian aceptado una version anterior.
 
 /// Version vigente de los documentos legales.
 /// Subir este numero obliga a aceptar de nuevo a todas las cuentas.
-const int kLegalVersion = 1;
+const int kLegalVersion = 2;
 
 /// Fecha de la ultima actualizacion, visible para el usuario.
-const String kLegalLastUpdated = '17 de septiembre de 2026';
+const String kLegalLastUpdated = '9 de octubre de 2026';
 
-/// Nombre con el que el equipo se identifica como responsable.
-const String kLegalResponsable = 'el Equipo de Appy TEApoya TEAcompaña';
+/// Fecha de la ultima actualizacion en los documentos en ingles.
+const String kLegalLastUpdatedEn = 'October 9, 2026';
+
+/// Persona fisica responsable del tratamiento y titular del servicio.
+const String kLegalResponsable = 'Ricardo Fernando Rosales Cisneros';
+
+/// Domicilio del responsable para oir y recibir notificaciones.
+const String kLegalDomicilio =
+    'Calle Río Papaloapan 2307, Colonia Río Vista CP: 22450, Tijuana, '
+    'Baja California, México';
 
 /// Correo unico de contacto para asuntos legales y de datos personales.
 const String kLegalContactEmail = 'rosalesq.software@gmail.com';
@@ -79,7 +87,9 @@ const LegalDocument _termsEs = LegalDocument(
       'Los presentes Términos y Condiciones de Uso (en adelante, los "Términos") '
       'regulan el acceso y uso de la aplicación móvil Appy TEApoya TEAcompaña '
       '(en adelante, la "Aplicación"), puesta a disposición del público por '
-      '$kLegalResponsable (en adelante, el "Titular"). Le solicitamos leerlos '
+      '$kLegalResponsable, en su calidad de responsable del proyecto de '
+      'investigación Appy TEApoya TEAcompaña (en adelante, el "Titular"), con '
+      'la colaboración de su equipo de desarrollo. Le solicitamos leerlos '
       'íntegramente antes de crear una cuenta.',
     ),
 
@@ -118,8 +128,8 @@ const LegalDocument _termsEs = LegalDocument(
       'mediante contenidos audiovisuales y actividades interactivas.',
     ),
     LegalBlock.paragraph(
-      '2.2. El Titular es un equipo independiente sin fines de lucro. La '
-      'Aplicación se ofrece de forma gratuita, no contiene publicidad, no '
+      '2.2. El proyecto se desarrolla con fines educativos y de investigación, '
+      'sin fines de lucro. La Aplicación se ofrece de forma gratuita, no contiene publicidad, no '
       'comercializa bienes o servicios y no genera ingresos derivados de su uso.',
     ),
 
@@ -177,8 +187,10 @@ const LegalDocument _termsEs = LegalDocument(
     LegalBlock.heading('5. Cuenta de usuario y credenciales'),
     LegalBlock.paragraph(
       '5.1. El registro requiere una dirección de correo electrónico válida y '
-      'una contraseña. El Usuario Titular es el único responsable de la '
-      'veracidad de los datos proporcionados.',
+      'una contraseña. Antes de usar la Aplicación, el Usuario Titular debe '
+      'confirmar su correo mediante el enlace que se le envía. El Usuario '
+      'Titular es el único responsable de la veracidad de los datos '
+      'proporcionados.',
     ),
     LegalBlock.paragraph(
       '5.2. Las credenciales de acceso son personales e intransferibles. El '
@@ -267,8 +279,9 @@ const LegalDocument _termsEs = LegalDocument(
     LegalBlock.paragraph(
       '9.1. La Aplicación y la totalidad del Contenido, incluidos sin limitación '
       'los videos animados, los pictogramas, las locuciones, el diseño del '
-      'personaje, las interfaces, el código fuente y las bases de datos, son '
-      'titularidad del Titular o de sus respectivos autores, y se encuentran '
+      'personaje, las interfaces, el código fuente y las bases de datos, '
+      'pertenecen a sus respectivos titulares de derechos y autores, según '
+      'corresponda, y se encuentran '
       'protegidos por la Ley Federal del Derecho de Autor, la Ley Federal de '
       'Protección a la Propiedad Industrial y los tratados internacionales '
       'aplicables.',
@@ -362,8 +375,8 @@ const LegalDocument _termsEs = LegalDocument(
 
     LegalBlock.heading('14. Limitación de responsabilidad'),
     LegalBlock.paragraph(
-      '14.1. En la máxima medida permitida por la ley, el Titular, sus '
-      'integrantes y colaboradores no serán responsables por daños indirectos, '
+      '14.1. En la máxima medida permitida por la ley, el Titular y quienes '
+      'colaboran en el proyecto no serán responsables por daños indirectos, '
       'incidentales, especiales, punitivos o consecuenciales, ni por pérdida de '
       'datos, de oportunidad o de beneficios, derivados del uso o de la '
       'imposibilidad de uso de la Aplicación.',
@@ -504,14 +517,21 @@ const LegalDocument _privacyEs = LegalDocument(
 
     LegalBlock.heading('1. Responsable del tratamiento'),
     LegalBlock.paragraph(
-      '$kLegalResponsable, equipo independiente sin fines de lucro con '
-      'operación en $kLegalJurisdiccion, es responsable del tratamiento de los '
-      'datos personales que se recaban a través de la aplicación móvil Appy '
-      'TEApoya TEAcompaña.',
+      '$kLegalResponsable, en su calidad de director del proyecto de '
+      'investigación Appy TEApoya TEAcompaña, es la persona física responsable '
+      'de determinar las finalidades y los medios del tratamiento de los datos '
+      'personales recabados a través de la Aplicación (en adelante, el '
+      '"Responsable"). El proyecto tiene fines educativos y de investigación, '
+      'sin fines de lucro, y cuenta con un equipo de desarrollo que colabora en '
+      'su operación.',
     ),
     LegalBlock.paragraph(
-      'Domicilio para oír y recibir notificaciones en materia de datos '
-      'personales: correo electrónico $kLegalContactEmail.',
+      'Domicilio del Responsable para oír y recibir notificaciones: '
+      '$kLegalDomicilio.',
+    ),
+    LegalBlock.paragraph(
+      'Correo electrónico para privacidad y derechos ARCO: '
+      '$kLegalContactEmail.',
     ),
 
     LegalBlock.heading('2. Datos personales sometidos a tratamiento'),
@@ -524,9 +544,10 @@ const LegalDocument _privacyEs = LegalDocument(
       'correo electrónico.',
     ),
     LegalBlock.bullet(
-      'Datos de autenticación: contraseña, resguardada de forma cifrada por el '
-      'proveedor de autenticación. El Responsable no tiene acceso a ella en '
-      'texto legible.',
+      'Datos de autenticación: las credenciales de acceso son gestionadas por '
+      'Firebase Authentication, que protege las contraseñas mediante funciones '
+      'criptográficas de resumen (hash). El Responsable no tiene acceso a las '
+      'contraseñas originales de las personas usuarias.',
     ),
     LegalBlock.bullet(
       'Datos de registro de la cuenta: fecha de creación y, en su caso, fecha de '
@@ -543,8 +564,26 @@ const LegalDocument _privacyEs = LegalDocument(
       'niveles de felicidad y energía del avatar.',
     ),
     LegalBlock.bullet(
-      'Constancia de consentimiento: versión aceptada de los documentos legales '
-      'y fecha de aceptación.',
+      'Datos de los perfiles infantiles: nombre que la persona adulta asigna a '
+      'cada perfil (se recomienda usar un apodo), preferencias de '
+      'accesibilidad y aprendizaje del perfil (tamaño de texto, alto '
+      'contraste, reducción de animaciones, retroalimentación auditiva y '
+      'háptica, recordatorios y su horario) y número de módulos habilitados.',
+    ),
+    LegalBlock.bullet(
+      'Constancia de consentimiento: versión aceptada de los documentos '
+      'legales, fecha de aceptación, confirmación de la dirección de correo '
+      'electrónico y fecha de envío del correo de confirmación del '
+      'consentimiento.',
+    ),
+    LegalBlock.bullet(
+      'Datos técnicos de autenticación: Google Firebase Authentication puede '
+      'procesar automáticamente direcciones IP e información sobre el agente '
+      'de usuario (por ejemplo, datos del software y la plataforma utilizada) '
+      'durante el registro y el inicio de sesión, con fines de seguridad, '
+      'prevención de abuso y operación del servicio. Estos datos son tratados '
+      'por el proveedor de infraestructura y no se utilizan por el proyecto '
+      'para publicidad ni elaboración de perfiles comerciales.',
     ),
     LegalBlock.paragraph(
       'No se recaban datos patrimoniales o financieros, datos biométricos, '
@@ -557,14 +596,16 @@ const LegalDocument _privacyEs = LegalDocument(
       'La Aplicación está orientada al apoyo de personas con Trastorno del '
       'Espectro Autista. En consecuencia, el solo uso del servicio puede '
       'revelar información relativa al estado de salud del Usuario Asistido, '
-      'la cual constituye dato personal sensible conforme al artículo 3, '
-      'fracción VI, de la Ley.',
+      'la cual constituye dato personal sensible conforme a la definición de '
+      'datos personales sensibles prevista en la Ley.',
     ),
     LegalBlock.paragraph(
-      '3.1. Por lo anterior, y con fundamento en el artículo 9 de la Ley, el '
-      'tratamiento requiere el consentimiento expreso del titular o de quien '
-      'ejerza la patria potestad o tutela, el cual se recaba mediante la '
-      'aceptación electrónica de este Aviso.',
+      '3.1. Por lo anterior, y con fundamento en el artículo 8 de la Ley, el '
+      'tratamiento de datos personales sensibles requiere consentimiento '
+      'expreso y por escrito, a través de firma o del mecanismo de '
+      'autenticación aplicable. En la Aplicación se solicita la aceptación '
+      'electrónica del Aviso por la persona adulta representante legal y se '
+      'conserva el registro de dicha aceptación.',
     ),
     LegalBlock.paragraph(
       '3.2. El Responsable no solicita diagnóstico, expediente clínico, nombre '
@@ -586,7 +627,15 @@ const LegalDocument _privacyEs = LegalDocument(
       'niñez.',
     ),
     LegalBlock.paragraph(
-      '4.3. La Aplicación no genera perfiles públicos, no permite comunicación '
+      '4.3. Antes de que el Usuario Asistido utilice la Aplicación, la persona '
+      'adulta debe: (i) confirmar su dirección de correo electrónico mediante '
+      'el enlace que se le envía; y (ii) leer y aceptar expresamente este Aviso '
+      'y los Términos y Condiciones. Después de la aceptación, el Responsable '
+      'envía a esa dirección un correo que confirma el consentimiento otorgado '
+      'e indica cómo revocarlo.',
+    ),
+    LegalBlock.paragraph(
+      '4.4. La Aplicación no genera perfiles públicos, no permite comunicación '
       'entre personas usuarias y no expone información del Usuario Asistido a '
       'terceros.',
     ),
@@ -625,9 +674,13 @@ const LegalDocument _privacyEs = LegalDocument(
       'de ajustes, sección "Privacidad y datos":',
     ),
     LegalBlock.bullet(
-      'Generación de métricas de uso disociadas, con el objeto de evaluar la '
-      'pertinencia del contenido educativo y mejorar la Aplicación. Esta opción '
-      'se encuentra desactivada de forma predeterminada.',
+      'Generación de métricas de uso de las actividades (por ejemplo, '
+      'duración, intentos y si la actividad se completó), con el objeto de '
+      'evaluar la pertinencia del contenido educativo y mejorar la Aplicación. '
+      'Las métricas se asocian únicamente al identificador interno del perfil '
+      'infantil, sin nombre ni correo electrónico, y se eliminan al borrar el '
+      'perfil o la cuenta. Esta opción se encuentra desactivada de forma '
+      'predeterminada.',
     ),
     LegalBlock.paragraph(
       'La negativa a estas finalidades no será motivo para negar el servicio.',
@@ -656,17 +709,24 @@ const LegalDocument _privacyEs = LegalDocument(
       'autenticación, base de datos y almacenamiento de contenido.',
     ),
     LegalBlock.paragraph(
-      '8.2. Dicho tratamiento implica la remisión de datos a servidores que '
+      '8.2. Para enviar el correo de confirmación del consentimiento, el '
+      'Responsable utiliza un proveedor de envío de correo electrónico, en '
+      'calidad de encargado, que recibe únicamente la dirección de correo de '
+      'la persona adulta, su nombre para mostrar y el contenido del mensaje.',
+    ),
+    LegalBlock.paragraph(
+      '8.3. Dicho tratamiento implica la remisión de datos a servidores que '
       'pueden ubicarse fuera del territorio nacional. El encargado se encuentra '
       'obligado contractualmente a tratar los datos únicamente conforme a las '
       'instrucciones del Responsable y a mantener medidas de seguridad '
       'equivalentes.',
     ),
     LegalBlock.paragraph(
-      '8.3. Fuera del supuesto anterior, no se realizan transferencias de datos '
-      'personales a terceros, salvo aquellas previstas en el artículo 37 de la '
-      'Ley, entre ellas las requeridas por autoridad competente mediante '
-      'resolución fundada y motivada.',
+      '8.4. Fuera de los supuestos anteriores, no se realizan transferencias de '
+      'datos personales a terceros, salvo aquellas permitidas por la Ley, '
+      'incluidas las excepciones previstas en su artículo 36, entre ellas las '
+      'requeridas por autoridad competente mediante resolución fundada y '
+      'motivada.',
     ),
 
     LegalBlock.heading('9. Datos que no salen del dispositivo'),
@@ -674,13 +734,7 @@ const LegalDocument _privacyEs = LegalDocument(
       'Las siguientes configuraciones se almacenan localmente y no son '
       'transmitidas al Responsable ni a terceros:',
     ),
-    LegalBlock.bullet('Tema visual, tamaño de fuente e idioma.'),
-    LegalBlock.bullet(
-      'Preferencias de accesibilidad: alto contraste, reducción de animaciones, '
-      'retroalimentación auditiva y háptica.',
-    ),
-    LegalBlock.bullet('Recordatorios de práctica y horario configurado.'),
-    LegalBlock.bullet('Configuración del control parental.'),
+    LegalBlock.bullet('Tema visual e idioma de la Aplicación.'),
     LegalBlock.bullet(
       'Código de acceso parental (PIN), el cual se elimina al borrar la cuenta.',
     ),
@@ -691,12 +745,22 @@ const LegalDocument _privacyEs = LegalDocument(
       'con el Responsable.',
     ),
     LegalBlock.paragraph(
-      '10.2. Solicitada la eliminación de la cuenta, se cancela el acceso, se '
-      'suprimen los datos almacenados localmente en el dispositivo y se marca el '
-      'registro para su eliminación, conservándose únicamente aquella '
-      'información cuya guarda resulte obligatoria por disposición legal o '
-      'necesaria para la atención de responsabilidades derivadas del '
-      'tratamiento, durante los plazos legales aplicables.',
+      '10.2. Cuando se elimina la cuenta, se cancela el acceso y se eliminan '
+      'los datos asociados a la cuenta, incluidos los registros de la '
+      'Aplicación almacenados en los servicios utilizados, las métricas de uso '
+      'y los datos locales correspondientes, salvo aquella información cuya '
+      'conservación sea obligatoria por disposición legal o necesaria para '
+      'atender responsabilidades derivadas del tratamiento durante los plazos '
+      'aplicables.',
+    ),
+    LegalBlock.paragraph(
+      '10.3. Cuando se elimina un perfil infantil, se eliminan su avance, su '
+      'personalización, sus preferencias y sus métricas de uso.',
+    ),
+    LegalBlock.paragraph(
+      '10.4. Las copias de respaldo técnicas que, en su caso, conserve el '
+      'proveedor de infraestructura pueden estar sujetas a sus propios plazos '
+      'de eliminación y políticas de retención.',
     ),
 
     LegalBlock.heading('11. Medidas de seguridad'),
@@ -704,8 +768,9 @@ const LegalDocument _privacyEs = LegalDocument(
       '11.1. El Responsable ha implementado medidas de seguridad administrativas '
       'y técnicas orientadas a proteger los datos personales contra daño, '
       'pérdida, alteración, destrucción, uso, acceso o tratamiento no '
-      'autorizados, entre ellas el cifrado de contraseñas, la autenticación por '
-      'cuenta y la restricción de acceso a la base de datos mediante reglas de '
+      'autorizados, entre ellas el almacenamiento de contraseñas mediante hash '
+      'por el proveedor de autenticación, la autenticación por cuenta y la '
+      'restricción de acceso a la base de datos mediante reglas de '
       'seguridad.',
     ),
     LegalBlock.paragraph(
@@ -807,12 +872,14 @@ const LegalDocument _privacyEs = LegalDocument(
 const LegalDocument _termsEn = LegalDocument(
   title: 'Terms and Conditions of Use',
   shortTitle: 'Terms and Conditions',
-  lastUpdated: 'September 17, 2026',
+  lastUpdated: kLegalLastUpdatedEn,
   blocks: [
     LegalBlock.paragraph(
       'These Terms and Conditions of Use (the "Terms") govern access to and use '
       'of the mobile application Appy TEApoya TEAcompaña (the "Application"), '
-      'made available by $kLegalResponsable (the "Provider"). Please read them '
+      'made available by $kLegalResponsable, in their capacity as the director '
+      'responsible for the Appy TEApoya TEAcompaña research project (the '
+      '"Provider"), with the support of the development team. Please read them '
       'in full before creating an account.',
     ),
 
@@ -843,8 +910,8 @@ const LegalDocument _termsEn = LegalDocument(
       'interactive activities.',
     ),
     LegalBlock.paragraph(
-      '2.2. The Provider is an independent, non-profit team. The Application is '
-      'offered free of charge, contains no advertising, sells no goods or '
+      '2.2. The project operates for educational and research purposes on a '
+      'non-profit basis. The Application is offered free of charge, contains no advertising, sells no goods or '
       'services and generates no revenue from its use.',
     ),
 
@@ -895,9 +962,10 @@ const LegalDocument _termsEn = LegalDocument(
 
     LegalBlock.heading('5. Account and credentials'),
     LegalBlock.paragraph(
-      '5.1. Registration requires a valid email address and a password. The '
-      'Account Holder is solely responsible for the accuracy of the data '
-      'provided.',
+      '5.1. Registration requires a valid email address and a password. Before '
+      'using the Application, the Account Holder must confirm their email '
+      'through the link sent to it. The Account Holder is solely responsible '
+      'for the accuracy of the data provided.',
     ),
     LegalBlock.paragraph(
       '5.2. Credentials are personal and non-transferable. The Account Holder '
@@ -970,8 +1038,8 @@ const LegalDocument _termsEn = LegalDocument(
     LegalBlock.paragraph(
       '9.1. The Application and all Content, including without limitation the '
       'animated videos, pictograms, voice-overs, character design, interfaces, '
-      'source code and databases, are owned by the Provider or its respective '
-      'authors and are protected by Mexican copyright and industrial property '
+      'source code and databases, belong to their respective rights holders '
+      'and authors, as applicable, and are protected by Mexican copyright and industrial property '
       'law and applicable international treaties.',
     ),
     LegalBlock.paragraph(
@@ -1046,8 +1114,8 @@ const LegalDocument _termsEn = LegalDocument(
 
     LegalBlock.heading('14. Limitation of liability'),
     LegalBlock.paragraph(
-      '14.1. To the maximum extent permitted by law, the Provider, its members '
-      'and collaborators shall not be liable for indirect, incidental, special, '
+      '14.1. To the maximum extent permitted by law, the Provider and those '
+      'collaborating on the project shall not be liable for indirect, incidental, special, '
       'punitive or consequential damages, nor for loss of data, opportunity or '
       'profit, arising from the use or inability to use the Application.',
     ),
@@ -1144,7 +1212,7 @@ const LegalDocument _termsEn = LegalDocument(
 const LegalDocument _privacyEn = LegalDocument(
   title: 'Privacy Notice',
   shortTitle: 'Privacy Notice',
-  lastUpdated: 'September 17, 2026',
+  lastUpdated: kLegalLastUpdatedEn,
   blocks: [
     LegalBlock.paragraph(
       'This Privacy Notice is issued in compliance with the Mexican Federal Law '
@@ -1154,10 +1222,18 @@ const LegalDocument _privacyEn = LegalDocument(
 
     LegalBlock.heading('1. Data controller'),
     LegalBlock.paragraph(
-      '$kLegalResponsable, an independent non-profit team operating in '
-      '$kLegalJurisdiccion, is responsible for processing the personal data '
-      'collected through the Appy TEApoya TEAcompaña mobile application. '
-      'Address for notices on data protection matters: $kLegalContactEmail.',
+      '$kLegalResponsable, in their capacity as director of the Appy TEApoya '
+      'TEAcompaña research project, is the individual responsible for '
+      'determining the purposes and means of processing personal data '
+      'collected through the Application (the "Controller"). The project is '
+      'educational and research-oriented, non-profit, and supported by a '
+      'development team that assists with its operation.',
+    ),
+    LegalBlock.paragraph(
+      'Controller\'s physical address for legal notices: $kLegalDomicilio.',
+    ),
+    LegalBlock.paragraph(
+      'Privacy and data rights contact email: $kLegalContactEmail.',
     ),
 
     LegalBlock.heading('2. Personal data processed'),
@@ -1165,8 +1241,9 @@ const LegalDocument _privacyEn = LegalDocument(
       'Identification and contact data: display name and email address.',
     ),
     LegalBlock.bullet(
-      'Authentication data: password, stored encrypted by the authentication '
-      'provider. The controller has no access to it in readable form.',
+      'Authentication data: sign-in credentials are managed by Firebase '
+      'Authentication, which protects passwords using cryptographic hashing. '
+      'The Controller does not have access to users’ original passwords.',
     ),
     LegalBlock.bullet(
       'Account records: creation date and, where applicable, deletion request '
@@ -1183,8 +1260,24 @@ const LegalDocument _privacyEn = LegalDocument(
       'levels.',
     ),
     LegalBlock.bullet(
-      'Consent record: accepted version of the legal documents and date of '
-      'acceptance.',
+      'Child profile data: the name the adult gives each profile (a nickname '
+      'is recommended), the profile\'s accessibility and learning preferences '
+      '(text size, high contrast, reduced animations, audio and haptic '
+      'feedback, reminders and their schedule) and the number of enabled '
+      'modules.',
+    ),
+    LegalBlock.bullet(
+      'Consent record: accepted version of the legal documents, date of '
+      'acceptance, confirmation of the email address and date the consent '
+      'confirmation email was sent.',
+    ),
+    LegalBlock.bullet(
+      'Technical authentication data: Google Firebase Authentication may '
+      'automatically process IP addresses and user-agent information (for '
+      'example, software and platform details) during registration and sign-in '
+      'for security, abuse prevention and service operation. The '
+      'infrastructure provider processes this information; the project does '
+      'not use it for advertising or commercial profiling.',
     ),
     LegalBlock.paragraph(
       'No financial, biometric, geolocation, image, audio, contact or device '
@@ -1199,10 +1292,12 @@ const LegalDocument _privacyEn = LegalDocument(
       'personal data under Mexican law.',
     ),
     LegalBlock.paragraph(
-      'For that reason, processing requires the express consent of the data '
-      'subject or of the person exercising parental authority or guardianship, '
-      'obtained through electronic acceptance of this Notice. No diagnosis, '
-      'clinical record or additional health data is requested.',
+      'Under Article 8 of the applicable Mexican law, sensitive personal data '
+      'requires express written consent, through a signature or an applicable '
+      'authentication mechanism. The Application requests electronic '
+      'acceptance of this Notice by the adult legal representative and retains '
+      'a record of that acceptance. No diagnosis, clinical record or '
+      'additional health data is requested.',
     ),
 
     LegalBlock.heading('4. Data of minors'),
@@ -1212,6 +1307,13 @@ const LegalDocument _privacyEn = LegalDocument(
       'User, who gives consent on their behalf in accordance with the principle '
       'of the best interests of the child. The Application creates no public '
       'profiles and allows no communication between users.',
+    ),
+    LegalBlock.paragraph(
+      'Before the Assisted User uses the Application, the adult must: (i) '
+      'confirm their email address through the link sent to it; and (ii) read '
+      'and expressly accept this Notice and the Terms and Conditions. After '
+      'acceptance, the Controller sends that address an email confirming the '
+      'consent given and explaining how to withdraw it.',
     ),
 
     LegalBlock.heading('5. Primary purposes'),
@@ -1240,9 +1342,13 @@ const LegalDocument _privacyEn = LegalDocument(
     LegalBlock.paragraph(
       'The following purpose is not necessary for the service and may be '
       'disabled at any time from the settings screen, under "Privacy and data": '
-      'generation of dissociated usage metrics in order to assess the relevance '
-      'of educational content and improve the Application. This option is '
-      'disabled by default. Refusal will not be grounds for denying the service.',
+      'generation of activity usage metrics (for example, duration, attempts '
+      'and whether the activity was completed) in order to assess the '
+      'relevance of educational content and improve the Application. Metrics '
+      'are linked only to the child profile\'s internal identifier, never to a '
+      'name or email address, and are deleted when the profile or account is '
+      'deleted. This option is disabled by default. Refusal will not be '
+      'grounds for denying the service.',
     ),
 
     LegalBlock.heading('7. Limitation of use and disclosure'),
@@ -1263,24 +1369,23 @@ const LegalDocument _privacyEn = LegalDocument(
       'database and content storage services.',
     ),
     LegalBlock.paragraph(
-      '8.2. This entails sending data to servers that may be located outside '
+      '8.2. To send the consent confirmation email, the controller uses an '
+      'email delivery provider as data processor, which receives only the '
+      'adult\'s email address, their display name and the message content.',
+    ),
+    LegalBlock.paragraph(
+      '8.3. This entails sending data to servers that may be located outside '
       'Mexico. The processor is contractually bound to process data only on the '
       'controller\'s instructions and to maintain equivalent security measures.',
     ),
     LegalBlock.paragraph(
-      '8.3. Apart from the above, no personal data is transferred to third '
+      '8.4. Apart from the above, no personal data is transferred to third '
       'parties, except in the cases provided by law, including requests from '
       'competent authorities based on a duly founded and reasoned decision.',
     ),
 
     LegalBlock.heading('9. Data that does not leave the device'),
-    LegalBlock.bullet('Theme, font size and language.'),
-    LegalBlock.bullet(
-      'Accessibility preferences: high contrast, reduced animations, audio and '
-      'haptic feedback.',
-    ),
-    LegalBlock.bullet('Practice reminders and configured schedule.'),
-    LegalBlock.bullet('Parental control configuration.'),
+    LegalBlock.bullet('App theme and language.'),
     LegalBlock.bullet(
       'Parental access code (PIN), deleted when the account is removed.',
     ),
@@ -1288,18 +1393,29 @@ const LegalDocument _privacyEn = LegalDocument(
     LegalBlock.heading('10. Retention period'),
     LegalBlock.paragraph(
       'Data is retained while the account and the relationship with the '
-      'controller subsist. Upon a deletion request, access is cancelled, locally '
-      'stored data is removed and the record is marked for deletion, retaining '
-      'only information whose storage is legally required, for the applicable '
-      'legal periods.',
+      'Controller subsist. When an account is deleted, access is terminated and '
+      'associated account data, including Application records stored with the '
+      'services used, usage metrics and corresponding local data, is deleted, '
+      'except information whose retention is legally required or necessary to '
+      'address liabilities arising from processing during the applicable '
+      'periods.',
+    ),
+    LegalBlock.paragraph(
+      'When a child profile is deleted, its progress, customisation, '
+      'preferences and usage metrics are deleted.',
+    ),
+    LegalBlock.paragraph(
+      'Technical backup copies, if retained by the infrastructure provider, '
+      'may be subject to that provider\'s own deletion timelines and retention '
+      'policies.',
     ),
 
     LegalBlock.heading('11. Security measures'),
     LegalBlock.paragraph(
       'Administrative and technical measures have been implemented to protect '
       'personal data against damage, loss, alteration, destruction or '
-      'unauthorised access, including password encryption, per-account '
-      'authentication and database security rules. No system is invulnerable; '
+      'unauthorised access, including password hashing by the authentication '
+      'provider, per-account authentication and database security rules. No system is invulnerable; '
       'users contribute by using a strong, unique password.',
     ),
     LegalBlock.paragraph(

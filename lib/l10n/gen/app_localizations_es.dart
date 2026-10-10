@@ -58,7 +58,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteAccountConfirmBody =>
-      'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares y progresos. Las métricas anónimas ya enviadas no se pueden eliminar. Escribe BORRAR para continuar.';
+      'Se eliminará tu cuenta y los perfiles infantiles vinculados, incluidos sus avatares, progresos y métricas de uso. Escribe BORRAR para continuar.';
 
   @override
   String get deleteAccountConfirmAction => 'BORRAR';
@@ -146,14 +146,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get clearCache => 'Limpiar caché de recursos';
 
   @override
-  String get sendMetrics => 'Enviar métricas anónimas';
+  String get sendMetrics => 'Enviar métricas de uso';
 
   @override
   String get telemetryConsentTitle => 'Ayúdanos a mejorar';
 
   @override
   String get telemetryConsentBody =>
-      'Para mejorar la experiencia, Appy puede enviar métricas anónimas sobre el uso de las actividades. No se envían datos personales y puedes revisarlo cuando quieras en Ajustes.';
+      'Para generar indicadores del desempeño educativo, Appy puede recopilar metricas seudonimizadas sobre el uso de actividades. Estos datos se asocian a un identificador de cuenta y no incluyen nombres ni correos electronicos.\nEsta recopilación es opcional. Puedes rechazarla sin perder acceso a las actividades y cambiar tu eleccion en cualquier momento desde las configuraciones';
 
   @override
   String get telemetryConsentAccept => 'Aceptar';
@@ -410,7 +410,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String profileDeleteBody(String name) {
-    return 'Se eliminará el perfil de $name, incluyendo su avatar, ajustes y progreso. Esta acción no se puede deshacer.';
+    return 'Se eliminará el perfil de $name, incluyendo su avatar, ajustes, progreso y métricas de uso. Esta acción no se puede deshacer.';
   }
 
   @override
@@ -444,4 +444,83 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get completionRewardsLoading => 'Cargando recompensas';
+
+  @override
+  String get legalConsentTitle => 'Antes de continuar';
+
+  @override
+  String get legalConsentSubtitle =>
+      'Lee y acepta los documentos que rigen el uso de Appy y el tratamiento de los datos personales.';
+
+  @override
+  String get legalConsentRead => 'Leído';
+
+  @override
+  String get legalConsentUnread => 'Sin leer';
+
+  @override
+  String get legalConsentSensitiveNote =>
+      'Appy está dirigida al apoyo de personas con Trastorno del Espectro Autista. Por ello, el uso de la aplicación puede relacionarse con información sobre la salud de la persona menor de edad, considerada dato personal sensible. La legislación exige que el consentimiento se otorgue de forma expresa.';
+
+  @override
+  String get legalConsentCheckbox =>
+      'He leído y acepto los Términos y Condiciones y el Aviso de Privacidad, y manifiesto que soy mayor de edad y que soy madre, padre o tutor legal de quien usará la aplicación.';
+
+  @override
+  String get legalConsentReadBothHint =>
+      'Abre y lee ambos documentos para poder aceptar.';
+
+  @override
+  String get legalConsentDecline => 'No acepto';
+
+  @override
+  String get legalConsentAccept => 'Acepto';
+
+  @override
+  String get legalConsentSaveFailed =>
+      'No se pudo registrar tu aceptación. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get legalConsentDeclineTitle => 'Continuar sin aceptar';
+
+  @override
+  String get legalConsentDeclineBody =>
+      'Para usar Appy es necesario aceptar los Términos y Condiciones y el Aviso de Privacidad. Si prefieres no hacerlo ahora, cerraremos tu sesión y podrás volver cuando quieras.';
+
+  @override
+  String get legalConsentKeepReading => 'Seguir leyendo';
+
+  @override
+  String get verifyEmailTitle => 'Confirma tu correo';
+
+  @override
+  String verifyEmailBody(String email) {
+    return 'Enviamos un enlace a $email. Ábrelo para confirmar que eres la persona adulta responsable de la cuenta. Este paso es necesario antes de que una niña o un niño use Appy.';
+  }
+
+  @override
+  String get verifyEmailSpamHint =>
+      'Si no lo ves, revisa la carpeta de correo no deseado.';
+
+  @override
+  String get verifyEmailConfirmed => 'Ya lo confirmé';
+
+  @override
+  String get verifyEmailResend => 'Reenviar correo';
+
+  @override
+  String verifyEmailResendIn(int seconds) {
+    return 'Reenviar en $seconds s';
+  }
+
+  @override
+  String get verifyEmailSent => 'Te enviamos un nuevo enlace.';
+
+  @override
+  String get verifyEmailSendFailed =>
+      'No se pudo enviar el correo. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get verifyEmailNotYet =>
+      'Todavía no vemos tu correo confirmado. Abre el enlace y vuelve a intentarlo.';
 }

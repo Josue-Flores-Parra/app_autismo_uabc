@@ -8,6 +8,7 @@ import '../../legal/viewmodel/legal_viewmodel.dart';
 import '../../onboarding/data/onboarding_service.dart';
 import '../../onboarding/view/onboarding_screen.dart';
 import 'login_screen.dart';
+import 'verify_email_screen.dart';
 import '../../../features/profiles/viewmodel/profile_viewmodel.dart';
 import '../../../features/profiles/view/profile_screens.dart';
 import '../../../features/profiles/model/learner_profile.dart';
@@ -93,7 +94,13 @@ class _AuthGateState extends State<AuthGate> {
           }
           return const LoginScreen();
         }
-        // 3) Usuario presente: antes de la app, la aceptación de los
+        // 3) Usuario presente con correo sin verificar: primer paso del
+        //    consentimiento parental. Ningún perfil infantil se carga antes.
+        if (!authViewModel.currentUser!.emailVerified) {
+          return const VerifyEmailScreen();
+        }
+
+        // 4) Correo verificado: antes de la app, la aceptación de los
         //    documentos legales vigentes.
         return const _LegalGate();
       },

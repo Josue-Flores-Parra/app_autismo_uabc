@@ -1,0 +1,17 @@
+{
+  "name": "appy-functions",
+  "private": true,
+  "description": "Cloud Functions de Appy: correo de confirmación del consentimiento parental.",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0",
+    "nodemailer": "^6.9.0"
+  }
+}

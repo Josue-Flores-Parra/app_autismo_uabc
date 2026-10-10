@@ -90,12 +90,22 @@ Ver `docs/features/legal.md`.
 
 | Campo | Tipo | Detalle |
 | --- | --- | --- |
-| `version` | `int` | Valor de `kLegalVersion` que la cuenta acepto. |
-| `acceptedAt` | `String` ISO 8601 | Momento de la aceptacion. |
+| `version` | `int` | Valor de `kLegalVersion` aceptado. |
+| `acceptedAt` | `String` ISO 8601 | Momento de la aceptacion, hora local del dispositivo. |
+| `acceptedAtServer` | `Timestamp` | Hora de servidor de la aceptacion; la usa la funcion de confirmacion. |
+| `consentMethod` | `String` | `email_plus`: correo verificado mas correo de confirmacion. |
+| `confirmationPending` | `bool` | `true` al aceptar; la funcion `sendConsentConfirmations` lo apaga al enviar el correo. |
+| `confirmationSentAt` | `Timestamp` | Escrito solo por la funcion al enviar la confirmacion. |
+| `confirmationVersion` | `int` | Version a la que corresponde el ultimo correo de confirmacion. |
+
+Las reglas impiden que el cliente escriba `confirmationSentAt` o
+`confirmationVersion` y que apague `confirmationPending`; solo puede encenderlo
+al aceptar.
 
 Se guarda por cuenta y no por dispositivo, de modo que reinstalar la app no
 vuelve a pedir la aceptacion y subir `kLegalVersion` si la pide de nuevo a todas
-las cuentas.
+las cuentas. Los campos de confirmacion los escribe la funcion
+`sendConsentConfirmations` con el Admin SDK.
 
 ## users.avatarConfig
 
@@ -278,6 +288,10 @@ Campos destacados (esquema v1):
 
 La escritura de telemetría la hace `ActivityTelemetryService` vía
 `TelemetryRepository`; las vistas sólo emiten señales semánticas.
+
+Retención: las sesiones se conservan hasta que se borra el perfil
+(`purgeForLearner`) o la cuenta (`purgeForAccount`). Desactivar `sendMetrics`
+detiene la recolección pero no borra el histórico.
 
 ## SharedPreferences
 

@@ -231,6 +231,21 @@ class PendingSessionStore {
     }
   }
 
+  /// Descarta los cierres pendientes del actor que pertenecen a [learnerId].
+  ///
+  /// Al borrar un perfil, un cierre guardado podría recrear su documento en el
+  /// siguiente reintento; los cierres de otros perfiles se conservan.
+  Future<void> discardTerminalsForLearner(
+    String actor,
+    String learnerId,
+  ) async {
+    for (final entry in terminals(actor)) {
+      if (entry.launch.subject.learnerId == learnerId) {
+        await clearTerminal(actor, entry.launch.sessionId);
+      }
+    }
+  }
+
   /// Un cierre anterior no puede eliminar el marcador de una sesión nueva.
   Future<void> clearIfMatches(String actor, String session) async {
     if (read(actor)?.sessionId == session) await clear(actor);

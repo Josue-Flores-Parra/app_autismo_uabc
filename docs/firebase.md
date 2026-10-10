@@ -308,6 +308,16 @@ imagenes, video y audio se leen del archivo local con la misma URL como clave.
 El `storageBucket` existe en `firebase_options.dart`, pero no hay servicio de
 Storage ni Cloud Function proxy en el repo.
 
+## Cloud Functions
+
+| Funcion | Disparador | Que hace |
+| --- | --- | --- |
+| `sendConsentConfirmations` | Programada, cada 6 horas | Busca `users` con `legal.confirmationPending == true`, aceptacion de hace 24 horas o mas y correo verificado en Auth; envia el correo de confirmacion del consentimiento y registra `confirmationSentAt` y `confirmationVersion`. |
+
+La logica de seleccion y el texto del correo estan en `functions/src/consent.js`
+y se prueban con `cd functions && npm test`, sin proyecto real. El despliegue y
+los secretos estan en `docs/environments.md`.
+
 ## Mantenimiento
 
 - Si se regenera FlutterFire, revisar `firebase.json`, `lib/firebase_options.dart`, `android/app/google-services.json` y, si aplica, `ios/Runner/GoogleService-Info.plist`.
