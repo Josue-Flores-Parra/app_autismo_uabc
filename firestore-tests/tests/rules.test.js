@@ -529,4 +529,61 @@ describe('telemetryActivitySessions rules', () => {
       await assertFails(ref(owner(), unlinked.sessionId).set(unlinked));
     });
   });
+
+  // Parental consent record: only the confirmation function (Admin SDK)
+  // may clear the pending flag or record the confirmation email.
+  describe('users.legal consent confirmation', () => {
+    const userDoc = (db) => db.collection('users').doc('uid-1');
+    const accepted = {
+      role: 'parent',
+      legal: { version: 2, consentMethod: 'email_plus', confirmationPending: true },
+    };
+
+    it('allows a parent to record an acceptance pending confirmation', async () => {
+      await assertSucceeds(userDoc(owner()).set(accepted));
+    });
+
+    it('rejects a parent writing confirmationSentAt', async () => {
+      await assertFails(
+        userDoc(owner()).set({
+          role: 'parent',
+          legal: { version: 2, confirmationPending: false, confirmationSentAt: 'now' },
+        }),
+      );
+    });
+
+    it('rejects a parent clearing the pending flag', async () => {
+      await assertSucceeds(userDoc(owner()).set(accepted));
+      await assertFails(
+        userDoc(owner()).set({ legal: { confirmationPending: false } }, { merge: true }),
+      );
+    });
+
+    it('keeps server-written confirmation fields on unrelated updates', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('users').doc('uid-1').set({
+          role: 'parent',
+          legal: {
+            version: 2,
+            confirmationPending: false,
+            confirmationVersion: 2,
+            confirmationSentAt: 'server',
+          },
+        });
+      });
+      await assertSucceeds(userDoc(owner()).set({ name: 'Ana' }, { merge: true }));
+    });
+
+    it('allows re-acceptance of a new version to request a new confirmation', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('users').doc('uid-1').set({
+          role: 'parent',
+          legal: { version: 2, confirmationPending: false, confirmationVersion: 2, confirmationSentAt: 'server' },
+        });
+      });
+      await assertSucceeds(
+        userDoc(owner()).set({ legal: { version: 3, confirmationPending: true } }, { merge: true }),
+      );
+    });
+  });
 });

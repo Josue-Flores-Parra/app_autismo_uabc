@@ -40,17 +40,42 @@ class AuthService {
       };
 
       if (legalVersionAccepted != null) {
-        userData['legal'] = {
-          'version': legalVersionAccepted,
-          'acceptedAt': DateTime.now().toIso8601String(),
-        };
+        userData['legal'] = FirestoreService.legalAcceptance(
+          legalVersionAccepted,
+        );
       }
 
       await _firestoreService.setUserData(result.user!.uid, userData);
+      // Primer paso del consentimiento parental: confirmar que el correo es de
+      // la persona adulta. Si el envío falla, la cuenta ya existe y la pantalla
+      // de verificación permite reenviarlo.
+      try {
+        await result.user!.sendEmailVerification();
+      } on FirebaseAuthException {
+        // Se reintenta desde VerifyEmailScreen.
+      }
       await result.user!.reload();
     }
 
     return result.user;
+  }
+
+  /// Envía de nuevo el enlace de verificación al correo de la cuenta actual.
+  Future<void> sendEmailVerification() async {
+    await _auth.currentUser?.sendEmailVerification();
+  }
+
+  /// Recarga la cuenta actual y devuelve si su correo ya está verificado.
+  ///
+  /// También renueva el token para que sus claims reflejen la verificación.
+  Future<bool> reloadEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    final refreshed = _auth.currentUser;
+    if (refreshed?.emailVerified != true) return false;
+    await refreshed!.getIdToken(true);
+    return true;
   }
 
   // Login

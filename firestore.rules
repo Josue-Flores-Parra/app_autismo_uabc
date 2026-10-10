@@ -10,6 +10,7 @@ service cloud.firestore {
       // A parent can initialize its own account document; a learner document
       // is addressable by a different ID but must point back to its creator.
       allow create: if request.auth != null
+        && validLegalWrite(request.resource.data, {})
         && ((request.auth.uid == userId
             && request.resource.data.get('role', '') != 'learner')
           || (request.resource.data.get('role', '') == 'learner'
@@ -17,6 +18,7 @@ service cloud.firestore {
       // Legacy accounts predate `role`/`parentUid`: missing fields read as
       // '' so their owner can still claim the parent role and update them.
       allow update: if request.auth != null
+        && validLegalWrite(request.resource.data, resource.data)
         && ((request.auth.uid == userId
             && resource.data.get('role', '') != 'learner'
             && request.resource.data.get('role', resource.data.get('role', '')) != 'learner')
@@ -101,6 +103,21 @@ service cloud.firestore {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  // Constancia de consentimiento parental ("email plus"). El cliente solo puede
+  // marcar que falta el correo de confirmación; apagar la marca y registrar el
+  // envío es exclusivo de la función sendConsentConfirmations (Admin SDK).
+  function validLegalWrite(newData, oldData) {
+    let newLegal = newData.get('legal', {});
+    let oldLegal = oldData.get('legal', {});
+    return newLegal.get('confirmationSentAt', null)
+          == oldLegal.get('confirmationSentAt', null)
+      && newLegal.get('confirmationVersion', null)
+          == oldLegal.get('confirmationVersion', null)
+      && (newLegal.get('confirmationPending', null)
+            == oldLegal.get('confirmationPending', null)
+          || newLegal.get('confirmationPending', null) == true);
+  }
 
   // Per-child learning and accessibility preferences. Absent on documents
   // written before the split; anything present must stay in range.
